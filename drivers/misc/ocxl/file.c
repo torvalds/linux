@@ -61,11 +61,7 @@ static int afu_open(struct inode *inode, struct file *file)
 	if (!info)
 		return -ENODEV;
 
-	ctx = ocxl_context_alloc();
-	if (!ctx)
-		return -ENOMEM;
-
-	rc = ocxl_context_init(ctx, info->afu, inode->i_mapping);
+	rc = ocxl_context_alloc(&ctx, info->afu, inode->i_mapping);
 	if (rc)
 		return rc;
 
@@ -90,7 +86,7 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 		return -EINVAL;
 
 	amr = arg.amr & mfspr(SPRN_UAMOR);
-	rc = ocxl_context_attach(ctx, amr);
+	rc = ocxl_context_attach(ctx, amr, current->mm);
 	return rc;
 }
 

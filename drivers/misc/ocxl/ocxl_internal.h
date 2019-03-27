@@ -130,15 +130,9 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
  */
 int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid);
 
-struct ocxl_context *ocxl_context_alloc(void);
-int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
-			struct address_space *mapping);
-int ocxl_context_attach(struct ocxl_context *ctx, u64 amr);
 int ocxl_context_mmap(struct ocxl_context *ctx,
 			struct vm_area_struct *vma);
-int ocxl_context_detach(struct ocxl_context *ctx);
 void ocxl_context_detach_all(struct ocxl_afu *afu);
-void ocxl_context_free(struct ocxl_context *ctx);
 
 int ocxl_sysfs_register_afu(struct ocxl_file_info *info);
 void ocxl_sysfs_unregister_afu(struct ocxl_file_info *info);

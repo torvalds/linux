@@ -4,15 +4,17 @@
 #include "trace.h"
 #include "ocxl_internal.h"
 
-struct ocxl_context *ocxl_context_alloc(void)
-{
-	return kzalloc(sizeof(struct ocxl_context), GFP_KERNEL);
-}
-
-int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
+int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 		struct address_space *mapping)
 {
 	int pasid;
+	struct ocxl_context *ctx;
+
+	*context = kzalloc(sizeof(struct ocxl_context), GFP_KERNEL);
+	if (!*context)
+		return -ENOMEM;
+
+	ctx = *context;
 
 	ctx->afu = afu;
 	mutex_lock(&afu->contexts_lock);
@@ -43,6 +45,7 @@ int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
 	ocxl_afu_get(afu);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_context_alloc);
 
 /*
  * Callback for when a translation fault triggers an error
@@ -63,7 +66,7 @@ static void xsl_fault_error(void *data, u64 addr, u64 dsisr)
 	wake_up_all(&ctx->events_wq);
 }
 
-int ocxl_context_attach(struct ocxl_context *ctx, u64 amr)
+int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 {
 	int rc;
 
@@ -75,7 +78,7 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr)
 	}
 
 	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid,
-			current->mm->context.id, ctx->tidr, amr, current->mm,
+			mm->context.id, ctx->tidr, amr, mm,
 			xsl_fault_error, ctx);
 	if (rc)
 		goto out;
@@ -85,6 +88,7 @@ out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_context_attach);
 
 static vm_fault_t map_afu_irq(struct vm_area_struct *vma, unsigned long address,
 		u64 offset, struct ocxl_context *ctx)
@@ -243,6 +247,7 @@ int ocxl_context_detach(struct ocxl_context *ctx)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_context_detach);
 
 void ocxl_context_detach_all(struct ocxl_afu *afu)
 {
@@ -280,3 +285,4 @@ void ocxl_context_free(struct ocxl_context *ctx)
 	ocxl_afu_put(ctx->afu);
 	kfree(ctx);
 }
+EXPORT_SYMBOL_GPL(ocxl_context_free);

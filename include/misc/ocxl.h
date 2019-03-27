@@ -48,6 +48,7 @@ struct ocxl_fn_config {
 // These are opaque outside the ocxl driver
 struct ocxl_afu;
 struct ocxl_fn;
+struct ocxl_context;
 
 // Device detection & initialisation
 
@@ -115,6 +116,44 @@ const struct ocxl_fn_config *ocxl_function_config(struct ocxl_fn *fn);
  *
  */
 void ocxl_function_close(struct ocxl_fn *fn);
+
+// Context allocation
+
+/**
+ * Allocate an OpenCAPI context
+ *
+ * @context: The OpenCAPI context to allocate, must be freed with ocxl_context_free
+ * @afu: The AFU the context belongs to
+ * @mapping: The mapping to unmap when the context is closed (may be NULL)
+ */
+int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
+			struct address_space *mapping);
+
+/**
+ * Free an OpenCAPI context
+ *
+ * @ctx: The OpenCAPI context to free
+ */
+void ocxl_context_free(struct ocxl_context *ctx);
+
+/**
+ * Grant access to an MM to an OpenCAPI context
+ * @ctx: The OpenCAPI context to attach
+ * @amr: The value of the AMR register to restrict access
+ * @mm: The mm to attach to the context
+ *
+ * Returns 0 on success, negative on failure
+ */
+int ocxl_context_attach(struct ocxl_context *ctx, u64 amr,
+				struct mm_struct *mm);
+
+/**
+ * Detach an MM from an OpenCAPI context
+ * @ctx: The OpenCAPI context to attach
+ *
+ * Returns 0 on success, negative on failure
+ */
+int ocxl_context_detach(struct ocxl_context *ctx);
 
 // AFU Metadata
 
