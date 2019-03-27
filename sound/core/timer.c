@@ -38,6 +38,7 @@
 
 /* internal flags */
 #define SNDRV_TIMER_IFLG_PAUSED		0x00010000
+#define SNDRV_TIMER_IFLG_DEAD		0x00020000
 
 #if IS_ENABLED(CONFIG_SND_HRTIMER)
 #define DEFAULT_TIMER_LIMIT 4
@@ -353,15 +354,20 @@ EXPORT_SYMBOL(snd_timer_open);
  */
 static int snd_timer_close_locked(struct snd_timer_instance *timeri)
 {
-	struct snd_timer *timer = NULL;
+	struct snd_timer *timer = timeri->timer;
 	struct snd_timer_instance *slave, *tmp;
+
+	if (timer) {
+		spin_lock_irq(&timer->lock);
+		timeri->flags |= SNDRV_TIMER_IFLG_DEAD;
+		spin_unlock_irq(&timer->lock);
+	}
 
 	list_del(&timeri->open_list);
 
 	/* force to stop the timer */
 	snd_timer_stop(timeri);
 
-	timer = timeri->timer;
 	if (timer) {
 		timer->num_instances--;
 		/* wait, until the active callback is finished */
@@ -497,6 +503,10 @@ static int snd_timer_start1(struct snd_timer_instance *timeri,
 		return -EINVAL;
 
 	spin_lock_irqsave(&timer->lock, flags);
+	if (timeri->flags & SNDRV_TIMER_IFLG_DEAD) {
+		result = -EINVAL;
+		goto unlock;
+	}
 	if (timer->card && timer->card->shutdown) {
 		result = -ENODEV;
 		goto unlock;
@@ -541,11 +551,16 @@ static int snd_timer_start_slave(struct snd_timer_instance *timeri,
 				 bool start)
 {
 	unsigned long flags;
+	int err;
 
 	spin_lock_irqsave(&slave_active_lock, flags);
+	if (timeri->flags & SNDRV_TIMER_IFLG_DEAD) {
+		err = -EINVAL;
+		goto unlock;
+	}
 	if (timeri->flags & SNDRV_TIMER_IFLG_RUNNING) {
-		spin_unlock_irqrestore(&slave_active_lock, flags);
-		return -EBUSY;
+		err = -EBUSY;
+		goto unlock;
 	}
 	timeri->flags |= SNDRV_TIMER_IFLG_RUNNING;
 	if (timeri->master && timeri->timer) {
@@ -556,8 +571,10 @@ static int snd_timer_start_slave(struct snd_timer_instance *timeri,
 				  SNDRV_TIMER_EVENT_CONTINUE);
 		spin_unlock(&timeri->timer->lock);
 	}
+	err = 1; /* delayed start */
+ unlock:
 	spin_unlock_irqrestore(&slave_active_lock, flags);
-	return 1; /* delayed start */
+	return err;
 }
 
 /* stop/pause a master timer */
@@ -731,14 +748,16 @@ static void snd_timer_process_callbacks(struct snd_timer *timer,
 		ti = list_first_entry(head, struct snd_timer_instance,
 				      ack_list);
 
-		ticks = ti->pticks;
-		ti->pticks = 0;
-		resolution = ti->resolution;
+		if (!(ti->flags & SNDRV_TIMER_IFLG_DEAD)) {
+			ticks = ti->pticks;
+			ti->pticks = 0;
+			resolution = ti->resolution;
 
-		spin_unlock(&timer->lock);
-		if (ti->callback)
-			ti->callback(ti, resolution, ticks);
-		spin_lock(&timer->lock);
+			spin_unlock(&timer->lock);
+			if (ti->callback)
+				ti->callback(ti, resolution, ticks);
+			spin_lock(&timer->lock);
+		}
 
 		/* remove from ack_list and make empty */
 		list_del_init(&ti->ack_list);
@@ -810,6 +829,8 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 	 */
 	list_for_each_entry_safe(ti, tmp, &timer->active_list_head,
 				 active_list) {
+		if (ti->flags & SNDRV_TIMER_IFLG_DEAD)
+			continue;
 		if (!(ti->flags & SNDRV_TIMER_IFLG_RUNNING))
 			continue;
 		ti->pticks += ticks_left;
