@@ -384,7 +384,12 @@ retry_ipi:
 			mask_ofl_test |= mask;
 			continue;
 		}
+		if (get_cpu() == cpu) {
+			put_cpu();
+			continue;
+		}
 		ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
+		put_cpu();
 		if (!ret) {
 			mask_ofl_ipi &= ~mask;
 			continue;
