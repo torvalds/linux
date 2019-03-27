@@ -1092,10 +1092,7 @@ struct btrfs_fs_info {
 
 	/* holds configuration and tracking. Protected by qgroup_lock */
 	struct rb_root qgroup_tree;
-	struct rb_root qgroup_op_tree;
 	spinlock_t qgroup_lock;
-	spinlock_t qgroup_op_lock;
-	atomic_t qgroup_op_seq;
 
 	/*
 	 * used to avoid frequently calling ulist_alloc()/ulist_free()
