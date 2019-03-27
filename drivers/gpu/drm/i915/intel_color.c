@@ -883,6 +883,55 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
+{
+	u32 gamma_mode = 0;
+
+	if (crtc_state->base.degamma_lut)
+		gamma_mode |= PRE_CSC_GAMMA_ENABLE;
+
+	if (crtc_state->base.gamma_lut &&
+	    !crtc_state->c8_planes)
+		gamma_mode |= POST_CSC_GAMMA_ENABLE;
+
+	if (!crtc_state->base.gamma_lut ||
+	    crtc_state_is_legacy_gamma(crtc_state))
+		gamma_mode |= GAMMA_MODE_MODE_8BIT;
+	else
+		gamma_mode |= GAMMA_MODE_MODE_10BIT;
+
+	return gamma_mode;
+}
+
+static u32 icl_csc_mode(const struct intel_crtc_state *crtc_state)
+{
+	u32 csc_mode = 0;
+
+	if (crtc_state->base.ctm)
+		csc_mode |= ICL_CSC_ENABLE;
+
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
+	    crtc_state->limited_color_range)
+		csc_mode |= ICL_OUTPUT_CSC_ENABLE;
+
+	return csc_mode;
+}
+
+static int icl_color_check(struct intel_crtc_state *crtc_state)
+{
+	int ret;
+
+	ret = check_luts(crtc_state);
+	if (ret)
+		return ret;
+
+	crtc_state->gamma_mode = icl_gamma_mode(crtc_state);
+
+	crtc_state->csc_mode = icl_csc_mode(crtc_state);
+
+	return 0;
+}
+
 static int _intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
@@ -915,28 +964,12 @@ static int _intel_color_check(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->gamma_enable ||
 	    crtc_state_is_legacy_gamma(crtc_state))
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
-	else if (INTEL_GEN(dev_priv) >= 11)
-		crtc_state->gamma_mode = GAMMA_MODE_MODE_10BIT |
-					 PRE_CSC_GAMMA_ENABLE |
-					 POST_CSC_GAMMA_ENABLE;
 	else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_10BIT;
 	else if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
 	else
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
-
-	if (INTEL_GEN(dev_priv) >= 11) {
-		if (crtc_state->gamma_enable)
-			crtc_state->gamma_mode |= POST_CSC_GAMMA_ENABLE;
-
-		if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
-		    crtc_state->limited_color_range)
-			crtc_state->csc_mode |= ICL_OUTPUT_CSC_ENABLE;
-
-		if (crtc_state->base.ctm)
-			crtc_state->csc_mode |= ICL_CSC_ENABLE;
-	}
 
 	return 0;
 }
@@ -958,7 +991,10 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.load_luts = i9xx_load_luts;
 		}
 	} else {
-		dev_priv->display.color_check = _intel_color_check;
+		if (INTEL_GEN(dev_priv) >= 11)
+			dev_priv->display.color_check = icl_color_check;
+		else
+			dev_priv->display.color_check = _intel_color_check;
 
 		if (INTEL_GEN(dev_priv) >= 9)
 			dev_priv->display.color_commit = skl_color_commit;
