@@ -45,6 +45,12 @@ struct ocxl_fn_config {
 	s8 max_afu_index;
 };
 
+enum ocxl_endian {
+	OCXL_BIG_ENDIAN = 0,    /**< AFU data is big-endian */
+	OCXL_LITTLE_ENDIAN = 1, /**< AFU data is little-endian */
+	OCXL_HOST_ENDIAN = 2,   /**< AFU data is the same endianness as the host */
+};
+
 // These are opaque outside the ocxl driver
 struct ocxl_afu;
 struct ocxl_fn;
@@ -230,6 +236,110 @@ void ocxl_afu_set_private(struct ocxl_afu *afu, void *private);
  */
 void *ocxl_afu_get_private(struct ocxl_afu *dev);
 
+// Global MMIO
+/**
+ * Read a 32 bit value from global MMIO
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @val: returns the value
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_read32(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u32 *val);
+
+/**
+ * Read a 64 bit value from global MMIO
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @val: returns the value
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_read64(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u64 *val);
+
+/**
+ * Write a 32 bit value to global MMIO
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @val: The value to write
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_write32(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u32 val);
+
+/**
+ * Write a 64 bit value to global MMIO
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @val: The value to write
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_write64(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u64 val);
+
+/**
+ * Set bits in a 32 bit global MMIO register
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @mask: a mask of the bits to set
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_set32(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u32 mask);
+
+/**
+ * Set bits in a 64 bit global MMIO register
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @mask: a mask of the bits to set
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_set64(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u64 mask);
+
+/**
+ * Set bits in a 32 bit global MMIO register
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @mask: a mask of the bits to set
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_clear32(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u32 mask);
+
+/**
+ * Set bits in a 64 bit global MMIO register
+ *
+ * @afu: The AFU
+ * @offset: The Offset from the start of MMIO
+ * @endian: the endianness that the MMIO data is in
+ * @mask: a mask of the bits to set
+ *
+ * Returns 0 for success, negative on error
+ */
+int ocxl_global_mmio_clear64(struct ocxl_afu *afu, size_t offset,
+				enum ocxl_endian endian, u64 mask);
 
 // Functions left here are for compatibility with the cxlflash driver
 
