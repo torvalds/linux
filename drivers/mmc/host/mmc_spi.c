@@ -1489,7 +1489,6 @@ fail_ones_dma:
 fail_nobuf1:
 	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
-	dev_set_drvdata(&spi->dev, NULL);
 
 nomem:
 	kfree(ones);
@@ -1524,7 +1523,6 @@ static int mmc_spi_remove(struct spi_device *spi)
 		spi->max_speed_hz = mmc->f_max;
 		mmc_free_host(mmc);
 		mmc_spi_put_pdata(spi);
-		dev_set_drvdata(&spi->dev, NULL);
 	}
 	return 0;
 }
