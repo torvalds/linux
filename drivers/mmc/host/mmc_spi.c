@@ -197,7 +197,7 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 			unsigned n, u8 byte)
 {
-	u8		*cp = host->data->status;
+	u8 *cp = host->data->status;
 	unsigned long start = jiffies;
 
 	while (1) {
@@ -220,7 +220,7 @@ static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 		 * We use jiffies here because we want to have a relation
 		 * between elapsed time and the blocking of the scheduler.
 		 */
-		if (time_is_before_jiffies(start+1))
+		if (time_is_before_jiffies(start + 1))
 			schedule();
 	}
 	return -ETIMEDOUT;
@@ -415,7 +415,7 @@ checkstatus:
 
 	default:
 		dev_dbg(&host->spi->dev, "bad response type %04x\n",
-				mmc_spi_resp_type(cmd));
+			mmc_spi_resp_type(cmd));
 		if (value >= 0)
 			value = -EINVAL;
 		goto done;
@@ -467,8 +467,8 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	memset(cp, 0xff, sizeof(data->status));
 
 	cp[1] = 0x40 | cmd->opcode;
-	put_unaligned_be32(cmd->arg, cp+2);
-	cp[6] = crc7_be(0, cp+1, 5) | 0x01;
+	put_unaligned_be32(cmd->arg, cp + 2);
+	cp[6] = crc7_be(0, cp + 1, 5) | 0x01;
 	cp += 7;
 
 	/* Then, read up to 13 bytes (while writing all-ones):
@@ -642,9 +642,7 @@ mmc_spi_setup_data_message(
 	if (multiple || direction == DMA_TO_DEVICE) {
 		t = &host->early_status;
 		memset(t, 0, sizeof(*t));
-		t->len = (direction == DMA_TO_DEVICE)
-				? sizeof(scratch->status)
-				: 1;
+		t->len = (direction == DMA_TO_DEVICE) ? sizeof(scratch->status) : 1;
 		t->tx_buf = host->ones;
 		t->tx_dma = host->ones_dma;
 		t->rx_buf = scratch->status;
@@ -677,8 +675,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	u32			pattern;
 
 	if (host->mmc->use_spi_crc)
-		scratch->crc_val = cpu_to_be16(
-				crc_itu_t(0, t->tx_buf, t->len));
+		scratch->crc_val = cpu_to_be16(crc_itu_t(0, t->tx_buf, t->len));
 	if (host->dma_dev)
 		dma_sync_single_for_device(host->dma_dev,
 				host->data_dma, sizeof(*scratch),
@@ -949,9 +946,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 			dev_dbg(&host->spi->dev,
 				"    mmc_spi: %s block, %d bytes\n",
-				(direction == DMA_TO_DEVICE)
-				? "write"
-				: "read",
+				(direction == DMA_TO_DEVICE) ? "write" : "read",
 				t->len);
 
 			if (direction == DMA_TO_DEVICE)
@@ -978,8 +973,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		if (status < 0) {
 			data->error = status;
 			dev_dbg(&spi->dev, "%s status %d\n",
-				(direction == DMA_TO_DEVICE)
-					? "write" : "read",
+				(direction == DMA_TO_DEVICE) ? "write" : "read",
 				status);
 			break;
 		}
@@ -1473,7 +1467,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	return 0;
 
 fail_add_host:
-	mmc_remove_host (mmc);
+	mmc_remove_host(mmc);
 fail_glue_init:
 	if (host->dma_dev)
 		dma_unmap_single(host->dma_dev, host->data_dma,
