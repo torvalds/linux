@@ -97,9 +97,14 @@ enum mvpp22_cls_c2_fwd_action {
 
 struct mvpp2_cls_c2_entry {
 	u32 index;
+	/* TCAM lookup key */
 	u32 tcam[MVPP2_CLS_C2_TCAM_WORDS];
+	/* Actions to perform upon TCAM match */
 	u32 act;
+	/* Attributes relative to the actions to perform */
 	u32 attr[MVPP2_CLS_C2_ATTR_WORDS];
+	/* Entry validity */
+	u8 valid;
 };
 
 /* Classifier C2 engine entries */
