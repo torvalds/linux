@@ -121,6 +121,10 @@ static void vmw_resource_release(struct kref *kref)
 		}
 		res->backup_dirty = false;
 		vmw_resource_mob_detach(res);
+		if (res->dirty)
+			res->func->dirty_free(res);
+		if (res->coherent)
+			vmw_bo_dirty_release(res->backup);
 		ttm_bo_unreserve(bo);
 		vmw_bo_unreference(&res->backup);
 	}
@@ -210,7 +214,9 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 	res->backup_offset = 0;
 	res->backup_dirty = false;
 	res->res_dirty = false;
+	res->coherent = false;
 	res->used_prio = 3;
+	res->dirty = NULL;
 	if (delay_id)
 		return 0;
 	else
@@ -397,6 +403,30 @@ static int vmw_resource_do_validate(struct vmw_resource *res,
 			vmw_resource_mob_attach(res);
 	}
 
+	/*
+	 * Handle the case where the backup mob is marked coherent but
+	 * the resource isn't.
+	 */
+	if (func->dirty_alloc && vmw_resource_mob_attached(res) &&
+	    !res->coherent) {
+		if (res->backup->dirty && !res->dirty) {
+			ret = func->dirty_alloc(res);
+			if (ret)
+				return ret;
+		} else if (!res->backup->dirty && res->dirty) {
+			func->dirty_free(res);
+		}
+	}
+
+	/*
+	 * Transfer the dirty regions to the resource and update
+	 * the resource.
+	 */
+	if (res->dirty) {
+		vmw_bo_dirty_transfer_to_res(res);
+		return func->dirty_sync(res);
+	}
+
 	return 0;
 
 out_bind_failed:
@@ -435,16 +465,28 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	if (switch_backup && new_backup != res->backup) {
 		if (res->backup) {
 			vmw_resource_mob_detach(res);
+			if (res->coherent)
+				vmw_bo_dirty_release(res->backup);
 			vmw_bo_unreference(&res->backup);
 		}
 
 		if (new_backup) {
 			res->backup = vmw_bo_reference(new_backup);
+
+			/*
+			 * The validation code should already have added a
+			 * dirty tracker here.
+			 */
+			WARN_ON(res->coherent && !new_backup->dirty);
+
 			vmw_resource_mob_attach(res);
 		} else {
 			res->backup = NULL;
 		}
+	} else if (switch_backup && res->coherent) {
+		vmw_bo_dirty_release(res->backup);
 	}
+
 	if (switch_backup)
 		res->backup_offset = new_backup_offset;
 
@@ -1009,4 +1051,19 @@ void vmw_resource_unpin(struct vmw_resource *res)
 enum vmw_res_type vmw_res_type(const struct vmw_resource *res)
 {
 	return res->func->res_type;
+}
+
+/**
+ * vmw_resource_update_dirty - Update a resource's dirty tracker with a
+ * sequential range of touched backing store memory.
+ * @res: The resource.
+ * @start: The first page touched.
+ * @end: The last page touched + 1.
+ */
+void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
+			       pgoff_t end)
+{
+	if (res->dirty)
+		res->func->dirty_range_add(res, start << PAGE_SHIFT,
+					   end << PAGE_SHIFT);
 }
