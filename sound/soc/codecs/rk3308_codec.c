@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/rockchip/grf.h>
 #include <linux/version.h>
@@ -120,6 +121,12 @@ enum {
 };
 
 enum {
+	EXT_MICBIAS_NONE = 0,
+	EXT_MICBIAS_FUNC1,  /* enable external micbias via GPIO */
+	EXT_MICBIAS_FUNC2,  /* enable external micbias via regulator */
+};
+
+enum {
 	PATH_IDLE = 0,
 	PATH_BUSY,
 };
@@ -144,11 +151,13 @@ struct rk3308_codec_priv {
 	struct clk *pclk;
 	struct clk *mclk_rx;
 	struct clk *mclk_tx;
+	struct gpio_desc *micbias_en_gpio;
 	struct gpio_desc *hp_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
 	struct gpio_desc *pa_drv_gpio;
 	struct snd_soc_codec *codec;
 	struct snd_soc_jack *hpdet_jack;
+	struct regulator *vcc_micbias;
 	u32 codec_ver;
 
 	/*
@@ -180,6 +189,7 @@ struct rk3308_codec_priv {
 	int dac_output;
 	int dac_path_state;
 
+	int ext_micbias;
 	int pm_state;
 
 	/* AGC L/R Off/on */
@@ -2831,6 +2841,9 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 {
 	int ret;
 
+	if (rk3308->ext_micbias != EXT_MICBIAS_NONE)
+		return 0;
+
 	/* 0. Power up the ACODEC and keep the AVDDH stable */
 
 	/* Step 1. Configure ACODEC_ADC_ANA_CON7[2:0] to the certain value */
@@ -2889,6 +2902,9 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 
 static int rk3308_codec_micbias_disable(struct rk3308_codec_priv *rk3308)
 {
+	if (rk3308->ext_micbias != EXT_MICBIAS_NONE)
+		return 0;
+
 	/* Step 0. Enable the MICBIAS and keep the Audio Codec stable */
 	/* Do nothing */
 
@@ -3934,8 +3950,10 @@ static int rk3308_codec_dapm_mic_gains(struct rk3308_codec_priv *rk3308)
 static int rk3308_codec_check_micbias(struct rk3308_codec_priv *rk3308,
 				      struct device_node *np)
 {
-	int num = 0;
+	struct device *dev = (struct device *)rk3308->plat_dev;
+	int num = 0, ret;
 
+	/* Check internal micbias */
 	rk3308->micbias1 =
 		of_property_read_bool(np, "rockchip,micbias1");
 	if (rk3308->micbias1)
@@ -3948,6 +3966,39 @@ static int rk3308_codec_check_micbias(struct rk3308_codec_priv *rk3308,
 
 	rk3308->micbias_volt = RK3308_ADC_MICBIAS_VOLT_0_85; /* by default */
 	rk3308->micbias_num = num;
+
+	/* Check external micbias */
+	rk3308->ext_micbias = EXT_MICBIAS_NONE;
+
+	rk3308->micbias_en_gpio = devm_gpiod_get_optional(dev,
+							  "micbias-en",
+							  GPIOD_IN);
+	if (!rk3308->micbias_en_gpio) {
+		dev_info(dev, "Don't need micbias-en gpio\n");
+	} else if (IS_ERR(rk3308->micbias_en_gpio)) {
+		ret = PTR_ERR(rk3308->micbias_en_gpio);
+		dev_err(dev, "Unable to claim gpio micbias-en\n");
+		return ret;
+	} else if (gpiod_get_value(rk3308->micbias_en_gpio)) {
+		rk3308->ext_micbias = EXT_MICBIAS_FUNC1;
+	}
+
+	rk3308->vcc_micbias = devm_regulator_get_optional(dev,
+							  "vmicbias");
+	if (IS_ERR(rk3308->vcc_micbias)) {
+		if (PTR_ERR(rk3308->vcc_micbias) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_info(dev, "no vmicbias regulator found\n");
+	} else {
+		ret = regulator_enable(rk3308->vcc_micbias);
+		if (ret) {
+			dev_err(dev, "Can't enable vmicbias: %d\n", ret);
+			return ret;
+		}
+		rk3308->ext_micbias = EXT_MICBIAS_FUNC2;
+	}
+
+	dev_info(dev, "Check ext_micbias: %d\n", rk3308->ext_micbias);
 
 	return 0;
 }
@@ -3984,6 +4035,7 @@ static int rk3308_codec_prepare(struct rk3308_codec_priv *rk3308)
 static int rk3308_probe(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	int ext_micbias;
 
 	rk3308->codec = codec;
 	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
@@ -3991,8 +4043,11 @@ static int rk3308_probe(struct snd_soc_codec *codec)
 	rk3308_codec_reset(codec);
 	rk3308_codec_power_on(rk3308);
 
-	/* From vendor recommend */
+	/* From vendor recommend, disable micbias at first. */
+	ext_micbias = rk3308->ext_micbias;
+	rk3308->ext_micbias = EXT_MICBIAS_NONE;
 	rk3308_codec_micbias_disable(rk3308);
+	rk3308->ext_micbias = ext_micbias;
 
 	rk3308_codec_prepare(rk3308);
 	if (!rk3308->no_hp_det)
