@@ -23,14 +23,6 @@ config NF_TABLES_IPV6
 
 if NF_TABLES_IPV6
 
-config NFT_CHAIN_ROUTE_IPV6
-	tristate "IPv6 nf_tables route chain support"
-	help
-	  This option enables the "route" chain for IPv6 in nf_tables. This
-	  chain type is used to force packet re-routing after mangling header
-	  fields such as the source, destination, flowlabel, hop-limit and
-	  the packet mark.
-
 config NFT_REJECT_IPV6
 	select NF_REJECT_IPV6
 	default NFT_REJECT

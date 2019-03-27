@@ -7530,6 +7530,7 @@ static int __init nf_tables_module_init(void)
 	if (err < 0)
 		goto err5;
 
+	nft_chain_route_init();
 	return err;
 err5:
 	rhltable_destroy(&nft_objname_ht);
@@ -7549,6 +7550,7 @@ static void __exit nf_tables_module_exit(void)
 	nfnetlink_subsys_unregister(&nf_tables_subsys);
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
 	nft_chain_filter_fini();
+	nft_chain_route_fini();
 	unregister_pernet_subsys(&nf_tables_net_ops);
 	cancel_work_sync(&trans_destroy_work);
 	rcu_barrier();

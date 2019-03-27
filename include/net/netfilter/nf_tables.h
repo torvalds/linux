@@ -1411,4 +1411,6 @@ struct nft_trans_flowtable {
 int __init nft_chain_filter_init(void);
 void nft_chain_filter_fini(void);
 
+void __init nft_chain_route_init(void);
+void nft_chain_route_fini(void);
 #endif /* _NET_NF_TABLES_H */
