@@ -389,8 +389,10 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 
 	setup_extent_mapping(tree, em, modified);
-	if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags))
+	if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags)) {
 		extent_map_device_set_bits(em, CHUNK_ALLOCATED);
+		extent_map_device_clear_bits(em, CHUNK_TRIMMED);
+	}
 out:
 	return ret;
 }

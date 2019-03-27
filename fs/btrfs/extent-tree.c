@@ -11249,6 +11249,54 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
 	return unpin_extent_range(fs_info, start, end, false);
 }
 
+static bool should_skip_trim(struct btrfs_device *device, u64 *start, u64 *len)
+{
+	u64 trimmed_start = 0, trimmed_end = 0;
+	u64 end = *start + *len - 1;
+
+	if (!find_first_extent_bit(&device->alloc_state, *start, &trimmed_start,
+				   &trimmed_end, CHUNK_TRIMMED, NULL)) {
+		u64 trimmed_len = trimmed_end - trimmed_start + 1;
+
+		if (*start < trimmed_start) {
+			if (in_range(end, trimmed_start, trimmed_len) ||
+			    end > trimmed_end) {
+				/*
+				 * start|------|end
+				 *      ts|--|trimmed_len
+				 *      OR
+				 * start|-----|end
+				 *      ts|-----|trimmed_len
+				 */
+				*len = trimmed_start - *start;
+				return false;
+			} else if (end < trimmed_start) {
+				/*
+				 * start|------|end
+				 *             ts|--|trimmed_len
+				 */
+				return false;
+			}
+		} else if (in_range(*start, trimmed_start, trimmed_len)) {
+			if (in_range(end, trimmed_start, trimmed_len)) {
+				/*
+				 * start|------|end
+				 *  ts|----------|trimmed_len
+				 */
+				return true;
+			} else {
+				/*
+				 * start|-----------|end
+				 *  ts|----------|trimmed_len
+				 */
+				*start = trimmed_end + 1;
+				*len = end - *start + 1;
+				return false;
+			}
+		}
+	}
+	return false;
+}
 /*
  * It used to be that old block groups would be left around forever.
  * Iterating over them would be enough to trim unused space.  Since we
@@ -11319,7 +11367,14 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 		start = max(range->start, start);
 		len = min(range->len, len);
 
-		ret = btrfs_issue_discard(device->bdev, start, len, &bytes);
+		if (!should_skip_trim(device, &start, &len)) {
+			ret = btrfs_issue_discard(device->bdev, start, len,
+						  &bytes);
+			if (!ret)
+				set_extent_bits(&device->alloc_state, start,
+						start + bytes - 1,
+						CHUNK_TRIMMED);
+		}
 		mutex_unlock(&fs_info->chunk_mutex);
 
 		if (ret)

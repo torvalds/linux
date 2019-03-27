@@ -27,8 +27,14 @@
 				 EXTENT_CLEAR_DATA_RESV)
 #define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING)
 
-/* Redefined bits above which are used only in the device allocation tree */
+/*
+ * Redefined bits above which are used only in the device allocation tree,
+ * shouldn't be using EXTENT_LOCKED / EXTENT_BOUNDARY / EXTENT_CLEAR_META_RESV
+ * / EXTENT_CLEAR_DATA_RESV because they have special meaning to the bit
+ * manipulation functions
+ */
 #define CHUNK_ALLOCATED EXTENT_DIRTY
+#define CHUNK_TRIMMED   EXTENT_DEFRAG
 
 /*
  * flags for bio submission. The high bits indicate the compression
