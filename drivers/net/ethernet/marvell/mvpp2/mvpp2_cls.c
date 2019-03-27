@@ -492,6 +492,47 @@ static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
 	mvpp2_cls_lookup_write(priv, &le);
 }
 
+static void mvpp2_cls_c2_write(struct mvpp2 *priv,
+			       struct mvpp2_cls_c2_entry *c2)
+{
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, c2->index);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_ACT, c2->act);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR0, c2->attr[0]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR1, c2->attr[1]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR2, c2->attr[2]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR3, c2->attr[3]);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA0, c2->tcam[0]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA1, c2->tcam[1]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA2, c2->tcam[2]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA3, c2->tcam[3]);
+	/* Writing TCAM_DATA4 flushes writes to TCAM_DATA0-4 and INV to HW */
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA4, c2->tcam[4]);
+}
+
+void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
+		       struct mvpp2_cls_c2_entry *c2)
+{
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, index);
+
+	c2->index = index;
+
+	c2->tcam[0] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA0);
+	c2->tcam[1] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA1);
+	c2->tcam[2] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA2);
+	c2->tcam[3] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA3);
+	c2->tcam[4] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA4);
+
+	c2->act = mvpp2_read(priv, MVPP22_CLS_C2_ACT);
+
+	c2->attr[0] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR0);
+	c2->attr[1] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR1);
+	c2->attr[2] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR2);
+	c2->attr[3] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR3);
+}
+
 /* Initialize the flow table entries for the given flow */
 static void mvpp2_cls_flow_init(struct mvpp2 *priv,
 				const struct mvpp2_cls_flow *flow)
@@ -741,47 +782,6 @@ static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
 		mvpp2_cls_flow_lkp_init(priv, flow);
 		mvpp2_cls_flow_init(priv, flow);
 	}
-}
-
-static void mvpp2_cls_c2_write(struct mvpp2 *priv,
-			       struct mvpp2_cls_c2_entry *c2)
-{
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, c2->index);
-
-	mvpp2_write(priv, MVPP22_CLS_C2_ACT, c2->act);
-
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR0, c2->attr[0]);
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR1, c2->attr[1]);
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR2, c2->attr[2]);
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR3, c2->attr[3]);
-
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA0, c2->tcam[0]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA1, c2->tcam[1]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA2, c2->tcam[2]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA3, c2->tcam[3]);
-	/* Writing TCAM_DATA4 flushes writes to TCAM_DATA0-4 and INV to HW */
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA4, c2->tcam[4]);
-}
-
-void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
-		       struct mvpp2_cls_c2_entry *c2)
-{
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, index);
-
-	c2->index = index;
-
-	c2->tcam[0] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA0);
-	c2->tcam[1] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA1);
-	c2->tcam[2] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA2);
-	c2->tcam[3] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA3);
-	c2->tcam[4] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA4);
-
-	c2->act = mvpp2_read(priv, MVPP22_CLS_C2_ACT);
-
-	c2->attr[0] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR0);
-	c2->attr[1] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR1);
-	c2->attr[2] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR2);
-	c2->attr[3] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR3);
 }
 
 static void mvpp2_port_c2_cls_init(struct mvpp2_port *port)
