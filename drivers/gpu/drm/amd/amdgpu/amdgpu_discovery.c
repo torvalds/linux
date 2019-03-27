@@ -28,10 +28,11 @@
 #include "nbio/nbio_2_3_offset.h"
 #include "discovery.h"
 
-#define mmMM_INDEX	0x0
-#define mmMM_INDEX_HI	0x6
-#define mmMM_DATA	0x1
-#define HW_ID_MAX	300
+#define mmRCC_CONFIG_MEMSIZE	0xde3
+#define mmMM_INDEX		0x0
+#define mmMM_INDEX_HI		0x6
+#define mmMM_DATA		0x1
+#define HW_ID_MAX		300
 
 const char *hw_id_names[HW_ID_MAX] = {
 	[MP1_HWID]		= "MP1",
@@ -134,8 +135,7 @@ static int hw_id_map[MAX_HWIP] = {
 static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *binary)
 {
 	uint32_t *p = (uint32_t *)binary;
-	uint64_t vram_size = RREG32_SOC15(NBIO, 0,
-			mmRCC_DEV0_EPF0_RCC_CONFIG_MEMSIZE) * 1024 * 1024;
+	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
 	uint64_t pos = vram_size - BINARY_MAX_SIZE;
 	unsigned long flags;
 
