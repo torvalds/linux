@@ -557,7 +557,7 @@ static int mvpp2_dbgfs_flow_init(struct dentry *parent, struct mvpp2 *priv)
 	if (!flow_dir)
 		return -ENOMEM;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
 		ret = mvpp2_dbgfs_flow_entry_init(flow_dir, priv, i);
 		if (ret)
 			return ret;

@@ -612,6 +612,8 @@
 #define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
 #define MVPP2_BIT_IN_WORD(bit)		((bit) % 32)
 
+#define MVPP2_N_PRS_FLOWS		52
+
 /* RSS constants */
 #define MVPP22_RSS_TABLE_ENTRIES	32
 

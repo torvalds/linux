@@ -22,7 +22,7 @@
 	}							\
 }
 
-static struct mvpp2_cls_flow cls_flows[MVPP2_N_FLOWS] = {
+static struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 	/* TCP over IPv4 flows, Not fragmented, no vlan tag */
 	MVPP2_DEF_FLOW(TCP_V4_FLOW, MVPP2_FL_IP4_TCP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP4_5T,
@@ -599,7 +599,7 @@ static int mvpp2_flow_set_hek_fields(struct mvpp2_cls_flow_entry *fe,
 
 struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
 {
-	if (flow >= MVPP2_N_FLOWS)
+	if (flow >= MVPP2_N_PRS_FLOWS)
 		return NULL;
 
 	return &cls_flows[flow];
@@ -624,7 +624,7 @@ static int mvpp2_port_rss_hash_opts_set(struct mvpp2_port *port, int flow_type,
 	int i, engine, flow_index;
 	u16 hash_opts;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			return -EINVAL;
@@ -713,7 +713,7 @@ static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 	int i, flow_index;
 	u16 hash_opts = 0;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			return 0;
@@ -737,7 +737,7 @@ static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
 	struct mvpp2_cls_flow *flow;
 	int i;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			break;
