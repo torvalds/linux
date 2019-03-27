@@ -674,49 +674,45 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 	config.regmap = as3722->regmap;
 
 	for (id = 0; id < AS3722_REGULATOR_ID_MAX; id++) {
+		struct regulator_desc *desc;
+
+		desc = &as3722_regs->desc[id];
 		reg_config = &as3722_regs->reg_config_data[id];
 
-		as3722_regs->desc[id].name = as3722_reg_lookup[id].name;
-		as3722_regs->desc[id].supply_name = as3722_reg_lookup[id].sname;
-		as3722_regs->desc[id].id = as3722_reg_lookup[id].regulator_id;
-		as3722_regs->desc[id].n_voltages =
-					as3722_reg_lookup[id].n_voltages;
-		as3722_regs->desc[id].type = REGULATOR_VOLTAGE;
-		as3722_regs->desc[id].owner = THIS_MODULE;
-		as3722_regs->desc[id].enable_reg =
-					as3722_reg_lookup[id].enable_reg;
-		as3722_regs->desc[id].enable_mask =
-					as3722_reg_lookup[id].enable_mask;
-		as3722_regs->desc[id].vsel_reg = as3722_reg_lookup[id].vsel_reg;
-		as3722_regs->desc[id].vsel_mask =
-					as3722_reg_lookup[id].vsel_mask;
+		desc->name = as3722_reg_lookup[id].name;
+		desc->supply_name = as3722_reg_lookup[id].sname;
+		desc->id = as3722_reg_lookup[id].regulator_id;
+		desc->n_voltages = as3722_reg_lookup[id].n_voltages;
+		desc->type = REGULATOR_VOLTAGE;
+		desc->owner = THIS_MODULE;
+		desc->enable_reg = as3722_reg_lookup[id].enable_reg;
+		desc->enable_mask = as3722_reg_lookup[id].enable_mask;
+		desc->vsel_reg = as3722_reg_lookup[id].vsel_reg;
+		desc->vsel_mask = as3722_reg_lookup[id].vsel_mask;
 		switch (id) {
 		case AS3722_REGULATOR_ID_LDO0:
 			if (reg_config->ext_control)
 				ops = &as3722_ldo0_extcntrl_ops;
 			else
 				ops = &as3722_ldo0_ops;
-			as3722_regs->desc[id].min_uV = 825000;
-			as3722_regs->desc[id].uV_step = 25000;
-			as3722_regs->desc[id].linear_min_sel = 1;
-			as3722_regs->desc[id].enable_time = 500;
-			as3722_regs->desc[id].curr_table = as3722_ldo_current;
-			as3722_regs->desc[id].n_current_limits =
-				ARRAY_SIZE(as3722_ldo_current);
-			as3722_regs->desc[id].csel_reg =
-				as3722_reg_lookup[id].vsel_reg;
-			as3722_regs->desc[id].csel_mask =
-				AS3722_LDO_ILIMIT_MASK;
+			desc->min_uV = 825000;
+			desc->uV_step = 25000;
+			desc->linear_min_sel = 1;
+			desc->enable_time = 500;
+			desc->curr_table = as3722_ldo_current;
+			desc->n_current_limits = ARRAY_SIZE(as3722_ldo_current);
+			desc->csel_reg = as3722_reg_lookup[id].vsel_reg;
+			desc->csel_mask = AS3722_LDO_ILIMIT_MASK;
 			break;
 		case AS3722_REGULATOR_ID_LDO3:
 			if (reg_config->ext_control)
 				ops = &as3722_ldo3_extcntrl_ops;
 			else
 				ops = &as3722_ldo3_ops;
-			as3722_regs->desc[id].min_uV = 620000;
-			as3722_regs->desc[id].uV_step = 20000;
-			as3722_regs->desc[id].linear_min_sel = 1;
-			as3722_regs->desc[id].enable_time = 500;
+			desc->min_uV = 620000;
+			desc->uV_step = 20000;
+			desc->linear_min_sel = 1;
+			desc->enable_time = 500;
 			if (reg_config->enable_tracking) {
 				ret = as3722_ldo3_set_tracking_mode(as3722_regs,
 					id, AS3722_LDO3_MODE_PMOS_TRACKING);
@@ -733,25 +729,17 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 				ops = &as3722_ldo6_extcntrl_ops;
 			else
 				ops = &as3722_ldo6_ops;
-			as3722_regs->desc[id].enable_time = 500;
-			as3722_regs->desc[id].bypass_reg =
-						AS3722_LDO6_VOLTAGE_REG;
-			as3722_regs->desc[id].bypass_mask =
-						AS3722_LDO_VSEL_MASK;
-			as3722_regs->desc[id].bypass_val_on =
-						AS3722_LDO6_VSEL_BYPASS;
-			as3722_regs->desc[id].bypass_val_off =
-						AS3722_LDO6_VSEL_BYPASS;
-			as3722_regs->desc[id].linear_ranges = as3722_ldo_ranges;
-			as3722_regs->desc[id].n_linear_ranges =
-						ARRAY_SIZE(as3722_ldo_ranges);
-			as3722_regs->desc[id].curr_table = as3722_ldo_current;
-			as3722_regs->desc[id].n_current_limits =
-				ARRAY_SIZE(as3722_ldo_current);
-			as3722_regs->desc[id].csel_reg =
-				as3722_reg_lookup[id].vsel_reg;
-			as3722_regs->desc[id].csel_mask =
-				AS3722_LDO_ILIMIT_MASK;
+			desc->enable_time = 500;
+			desc->bypass_reg = AS3722_LDO6_VOLTAGE_REG;
+			desc->bypass_mask = AS3722_LDO_VSEL_MASK;
+			desc->bypass_val_on = AS3722_LDO6_VSEL_BYPASS;
+			desc->bypass_val_off = AS3722_LDO6_VSEL_BYPASS;
+			desc->linear_ranges = as3722_ldo_ranges;
+			desc->n_linear_ranges = ARRAY_SIZE(as3722_ldo_ranges);
+			desc->curr_table = as3722_ldo_current;
+			desc->n_current_limits = ARRAY_SIZE(as3722_ldo_current);
+			desc->csel_reg = as3722_reg_lookup[id].vsel_reg;
+			desc->csel_mask = AS3722_LDO_ILIMIT_MASK;
 			break;
 		case AS3722_REGULATOR_ID_SD0:
 		case AS3722_REGULATOR_ID_SD1:
@@ -770,26 +758,23 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 					AS3722_SD0_VSEL_MAX + 1;
 				as3722_regs->desc[id].min_uV = 610000;
 			}
-			as3722_regs->desc[id].uV_step = 10000;
-			as3722_regs->desc[id].linear_min_sel = 1;
-			as3722_regs->desc[id].enable_time = 600;
-			as3722_regs->desc[id].curr_table = as3722_sd016_current;
-			as3722_regs->desc[id].n_current_limits =
+			desc->uV_step = 10000;
+			desc->linear_min_sel = 1;
+			desc->enable_time = 600;
+			desc->curr_table = as3722_sd016_current;
+			desc->n_current_limits =
 				ARRAY_SIZE(as3722_sd016_current);
 			if (id == AS3722_REGULATOR_ID_SD0) {
-				as3722_regs->desc[id].csel_reg =
-					AS3722_OVCURRENT_REG;
-				as3722_regs->desc[id].csel_mask =
+				desc->csel_reg = AS3722_OVCURRENT_REG;
+				desc->csel_mask =
 					AS3722_OVCURRENT_SD0_TRIP_MASK;
 			} else if (id == AS3722_REGULATOR_ID_SD1) {
-				as3722_regs->desc[id].csel_reg =
-					AS3722_OVCURRENT_REG;
-				as3722_regs->desc[id].csel_mask =
+				desc->csel_reg = AS3722_OVCURRENT_REG;
+				desc->csel_mask =
 					AS3722_OVCURRENT_SD1_TRIP_MASK;
 			} else if (id == AS3722_REGULATOR_ID_SD6) {
-				as3722_regs->desc[id].csel_reg =
-					AS3722_OVCURRENT_DEB_REG;
-				as3722_regs->desc[id].csel_mask =
+				desc->csel_reg = AS3722_OVCURRENT_DEB_REG;
+				desc->csel_mask =
 					AS3722_OVCURRENT_SD6_TRIP_MASK;
 			}
 			break;
@@ -801,9 +786,8 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 				ops = &as3722_sd2345_extcntrl_ops;
 			else
 				ops = &as3722_sd2345_ops;
-			as3722_regs->desc[id].linear_ranges =
-						as3722_sd2345_ranges;
-			as3722_regs->desc[id].n_linear_ranges =
+			desc->linear_ranges = as3722_sd2345_ranges;
+			desc->n_linear_ranges =
 					ARRAY_SIZE(as3722_sd2345_ranges);
 			break;
 		default:
@@ -811,24 +795,19 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 				ops = &as3722_ldo_extcntrl_ops;
 			else
 				ops = &as3722_ldo_ops;
-			as3722_regs->desc[id].enable_time = 500;
-			as3722_regs->desc[id].linear_ranges = as3722_ldo_ranges;
-			as3722_regs->desc[id].n_linear_ranges =
-						ARRAY_SIZE(as3722_ldo_ranges);
-			as3722_regs->desc[id].curr_table = as3722_ldo_current;
-			as3722_regs->desc[id].n_current_limits =
-						ARRAY_SIZE(as3722_ldo_current);
-			as3722_regs->desc[id].csel_reg =
-						as3722_reg_lookup[id].vsel_reg;
-			as3722_regs->desc[id].csel_mask =
-						AS3722_LDO_ILIMIT_MASK;
+			desc->enable_time = 500;
+			desc->linear_ranges = as3722_ldo_ranges;
+			desc->n_linear_ranges = ARRAY_SIZE(as3722_ldo_ranges);
+			desc->curr_table = as3722_ldo_current;
+			desc->n_current_limits = ARRAY_SIZE(as3722_ldo_current);
+			desc->csel_reg = as3722_reg_lookup[id].vsel_reg;
+			desc->csel_mask = AS3722_LDO_ILIMIT_MASK;
 			break;
 		}
-		as3722_regs->desc[id].ops = ops;
+		desc->ops = ops;
 		config.init_data = reg_config->reg_init;
 		config.of_node = as3722_regulator_matches[id].of_node;
-		rdev = devm_regulator_register(&pdev->dev,
-					&as3722_regs->desc[id], &config);
+		rdev = devm_regulator_register(&pdev->dev, desc, &config);
 		if (IS_ERR(rdev)) {
 			ret = PTR_ERR(rdev);
 			dev_err(&pdev->dev, "regulator %d register failed %d\n",
