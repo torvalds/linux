@@ -109,6 +109,22 @@ int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+void hda_dsp_ctrl_ppcap_enable(struct snd_sof_dev *sdev, bool enable)
+{
+	u32 val = enable ? SOF_HDA_PPCTL_GPROCEN : 0;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				SOF_HDA_PPCTL_GPROCEN, val);
+}
+
+void hda_dsp_ctrl_ppcap_int_enable(struct snd_sof_dev *sdev, bool enable)
+{
+	u32 val	= enable ? SOF_HDA_PPCTL_PIE : 0;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				SOF_HDA_PPCTL_PIE, val);
+}
+
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable)
 {
 	u32 val = enable ? PCI_CGCTL_MISCBDCGE_MASK : 0;
