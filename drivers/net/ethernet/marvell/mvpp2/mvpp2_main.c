@@ -4848,6 +4848,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
 	struct device_node *port_node = to_of_node(port_fwnode);
+	netdev_features_t features;
 	struct net_device *dev;
 	struct resource *res;
 	struct phylink *phylink;
@@ -4856,7 +4857,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	unsigned long flags = 0;
 	bool has_tx_irqs;
 	u32 id;
-	int features;
 	int phy_mode;
 	int err, i;
 
