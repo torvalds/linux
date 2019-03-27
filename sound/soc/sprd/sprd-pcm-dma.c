@@ -13,7 +13,6 @@
 
 #include "sprd-pcm-dma.h"
 
-#define DRV_NAME			"sprd_pcm_dma"
 #define SPRD_PCM_DMA_LINKLIST_SIZE	64
 #define SPRD_PCM_DMA_BRUST_LEN		640
 
@@ -524,6 +523,7 @@ static void sprd_pcm_free(struct snd_pcm *pcm)
 static const struct snd_soc_component_driver sprd_soc_component = {
 	.name		= DRV_NAME,
 	.ops		= &sprd_pcm_ops,
+	.compr_ops	= &sprd_platform_compr_ops,
 	.pcm_new	= sprd_pcm_new,
 	.pcm_free	= sprd_pcm_free,
 };
