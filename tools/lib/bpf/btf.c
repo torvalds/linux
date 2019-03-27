@@ -2107,6 +2107,9 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		return fwd_kind == real_kind;
 	}
 
+	if (cand_kind != canon_kind)
+		return 0;
+
 	switch (cand_kind) {
 	case BTF_KIND_INT:
 		return btf_equal_int(cand_type, canon_type);
