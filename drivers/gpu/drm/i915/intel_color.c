@@ -848,6 +848,41 @@ static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
 	return cgm_mode;
 }
 
+/*
+ * CHV color pipeline:
+ * u0.10 -> CGM degamma -> u0.14 -> CGM csc -> u0.14 -> CGM gamma ->
+ * u0.10 -> WGC csc -> u0.10 -> pipe gamma -> u0.10
+ *
+ * We always bypass the WGC csc and use the CGM csc
+ * instead since it has degamma and better precision.
+ */
+static int chv_color_check(struct intel_crtc_state *crtc_state)
+{
+	int ret;
+
+	ret = check_luts(crtc_state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Pipe gamma will be used only for the legacy LUT.
+	 * Otherwise we bypass it and use the CGM gamma instead.
+	 */
+	crtc_state->gamma_enable =
+		crtc_state_is_legacy_gamma(crtc_state) &&
+		!crtc_state->c8_planes;
+
+	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
+
+	crtc_state->cgm_mode = chv_cgm_mode(crtc_state);
+
+	ret = intel_color_add_affected_planes(crtc_state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int _intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
@@ -876,9 +911,6 @@ static int _intel_color_check(struct intel_crtc_state *crtc_state)
 		return ret;
 
 	crtc_state->csc_mode = 0;
-
-	if (IS_CHERRYVIEW(dev_priv))
-		crtc_state->cgm_mode = chv_cgm_mode(crtc_state);
 
 	if (!crtc_state->gamma_enable ||
 	    crtc_state_is_legacy_gamma(crtc_state))
@@ -917,7 +949,7 @@ void intel_color_init(struct intel_crtc *crtc)
 
 	if (HAS_GMCH(dev_priv)) {
 		if (IS_CHERRYVIEW(dev_priv)) {
-			dev_priv->display.color_check = _intel_color_check;
+			dev_priv->display.color_check = chv_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = cherryview_load_luts;
 		} else {
