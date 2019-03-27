@@ -313,6 +313,9 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	wid_list[index].val = (s8 *)&scan_source;
 	index++;
 
+	hif_drv->usr_scan_req.scan_result = scan_result_fn;
+	hif_drv->usr_scan_req.arg = user_arg;
+
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 				      index,
 				      wilc_get_vif_idx(vif));
@@ -321,8 +324,6 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		goto error;
 	}
 
-	hif_drv->usr_scan_req.scan_result = scan_result_fn;
-	hif_drv->usr_scan_req.arg = user_arg;
 	hif_drv->scan_timer_vif = vif;
 	mod_timer(&hif_drv->scan_timer,
 		  jiffies + msecs_to_jiffies(WILC_HIF_SCAN_TIMEOUT_MS));
