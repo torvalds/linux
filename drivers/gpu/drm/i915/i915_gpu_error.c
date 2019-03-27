@@ -677,6 +677,9 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "Platform: %s\n", intel_platform_name(error->device_info.platform));
+	err_printf(m, "Subplatform: 0x%x\n",
+		   intel_subplatform(&error->runtime_info,
+				     error->device_info.platform));
 	err_print_pciid(m, m->i915);
 
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);

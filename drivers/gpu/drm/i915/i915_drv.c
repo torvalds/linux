@@ -868,6 +868,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
+	intel_device_info_subplatform_init(dev_priv);
+
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	mutex_init(&dev_priv->backlight_lock);
@@ -1760,10 +1762,12 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 	if (drm_debug & DRM_UT_DRIVER) {
 		struct drm_printer p = drm_debug_printer("i915 device info:");
 
-		drm_printf(&p, "pciid=0x%04x rev=0x%02x platform=%s gen=%i\n",
+		drm_printf(&p, "pciid=0x%04x rev=0x%02x platform=%s (subplatform=0x%x) gen=%i\n",
 			   INTEL_DEVID(dev_priv),
 			   INTEL_REVID(dev_priv),
 			   intel_platform_name(INTEL_INFO(dev_priv)->platform),
+			   intel_subplatform(RUNTIME_INFO(dev_priv),
+					     INTEL_INFO(dev_priv)->platform),
 			   INTEL_GEN(dev_priv));
 
 		intel_device_info_dump_flags(INTEL_INFO(dev_priv), &p);
@@ -1806,8 +1810,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(device_info, match_info, sizeof(*device_info));
 	RUNTIME_INFO(i915)->device_id = pdev->device;
 
-	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
-		     BITS_PER_TYPE(device_info->platform_mask));
 	BUG_ON(device_info->gen > BITS_PER_TYPE(device_info->gen_mask));
 
 	return i915;

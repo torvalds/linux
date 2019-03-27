@@ -32,7 +32,7 @@
 #include "i915_globals.h"
 #include "i915_selftest.h"
 
-#define PLATFORM(x) .platform = (x), .platform_mask = BIT(x)
+#define PLATFORM(x) .platform = (x)
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
 
 #define I845_PIPE_OFFSETS \
