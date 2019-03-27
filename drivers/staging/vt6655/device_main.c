@@ -1137,8 +1137,7 @@ static irqreturn_t vnt_interrupt(int irq,  void *arg)
 {
 	struct vnt_private *priv = arg;
 
-	if (priv->vif)
-		schedule_work(&priv->interrupt_work);
+	schedule_work(&priv->interrupt_work);
 
 	MACvIntDisable(priv->PortOffset);
 
