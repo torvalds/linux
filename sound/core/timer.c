@@ -720,29 +720,19 @@ static void snd_timer_reschedule(struct snd_timer * timer, unsigned long ticks_l
 	timer->sticks = ticks;
 }
 
-/*
- * timer tasklet
- *
- */
-static void snd_timer_tasklet(unsigned long arg)
+/* call callbacks in timer ack list */
+static void snd_timer_process_callbacks(struct snd_timer *timer,
+					struct list_head *head)
 {
-	struct snd_timer *timer = (struct snd_timer *) arg;
 	struct snd_timer_instance *ti;
-	struct list_head *p;
 	unsigned long resolution, ticks;
-	unsigned long flags;
 
-	if (timer->card && timer->card->shutdown)
-		return;
-
-	spin_lock_irqsave(&timer->lock, flags);
-	/* now process all callbacks */
-	while (!list_empty(&timer->sack_list_head)) {
-		p = timer->sack_list_head.next;		/* get first item */
-		ti = list_entry(p, struct snd_timer_instance, ack_list);
+	while (!list_empty(head)) {
+		ti = list_first_entry(head, struct snd_timer_instance,
+				      ack_list);
 
 		/* remove from ack_list and make empty */
-		list_del_init(p);
+		list_del_init(&ti->ack_list);
 
 		ticks = ti->pticks;
 		ti->pticks = 0;
@@ -755,6 +745,22 @@ static void snd_timer_tasklet(unsigned long arg)
 		spin_lock(&timer->lock);
 		ti->flags &= ~SNDRV_TIMER_IFLG_CALLBACK;
 	}
+}
+
+/*
+ * timer tasklet
+ *
+ */
+static void snd_timer_tasklet(unsigned long arg)
+{
+	struct snd_timer *timer = (struct snd_timer *) arg;
+	unsigned long flags;
+
+	if (timer->card && timer->card->shutdown)
+		return;
+
+	spin_lock_irqsave(&timer->lock, flags);
+	snd_timer_process_callbacks(timer, &timer->sack_list_head);
 	spin_unlock_irqrestore(&timer->lock, flags);
 }
 
@@ -767,8 +773,8 @@ static void snd_timer_tasklet(unsigned long arg)
 void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 {
 	struct snd_timer_instance *ti, *ts, *tmp;
-	unsigned long resolution, ticks;
-	struct list_head *p, *ack_list_head;
+	unsigned long resolution;
+	struct list_head *ack_list_head;
 	unsigned long flags;
 	int use_tasklet = 0;
 
@@ -839,23 +845,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 	}
 
 	/* now process all fast callbacks */
-	while (!list_empty(&timer->ack_list_head)) {
-		p = timer->ack_list_head.next;		/* get first item */
-		ti = list_entry(p, struct snd_timer_instance, ack_list);
-
-		/* remove from ack_list and make empty */
-		list_del_init(p);
-
-		ticks = ti->pticks;
-		ti->pticks = 0;
-
-		ti->flags |= SNDRV_TIMER_IFLG_CALLBACK;
-		spin_unlock(&timer->lock);
-		if (ti->callback)
-			ti->callback(ti, resolution, ticks);
-		spin_lock(&timer->lock);
-		ti->flags &= ~SNDRV_TIMER_IFLG_CALLBACK;
-	}
+	snd_timer_process_callbacks(timer, &timer->ack_list_head);
 
 	/* do we have any slow callbacks? */
 	use_tasklet = !list_empty(&timer->sack_list_head);
