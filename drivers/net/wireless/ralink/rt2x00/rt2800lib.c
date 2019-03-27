@@ -1100,7 +1100,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone_entry);
 
-void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
+void rt2800_txdone(struct rt2x00_dev *rt2x00dev, unsigned int quota)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
@@ -1108,7 +1108,7 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 	u8 qid;
 	bool match;
 
-	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
+	while (quota-- > 0 && kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
 		/*
 		 * TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus qid is
 		 * guaranteed to be one of the TX QIDs .

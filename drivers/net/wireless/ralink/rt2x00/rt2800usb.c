@@ -480,7 +480,7 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
 	       rt2800_txstatus_timeout(rt2x00dev)) {
 
-		rt2800_txdone(rt2x00dev);
+		rt2800_txdone(rt2x00dev, UINT_MAX);
 
 		rt2800_txdone_nostatus(rt2x00dev);
 
