@@ -874,7 +874,7 @@ TODOs from the skeleton.
 	  * :c:func:`kthread_create` to create a suspended thread and
 	    then start it running with :c:func:`wake_up_process`.
 
-	  Review the :ref:`kernel-threads` section if needed.
+	  Review the `Kernel Threads`_ section if needed.
 
 .. attention:: Synchronize the thread termination with module unloading:
 
