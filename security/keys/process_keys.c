@@ -227,6 +227,7 @@ static int install_process_keyring(void)
  * Install the given keyring as the session keyring of the given credentials
  * struct, replacing the existing one if any.  If the given keyring is NULL,
  * then install a new anonymous session keyring.
+ * @cred can not be in use by any task yet.
  *
  * Return: 0 on success; -errno on failure.
  */
@@ -254,7 +255,7 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 
 	/* install the keyring */
 	old = cred->session_keyring;
-	rcu_assign_pointer(cred->session_keyring, keyring);
+	cred->session_keyring = keyring;
 
 	if (old)
 		key_put(old);
@@ -392,11 +393,8 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 
 	/* search the session keyring */
 	if (ctx->cred->session_keyring) {
-		rcu_read_lock();
 		key_ref = keyring_search_aux(
-			make_key_ref(rcu_dereference(ctx->cred->session_keyring), 1),
-			ctx);
-		rcu_read_unlock();
+			make_key_ref(ctx->cred->session_keyring, 1), ctx);
 
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -612,10 +610,8 @@ try_again:
 			goto reget_creds;
 		}
 
-		rcu_read_lock();
-		key = rcu_dereference(ctx.cred->session_keyring);
+		key = ctx.cred->session_keyring;
 		__key_get(key);
-		rcu_read_unlock();
 		key_ref = make_key_ref(key, 1);
 		break;
 
