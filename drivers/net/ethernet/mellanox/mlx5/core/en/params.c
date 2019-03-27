@@ -62,11 +62,14 @@ bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 
 u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5e_params *params)
 {
+	u8 log_pkts_per_wqe = mlx5e_mpwqe_log_pkts_per_wqe(params);
+
+	/* Numbers are unsigned, don't subtract to avoid underflow. */
 	if (params->log_rq_mtu_frames <
-	    mlx5e_mpwqe_log_pkts_per_wqe(params) + MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW)
+	    log_pkts_per_wqe + MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW)
 		return MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW;
 
-	return params->log_rq_mtu_frames - mlx5e_mpwqe_log_pkts_per_wqe(params);
+	return params->log_rq_mtu_frames - log_pkts_per_wqe;
 }
 
 u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
