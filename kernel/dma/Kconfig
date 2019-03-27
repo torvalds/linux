@@ -57,6 +57,7 @@ config SWIOTLB
 
 config DMA_REMAP
 	depends on MMU
+	select GENERIC_ALLOCATOR
 	bool
 
 config DMA_DIRECT_REMAP
