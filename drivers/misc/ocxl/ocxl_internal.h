@@ -150,4 +150,9 @@ int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
 			int eventfd);
 u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
 
+struct ocxl_fn *init_function(struct pci_dev *dev);
+void remove_function(struct ocxl_fn *fn);
+int init_afu(struct pci_dev *dev, struct ocxl_fn *fn, u8 afu_idx);
+void remove_afu(struct ocxl_afu *afu);
+
 #endif /* _OCXL_INTERNAL_H_ */
