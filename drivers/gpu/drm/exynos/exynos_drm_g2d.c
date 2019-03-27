@@ -845,7 +845,7 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
  *
  * Has to be called under runqueue lock.
  */
-static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file* file)
+static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file *file)
 {
 	struct g2d_runqueue_node *node, *n;
 
