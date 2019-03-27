@@ -69,9 +69,9 @@ static inline bool nf_nat_oif_changed(unsigned int hooknum,
 #endif
 }
 
-int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
+int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 		       const struct nf_hook_ops *nat_ops, unsigned int ops_count);
-void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
+void nf_nat_unregister_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 			  unsigned int ops_count);
 
 unsigned int nf_nat_packet(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
@@ -97,6 +97,9 @@ void nf_nat_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
 int nf_nat_ipv6_register_fn(struct net *net, const struct nf_hook_ops *ops);
 void nf_nat_ipv6_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
+
+int nf_nat_inet_register_fn(struct net *net, const struct nf_hook_ops *ops);
+void nf_nat_inet_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
