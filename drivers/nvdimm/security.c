@@ -77,6 +77,16 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 	return key;
 }
 
+static const void *nvdimm_get_key_payload(struct nvdimm *nvdimm,
+		struct key **key)
+{
+	*key = nvdimm_request_key(nvdimm);
+	if (!*key)
+		return zero_key;
+
+	return key_data(*key);
+}
+
 static struct key *nvdimm_lookup_user_key(struct nvdimm *nvdimm,
 		key_serial_t id, int subclass)
 {
@@ -107,36 +117,57 @@ static struct key *nvdimm_lookup_user_key(struct nvdimm *nvdimm,
 	return key;
 }
 
-static struct key *nvdimm_key_revalidate(struct nvdimm *nvdimm)
+static const void *nvdimm_get_user_key_payload(struct nvdimm *nvdimm,
+		key_serial_t id, int subclass, struct key **key)
+{
+	*key = NULL;
+	if (id == 0) {
+		if (subclass == NVDIMM_BASE_KEY)
+			return zero_key;
+		else
+			return NULL;
+	}
+
+	*key = nvdimm_lookup_user_key(nvdimm, id, subclass);
+	if (!*key)
+		return NULL;
+
+	return key_data(*key);
+}
+
+
+static int nvdimm_key_revalidate(struct nvdimm *nvdimm)
 {
 	struct key *key;
 	int rc;
+	const void *data;
 
 	if (!nvdimm->sec.ops->change_key)
-		return NULL;
+		return -EOPNOTSUPP;
 
-	key = nvdimm_request_key(nvdimm);
-	if (!key)
-		return NULL;
+	data = nvdimm_get_key_payload(nvdimm, &key);
 
 	/*
 	 * Send the same key to the hardware as new and old key to
 	 * verify that the key is good.
 	 */
-	rc = nvdimm->sec.ops->change_key(nvdimm, key_data(key),
-			key_data(key), NVDIMM_USER);
+	rc = nvdimm->sec.ops->change_key(nvdimm, data, data, NVDIMM_USER);
 	if (rc < 0) {
 		nvdimm_put_key(key);
-		key = NULL;
+		return rc;
 	}
-	return key;
+
+	nvdimm_put_key(key);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
+	return 0;
 }
 
 static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 {
 	struct device *dev = &nvdimm->dev;
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-	struct key *key = NULL;
+	struct key *key;
+	const void *data;
 	int rc;
 
 	/* The bus lock should be held at the top level of the call stack */
@@ -162,16 +193,11 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 		if (!key_revalidate)
 			return 0;
 
-		key = nvdimm_key_revalidate(nvdimm);
-		if (!key)
-			return nvdimm_security_freeze(nvdimm);
+		return nvdimm_key_revalidate(nvdimm);
 	} else
-		key = nvdimm_request_key(nvdimm);
+		data = nvdimm_get_key_payload(nvdimm, &key);
 
-	if (!key)
-		return -ENOKEY;
-
-	rc = nvdimm->sec.ops->unlock(nvdimm, key_data(key));
+	rc = nvdimm->sec.ops->unlock(nvdimm, data);
 	dev_dbg(dev, "key: %d unlock: %s\n", key_serial(key),
 			rc == 0 ? "success" : "fail");
 
@@ -197,6 +223,7 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
 	struct key *key;
 	int rc;
+	const void *data;
 
 	/* The bus lock should be held at the top level of the call stack */
 	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
@@ -216,11 +243,12 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EBUSY;
 	}
 
-	key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
-	if (!key)
+	data = nvdimm_get_user_key_payload(nvdimm, keyid,
+			NVDIMM_BASE_KEY, &key);
+	if (!data)
 		return -ENOKEY;
 
-	rc = nvdimm->sec.ops->disable(nvdimm, key_data(key));
+	rc = nvdimm->sec.ops->disable(nvdimm, data);
 	dev_dbg(dev, "key: %d disable: %s\n", key_serial(key),
 			rc == 0 ? "success" : "fail");
 
@@ -237,6 +265,7 @@ int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
 	struct key *key, *newkey;
 	int rc;
+	const void *data, *newdata;
 
 	/* The bus lock should be held at the top level of the call stack */
 	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
@@ -251,22 +280,19 @@ int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
 		return -EIO;
 	}
 
-	if (keyid == 0)
-		key = NULL;
-	else {
-		key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
-		if (!key)
-			return -ENOKEY;
-	}
+	data = nvdimm_get_user_key_payload(nvdimm, keyid,
+			NVDIMM_BASE_KEY, &key);
+	if (!data)
+		return -ENOKEY;
 
-	newkey = nvdimm_lookup_user_key(nvdimm, new_keyid, NVDIMM_NEW_KEY);
-	if (!newkey) {
+	newdata = nvdimm_get_user_key_payload(nvdimm, new_keyid,
+			NVDIMM_NEW_KEY, &newkey);
+	if (!newdata) {
 		nvdimm_put_key(key);
 		return -ENOKEY;
 	}
 
-	rc = nvdimm->sec.ops->change_key(nvdimm, key ? key_data(key) : NULL,
-			key_data(newkey), pass_type);
+	rc = nvdimm->sec.ops->change_key(nvdimm, data, newdata, pass_type);
 	dev_dbg(dev, "key: %d %d update%s: %s\n",
 			key_serial(key), key_serial(newkey),
 			pass_type == NVDIMM_MASTER ? "(master)" : "(user)",
@@ -322,13 +348,10 @@ int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid,
 		return -EOPNOTSUPP;
 	}
 
-	if (keyid != 0) {
-		key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
-		if (!key)
-			return -ENOKEY;
-		data = key_data(key);
-	} else
-		data = zero_key;
+	data = nvdimm_get_user_key_payload(nvdimm, keyid,
+			NVDIMM_BASE_KEY, &key);
+	if (!data)
+		return -ENOKEY;
 
 	rc = nvdimm->sec.ops->erase(nvdimm, data, pass_type);
 	dev_dbg(dev, "key: %d erase%s: %s\n", key_serial(key),
@@ -344,8 +367,9 @@ int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
 {
 	struct device *dev = &nvdimm->dev;
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-	struct key *key;
+	struct key *key = NULL;
 	int rc;
+	const void *data;
 
 	/* The bus lock should be held at the top level of the call stack */
 	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
@@ -375,15 +399,12 @@ int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EBUSY;
 	}
 
-	if (keyid == 0)
-		key = NULL;
-	else {
-		key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
-		if (!key)
-			return -ENOKEY;
-	}
+	data = nvdimm_get_user_key_payload(nvdimm, keyid,
+			NVDIMM_BASE_KEY, &key);
+	if (!data)
+		return -ENOKEY;
 
-	rc = nvdimm->sec.ops->overwrite(nvdimm, key ? key_data(key) : NULL);
+	rc = nvdimm->sec.ops->overwrite(nvdimm, data);
 	dev_dbg(dev, "key: %d overwrite submission: %s\n", key_serial(key),
 			rc == 0 ? "success" : "fail");
 
