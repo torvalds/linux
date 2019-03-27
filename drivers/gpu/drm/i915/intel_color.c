@@ -381,15 +381,6 @@ static void i9xx_load_luts_internal(const struct intel_crtc_state *crtc_state,
 			else
 				I915_WRITE(LGC_PALETTE(pipe, i), word);
 		}
-	} else {
-		for (i = 0; i < 256; i++) {
-			u32 word = (i << 16) | (i << 8) | i;
-
-			if (HAS_GMCH(dev_priv))
-				I915_WRITE(PALETTE(pipe, i), word);
-			else
-				I915_WRITE(LGC_PALETTE(pipe, i), word);
-		}
 	}
 }
 
@@ -643,7 +634,7 @@ static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
 	cherryview_load_csc_matrix(crtc_state);
 
 	if (crtc_state_is_legacy_gamma(crtc_state)) {
-		i9xx_load_luts_internal(crtc_state, gamma_lut);
+		i9xx_load_luts(crtc_state);
 		return;
 	}
 
@@ -682,12 +673,6 @@ static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
 			I915_WRITE(CGM_PIPE_GAMMA(pipe, i, 1), word1);
 		}
 	}
-
-	/*
-	 * Also program a linear LUT in the legacy block (behind the
-	 * CGM block).
-	 */
-	i9xx_load_luts_internal(crtc_state, NULL);
 }
 
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
