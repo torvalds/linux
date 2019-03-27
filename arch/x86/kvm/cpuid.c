@@ -702,6 +702,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->ecx = entry->edx = 0;
 		break;
 	case 0x8000001a:
+	case 0x8000001e:
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:
