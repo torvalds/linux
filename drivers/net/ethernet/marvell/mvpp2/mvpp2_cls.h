@@ -71,14 +71,6 @@ enum mvpp2_cls_field_id {
 	MVPP22_CLS_FIELD_L4DIP = 0x1e,
 };
 
-enum mvpp2_cls_flow_seq {
-	MVPP2_CLS_FLOW_SEQ_NORMAL = 0,
-	MVPP2_CLS_FLOW_SEQ_FIRST1,
-	MVPP2_CLS_FLOW_SEQ_FIRST2,
-	MVPP2_CLS_FLOW_SEQ_LAST,
-	MVPP2_CLS_FLOW_SEQ_MIDDLE
-};
-
 /* Classifier C2 engine constants */
 #define MVPP22_CLS_C2_TCAM_EN(data)		((data) << 16)
 
@@ -105,34 +97,25 @@ enum mvpp22_cls_c2_fwd_action {
 
 struct mvpp2_cls_c2_entry {
 	u32 index;
+	/* TCAM lookup key */
 	u32 tcam[MVPP2_CLS_C2_TCAM_WORDS];
+	/* Actions to perform upon TCAM match */
 	u32 act;
+	/* Attributes relative to the actions to perform */
 	u32 attr[MVPP2_CLS_C2_ATTR_WORDS];
+	/* Entry validity */
+	u8 valid;
 };
 
 /* Classifier C2 engine entries */
-#define MVPP22_CLS_C2_RSS_ENTRY(port)	(port)
-#define MVPP22_CLS_C2_N_ENTRIES		MVPP2_MAX_PORTS
+#define MVPP22_CLS_C2_N_ENTRIES		256
 
-/* RSS flow entries in the flow table. We have 2 entries per port for RSS.
- *
- * The first performs a lookup using the C2 TCAM engine, to tag the
- * packet for software forwarding (needed for RSS), enable or disable RSS, and
- * assign the default rx queue.
- *
- * The second configures the hash generation, by specifying which fields of the
- * packet header are used to generate the hash, and specifies the relevant hash
- * engine to use.
- */
-#define MVPP22_RSS_FLOW_C2_OFFS		0
-#define MVPP22_RSS_FLOW_HASH_OFFS	1
-#define MVPP22_RSS_FLOW_SIZE		(MVPP22_RSS_FLOW_HASH_OFFS + 1)
+/* Number of per-port dedicated entries in the C2 TCAM */
+#define MVPP22_CLS_C2_PORT_RANGE	8
 
-#define MVPP22_RSS_FLOW_C2(port)	((port) * MVPP22_RSS_FLOW_SIZE + \
-					 MVPP22_RSS_FLOW_C2_OFFS)
-#define MVPP22_RSS_FLOW_HASH(port)	((port) * MVPP22_RSS_FLOW_SIZE + \
-					 MVPP22_RSS_FLOW_HASH_OFFS)
-#define MVPP22_RSS_FLOW_FIRST(port)	MVPP22_RSS_FLOW_C2(port)
+#define MVPP22_CLS_C2_PORT_FIRST(p)	(MVPP22_CLS_C2_N_ENTRIES - \
+					((p) * MVPP22_CLS_C2_PORT_RANGE))
+#define MVPP22_CLS_C2_RSS_ENTRY(p)	(MVPP22_CLS_C2_PORT_FIRST(p) - 1)
 
 /* Packet flow ID */
 enum mvpp2_prs_flow {
@@ -162,6 +145,15 @@ enum mvpp2_prs_flow {
 	MVPP2_FL_LAST,
 };
 
+enum mvpp2_cls_lu_type {
+	MVPP2_CLS_LU_ALL = 0,
+};
+
+/* LU Type defined for all engines, and specified in the flow table */
+#define MVPP2_CLS_LU_TYPE_MASK			0x3f
+
+#define MVPP2_N_FLOWS		(MVPP2_FL_LAST - MVPP2_FL_START)
+
 struct mvpp2_cls_flow {
 	/* The L2-L4 traffic flow type */
 	int flow_type;
@@ -176,12 +168,37 @@ struct mvpp2_cls_flow {
 	struct mvpp2_prs_result_info prs_ri;
 };
 
-#define MVPP2_N_FLOWS	52
+#define MVPP2_CLS_FLT_ENTRIES_PER_FLOW		(MVPP2_MAX_PORTS + 1)
+#define MVPP2_CLS_FLT_FIRST(id)			(((id) - MVPP2_FL_START) * \
+						 MVPP2_CLS_FLT_ENTRIES_PER_FLOW)
+#define MVPP2_CLS_FLT_C2_RSS_ENTRY(id)		(MVPP2_CLS_FLT_FIRST(id))
+#define MVPP2_CLS_FLT_HASH_ENTRY(port, id)	(MVPP2_CLS_FLT_C2_RSS_ENTRY(id) + (port) + 1)
+#define MVPP2_CLS_FLT_LAST(id)			(MVPP2_CLS_FLT_FIRST(id) + \
+						 MVPP2_CLS_FLT_ENTRIES_PER_FLOW - 1)
 
-#define MVPP2_ENTRIES_PER_FLOW			(MVPP2_MAX_PORTS + 1)
-#define MVPP2_FLOW_C2_ENTRY(id)			((id) * MVPP2_ENTRIES_PER_FLOW)
-#define MVPP2_PORT_FLOW_HASH_ENTRY(port, id)	((id) * MVPP2_ENTRIES_PER_FLOW + \
-						(port) + 1)
+/* Iterate on each classifier flow id. Sets 'i' to be the index of the first
+ * entry in the cls_flows table for each different flow_id.
+ * This relies on entries having the same flow_id in the cls_flows table being
+ * contiguous.
+ */
+#define for_each_cls_flow_id(i)						      \
+	for ((i) = 0; (i) < MVPP2_N_PRS_FLOWS; (i)++)			      \
+		if ((i) > 0 &&						      \
+		    cls_flows[(i)].flow_id == cls_flows[(i) - 1].flow_id)       \
+			continue;					      \
+		else
+
+/* Iterate on each classifier flow that has a given flow_type. Sets 'i' to be
+ * the index of the first entry in the cls_flow table for each different flow_id
+ * that has the given flow_type. This allows to operate on all flows that
+ * matches a given ethtool flow type.
+ */
+#define for_each_cls_flow_id_with_type(i, type)				      \
+	for_each_cls_flow_id((i))					      \
+		if (cls_flows[(i)].flow_type != (type))			      \
+			continue;					      \
+		else
+
 struct mvpp2_cls_flow_entry {
 	u32 index;
 	u32 data[MVPP2_CLS_FLOWS_TBL_DATA_WORDS];
@@ -194,11 +211,10 @@ struct mvpp2_cls_lookup_entry {
 };
 
 void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table);
+void mvpp22_port_rss_init(struct mvpp2_port *port);
 
-void mvpp22_rss_port_init(struct mvpp2_port *port);
-
-void mvpp22_rss_enable(struct mvpp2_port *port);
-void mvpp22_rss_disable(struct mvpp2_port *port);
+void mvpp22_port_rss_enable(struct mvpp2_port *port);
+void mvpp22_port_rss_disable(struct mvpp2_port *port);
 
 int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info);
 int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info);
@@ -213,7 +229,7 @@ int mvpp2_cls_flow_eng_get(struct mvpp2_cls_flow_entry *fe);
 
 u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe);
 
-struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow);
+const struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow);
 
 u32 mvpp2_cls_flow_hits(struct mvpp2 *priv, int index);
 

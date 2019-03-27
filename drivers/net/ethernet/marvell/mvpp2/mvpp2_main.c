@@ -3741,9 +3741,9 @@ static int mvpp2_set_features(struct net_device *dev,
 
 	if (changed & NETIF_F_RXHASH) {
 		if (features & NETIF_F_RXHASH)
-			mvpp22_rss_enable(port);
+			mvpp22_port_rss_enable(port);
 		else
-			mvpp22_rss_disable(port);
+			mvpp22_port_rss_disable(port);
 	}
 
 	return 0;
@@ -4301,7 +4301,7 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	mvpp2_cls_port_config(port);
 
 	if (mvpp22_rss_is_supported())
-		mvpp22_rss_port_init(port);
+		mvpp22_port_rss_init(port);
 
 	/* Provide an initial Rx packet size */
 	port->pkt_size = MVPP2_RX_PKT_SIZE(port->dev->mtu);
@@ -4848,6 +4848,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
 	struct device_node *port_node = to_of_node(port_fwnode);
+	netdev_features_t features;
 	struct net_device *dev;
 	struct resource *res;
 	struct phylink *phylink;
@@ -4856,7 +4857,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	unsigned long flags = 0;
 	bool has_tx_irqs;
 	u32 id;
-	int features;
 	int phy_mode;
 	int err, i;
 

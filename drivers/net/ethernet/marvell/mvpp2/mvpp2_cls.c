@@ -22,7 +22,7 @@
 	}							\
 }
 
-static struct mvpp2_cls_flow cls_flows[MVPP2_N_FLOWS] = {
+static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 	/* TCP over IPv4 flows, Not fragmented, no vlan tag */
 	MVPP2_DEF_FLOW(TCP_V4_FLOW, MVPP2_FL_IP4_TCP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP4_5T,
@@ -429,12 +429,6 @@ static void mvpp2_cls_flow_port_id_sel(struct mvpp2_cls_flow_entry *fe,
 		fe->data[0] &= ~MVPP2_CLS_FLOW_TBL0_PORT_ID_SEL;
 }
 
-static void mvpp2_cls_flow_seq_set(struct mvpp2_cls_flow_entry *fe, u32 seq)
-{
-	fe->data[1] &= ~MVPP2_CLS_FLOW_TBL1_SEQ(MVPP2_CLS_FLOW_TBL1_SEQ_MASK);
-	fe->data[1] |= MVPP2_CLS_FLOW_TBL1_SEQ(seq);
-}
-
 static void mvpp2_cls_flow_last_set(struct mvpp2_cls_flow_entry *fe,
 				    bool is_last)
 {
@@ -454,9 +448,16 @@ static void mvpp2_cls_flow_port_add(struct mvpp2_cls_flow_entry *fe,
 	fe->data[0] |= MVPP2_CLS_FLOW_TBL0_PORT_ID(port);
 }
 
+static void mvpp2_cls_flow_lu_type_set(struct mvpp2_cls_flow_entry *fe,
+				       u8 lu_type)
+{
+	fe->data[1] &= ~MVPP2_CLS_FLOW_TBL1_LU_TYPE(MVPP2_CLS_LU_TYPE_MASK);
+	fe->data[1] |= MVPP2_CLS_FLOW_TBL1_LU_TYPE(lu_type);
+}
+
 /* Initialize the parser entry for the given flow */
 static void mvpp2_cls_flow_prs_init(struct mvpp2 *priv,
-				    struct mvpp2_cls_flow *flow)
+				    const struct mvpp2_cls_flow *flow)
 {
 	mvpp2_prs_add_flow(priv, flow->flow_id, flow->prs_ri.ri,
 			   flow->prs_ri.ri_mask);
@@ -464,7 +465,7 @@ static void mvpp2_cls_flow_prs_init(struct mvpp2 *priv,
 
 /* Initialize the Lookup Id table entry for the given flow */
 static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
-				    struct mvpp2_cls_flow *flow)
+				    const struct mvpp2_cls_flow *flow)
 {
 	struct mvpp2_cls_lookup_entry le;
 
@@ -477,7 +478,7 @@ static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
 	/* We point on the first lookup in the sequence for the flow, that is
 	 * the C2 lookup.
 	 */
-	le.data |= MVPP2_CLS_LKP_FLOW_PTR(MVPP2_FLOW_C2_ENTRY(flow->flow_id));
+	le.data |= MVPP2_CLS_LKP_FLOW_PTR(MVPP2_CLS_FLT_FIRST(flow->flow_id));
 
 	/* CLS is always enabled, RSS is enabled/disabled in C2 lookup */
 	le.data |= MVPP2_CLS_LKP_TBL_LOOKUP_EN_MASK;
@@ -485,21 +486,86 @@ static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
 	mvpp2_cls_lookup_write(priv, &le);
 }
 
+static void mvpp2_cls_c2_write(struct mvpp2 *priv,
+			       struct mvpp2_cls_c2_entry *c2)
+{
+	u32 val;
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, c2->index);
+
+	val = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_INV);
+	if (c2->valid)
+		val &= ~MVPP22_CLS_C2_TCAM_INV_BIT;
+	else
+		val |= MVPP22_CLS_C2_TCAM_INV_BIT;
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_INV, val);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_ACT, c2->act);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR0, c2->attr[0]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR1, c2->attr[1]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR2, c2->attr[2]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR3, c2->attr[3]);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA0, c2->tcam[0]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA1, c2->tcam[1]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA2, c2->tcam[2]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA3, c2->tcam[3]);
+	/* Writing TCAM_DATA4 flushes writes to TCAM_DATA0-4 and INV to HW */
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA4, c2->tcam[4]);
+}
+
+void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
+		       struct mvpp2_cls_c2_entry *c2)
+{
+	u32 val;
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, index);
+
+	c2->index = index;
+
+	c2->tcam[0] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA0);
+	c2->tcam[1] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA1);
+	c2->tcam[2] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA2);
+	c2->tcam[3] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA3);
+	c2->tcam[4] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA4);
+
+	c2->act = mvpp2_read(priv, MVPP22_CLS_C2_ACT);
+
+	c2->attr[0] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR0);
+	c2->attr[1] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR1);
+	c2->attr[2] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR2);
+	c2->attr[3] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR3);
+
+	val = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_INV);
+	c2->valid = !(val & MVPP22_CLS_C2_TCAM_INV_BIT);
+}
+
 /* Initialize the flow table entries for the given flow */
-static void mvpp2_cls_flow_init(struct mvpp2 *priv, struct mvpp2_cls_flow *flow)
+static void mvpp2_cls_flow_init(struct mvpp2 *priv,
+				const struct mvpp2_cls_flow *flow)
 {
 	struct mvpp2_cls_flow_entry fe;
-	int i;
+	int i, pri = 0;
 
-	/* C2 lookup */
-	memset(&fe, 0, sizeof(fe));
-	fe.index = MVPP2_FLOW_C2_ENTRY(flow->flow_id);
+	/* Assign default values to all entries in the flow */
+	for (i = MVPP2_CLS_FLT_FIRST(flow->flow_id);
+	     i <= MVPP2_CLS_FLT_LAST(flow->flow_id); i++) {
+		memset(&fe, 0, sizeof(fe));
+		fe.index = i;
+		mvpp2_cls_flow_pri_set(&fe, pri++);
+
+		if (i == MVPP2_CLS_FLT_LAST(flow->flow_id))
+			mvpp2_cls_flow_last_set(&fe, 1);
+
+		mvpp2_cls_flow_write(priv, &fe);
+	}
+
+	/* RSS config C2 lookup */
+	mvpp2_cls_flow_read(priv, MVPP2_CLS_FLT_C2_RSS_ENTRY(flow->flow_id),
+			    &fe);
 
 	mvpp2_cls_flow_eng_set(&fe, MVPP22_CLS_ENGINE_C2);
 	mvpp2_cls_flow_port_id_sel(&fe, true);
-	mvpp2_cls_flow_last_set(&fe, 0);
-	mvpp2_cls_flow_pri_set(&fe, 0);
-	mvpp2_cls_flow_seq_set(&fe, MVPP2_CLS_FLOW_SEQ_FIRST1);
+	mvpp2_cls_flow_lu_type_set(&fe, MVPP2_CLS_LU_ALL);
 
 	/* Add all ports */
 	for (i = 0; i < MVPP2_MAX_PORTS; i++)
@@ -509,22 +575,19 @@ static void mvpp2_cls_flow_init(struct mvpp2 *priv, struct mvpp2_cls_flow *flow)
 
 	/* C3Hx lookups */
 	for (i = 0; i < MVPP2_MAX_PORTS; i++) {
-		memset(&fe, 0, sizeof(fe));
-		fe.index = MVPP2_PORT_FLOW_HASH_ENTRY(i, flow->flow_id);
+		mvpp2_cls_flow_read(priv,
+				    MVPP2_CLS_FLT_HASH_ENTRY(i, flow->flow_id),
+				    &fe);
 
+		/* Set a default engine. Will be overwritten when setting the
+		 * real HEK parameters
+		 */
+		mvpp2_cls_flow_eng_set(&fe, MVPP22_CLS_ENGINE_C3HA);
 		mvpp2_cls_flow_port_id_sel(&fe, true);
-		mvpp2_cls_flow_pri_set(&fe, i + 1);
-		mvpp2_cls_flow_seq_set(&fe, MVPP2_CLS_FLOW_SEQ_MIDDLE);
 		mvpp2_cls_flow_port_add(&fe, BIT(i));
 
 		mvpp2_cls_flow_write(priv, &fe);
 	}
-
-	/* Update the last entry */
-	mvpp2_cls_flow_last_set(&fe, 1);
-	mvpp2_cls_flow_seq_set(&fe, MVPP2_CLS_FLOW_SEQ_LAST);
-
-	mvpp2_cls_flow_write(priv, &fe);
 }
 
 /* Adds a field to the Header Extracted Key generation parameters*/
@@ -555,6 +618,9 @@ static int mvpp2_flow_set_hek_fields(struct mvpp2_cls_flow_entry *fe,
 
 	for_each_set_bit(i, &hash_opts, MVPP22_CLS_HEK_N_FIELDS) {
 		switch (BIT(i)) {
+		case MVPP22_CLS_HEK_OPT_MAC_DA:
+			field_id = MVPP22_CLS_FIELD_MAC_DA;
+			break;
 		case MVPP22_CLS_HEK_OPT_VLAN:
 			field_id = MVPP22_CLS_FIELD_VLAN;
 			break;
@@ -586,9 +652,9 @@ static int mvpp2_flow_set_hek_fields(struct mvpp2_cls_flow_entry *fe,
 	return 0;
 }
 
-struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
+const struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
 {
-	if (flow >= MVPP2_N_FLOWS)
+	if (flow >= MVPP2_N_PRS_FLOWS)
 		return NULL;
 
 	return &cls_flows[flow];
@@ -608,21 +674,17 @@ struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
 static int mvpp2_port_rss_hash_opts_set(struct mvpp2_port *port, int flow_type,
 					u16 requested_opts)
 {
+	const struct mvpp2_cls_flow *flow;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *flow;
 	int i, engine, flow_index;
 	u16 hash_opts;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for_each_cls_flow_id_with_type(i, flow_type) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			return -EINVAL;
 
-		if (flow->flow_type != flow_type)
-			continue;
-
-		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
-							flow->flow_id);
+		flow_index = MVPP2_CLS_FLT_HASH_ENTRY(port->id, flow->flow_id);
 
 		mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 
@@ -697,21 +759,17 @@ u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe)
  */
 static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 {
+	const struct mvpp2_cls_flow *flow;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *flow;
 	int i, flow_index;
 	u16 hash_opts = 0;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for_each_cls_flow_id_with_type(i, flow_type) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			return 0;
 
-		if (flow->flow_type != flow_type)
-			continue;
-
-		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
-							flow->flow_id);
+		flow_index = MVPP2_CLS_FLT_HASH_ENTRY(port->id, flow->flow_id);
 
 		mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 
@@ -723,10 +781,10 @@ static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 
 static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
 {
-	struct mvpp2_cls_flow *flow;
+	const struct mvpp2_cls_flow *flow;
 	int i;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			break;
@@ -735,47 +793,6 @@ static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
 		mvpp2_cls_flow_lkp_init(priv, flow);
 		mvpp2_cls_flow_init(priv, flow);
 	}
-}
-
-static void mvpp2_cls_c2_write(struct mvpp2 *priv,
-			       struct mvpp2_cls_c2_entry *c2)
-{
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, c2->index);
-
-	/* Write TCAM */
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA0, c2->tcam[0]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA1, c2->tcam[1]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA2, c2->tcam[2]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA3, c2->tcam[3]);
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA4, c2->tcam[4]);
-
-	mvpp2_write(priv, MVPP22_CLS_C2_ACT, c2->act);
-
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR0, c2->attr[0]);
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR1, c2->attr[1]);
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR2, c2->attr[2]);
-	mvpp2_write(priv, MVPP22_CLS_C2_ATTR3, c2->attr[3]);
-}
-
-void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
-		       struct mvpp2_cls_c2_entry *c2)
-{
-	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, index);
-
-	c2->index = index;
-
-	c2->tcam[0] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA0);
-	c2->tcam[1] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA1);
-	c2->tcam[2] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA2);
-	c2->tcam[3] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA3);
-	c2->tcam[4] = mvpp2_read(priv, MVPP22_CLS_C2_TCAM_DATA4);
-
-	c2->act = mvpp2_read(priv, MVPP22_CLS_C2_ACT);
-
-	c2->attr[0] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR0);
-	c2->attr[1] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR1);
-	c2->attr[2] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR2);
-	c2->attr[3] = mvpp2_read(priv, MVPP22_CLS_C2_ATTR3);
 }
 
 static void mvpp2_port_c2_cls_init(struct mvpp2_port *port)
@@ -790,6 +807,10 @@ static void mvpp2_port_c2_cls_init(struct mvpp2_port *port)
 	pmap = BIT(port->id);
 	c2.tcam[4] = MVPP22_CLS_C2_PORT_ID(pmap);
 	c2.tcam[4] |= MVPP22_CLS_C2_TCAM_EN(MVPP22_CLS_C2_PORT_ID(pmap));
+
+	/* Match on Lookup Type */
+	c2.tcam[4] |= MVPP22_CLS_C2_TCAM_EN(MVPP22_CLS_C2_LU_TYPE(MVPP2_CLS_LU_TYPE_MASK));
+	c2.tcam[4] |= MVPP22_CLS_C2_LU_TYPE(MVPP2_CLS_LU_ALL);
 
 	/* Update RSS status after matching this entry */
 	c2.act = MVPP22_CLS_C2_ACT_RSS_EN(MVPP22_C2_UPD_LOCK);
@@ -809,6 +830,8 @@ static void mvpp2_port_c2_cls_init(struct mvpp2_port *port)
 	c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
 		      MVPP22_CLS_C2_ATTR0_QLOW(ql);
 
+	c2.valid = true;
+
 	mvpp2_cls_c2_write(port->priv, &c2);
 }
 
@@ -817,6 +840,7 @@ void mvpp2_cls_init(struct mvpp2 *priv)
 {
 	struct mvpp2_cls_lookup_entry le;
 	struct mvpp2_cls_flow_entry fe;
+	struct mvpp2_cls_c2_entry c2;
 	int index;
 
 	/* Enable classifier */
@@ -838,6 +862,14 @@ void mvpp2_cls_init(struct mvpp2 *priv)
 
 		le.way = 1;
 		mvpp2_cls_lookup_write(priv, &le);
+	}
+
+	/* Clear C2 TCAM engine table */
+	memset(&c2, 0, sizeof(c2));
+	c2.valid = false;
+	for (index = 0; index < MVPP22_CLS_C2_N_ENTRIES; index++) {
+		c2.index = index;
+		mvpp2_cls_c2_write(priv, &c2);
 	}
 
 	mvpp2_cls_port_init_flows(priv);
@@ -902,12 +934,12 @@ static void mvpp2_rss_port_c2_disable(struct mvpp2_port *port)
 	mvpp2_cls_c2_write(port->priv, &c2);
 }
 
-void mvpp22_rss_enable(struct mvpp2_port *port)
+void mvpp22_port_rss_enable(struct mvpp2_port *port)
 {
 	mvpp2_rss_port_c2_enable(port);
 }
 
-void mvpp22_rss_disable(struct mvpp2_port *port)
+void mvpp22_port_rss_disable(struct mvpp2_port *port)
 {
 	mvpp2_rss_port_c2_disable(port);
 }
@@ -1037,7 +1069,7 @@ int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info)
 	return 0;
 }
 
-void mvpp22_rss_port_init(struct mvpp2_port *port)
+void mvpp22_port_rss_init(struct mvpp2_port *port)
 {
 	struct mvpp2 *priv = port->priv;
 	int i;
