@@ -338,8 +338,10 @@ static int f71862fg_pin_configure(unsigned short ioaddr)
 
 static int watchdog_start(void)
 {
+	int err;
+
 	/* Make sure we don't die as soon as the watchdog is enabled below */
-	int err = watchdog_keepalive();
+	err = watchdog_keepalive();
 	if (err)
 		return err;
 
