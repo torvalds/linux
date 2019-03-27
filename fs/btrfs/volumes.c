@@ -1505,7 +1505,6 @@ error_bdev_put:
  * Try to find a chunk that intersects [start, start + len] range and when one
  * such is found, record the end of it in *start
  */
-#define in_range(b, first, len)        ((b) >= (first) && (b) < (first) + (len))
 static bool contains_pending_extent(struct btrfs_device *device, u64 *start,
 				    u64 len)
 {
