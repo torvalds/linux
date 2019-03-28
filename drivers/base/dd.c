@@ -482,7 +482,7 @@ re_probe:
 
 	ret = dma_configure(dev);
 	if (ret)
-		goto dma_failed;
+		goto probe_failed;
 
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",
@@ -537,14 +537,13 @@ re_probe:
 	goto done;
 
 probe_failed:
-	dma_deconfigure(dev);
-dma_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
 pinctrl_bind_failed:
 	device_links_no_driver(dev);
 	devres_release_all(dev);
+	dma_deconfigure(dev);
 	driver_sysfs_remove(dev);
 	dev->driver = NULL;
 	dev_set_drvdata(dev, NULL);
