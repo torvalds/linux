@@ -658,14 +658,23 @@ static bool setup_dsc_config(
 	dsc_cfg->num_slices_h = num_slices_h;
 	slice_width = pic_width / num_slices_h;
 
-	// Vertical number of slices: start from policy and pick the first one that height is divisible by
+	// Vertical number of slices: start from policy and pick the first one that height is divisible by.
+	// For 4:2:0 make sure the slice height is divisible by 2 as well.
 	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 	num_slices_v = dsc_policy.num_slices_v;
 	if (num_slices_v < 1)
 		num_slices_v = 1;
 
-	while (num_slices_v >= 1 && (pic_height % num_slices_v != 0))
+	while (num_slices_v >= 1) {
+		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+			int slice_height = pic_height / num_slices_v;
+			if (pic_height % num_slices_v == 0 && slice_height % 2 == 0)
+				break;
+		} else if (pic_height % num_slices_v == 0)
+			break;
+
 		num_slices_v--;
+	}
 
 	dsc_cfg->num_slices_v = num_slices_v;
 
