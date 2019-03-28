@@ -156,6 +156,34 @@ static int get_port_state(struct ib_device *ibdev,
 	return ret;
 }
 
+static struct mlx5_roce *mlx5_get_rep_roce(struct mlx5_ib_dev *dev,
+					   struct net_device *ndev,
+					   u8 *port_num)
+{
+	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
+	struct net_device *rep_ndev;
+	struct mlx5_ib_port *port;
+	int i;
+
+	for (i = 0; i < dev->num_ports; i++) {
+		port  = &dev->port[i];
+		if (!port->rep)
+			continue;
+
+		read_lock(&port->roce.netdev_lock);
+		rep_ndev = mlx5_ib_get_rep_netdev(esw,
+						  port->rep->vport);
+		if (rep_ndev == ndev) {
+			read_unlock(&port->roce.netdev_lock);
+			*port_num = i + 1;
+			return &port->roce;
+		}
+		read_unlock(&port->roce.netdev_lock);
+	}
+
+	return NULL;
+}
+
 static int mlx5_netdev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
@@ -172,22 +200,17 @@ static int mlx5_netdev_event(struct notifier_block *this,
 
 	switch (event) {
 	case NETDEV_REGISTER:
+		/* Should already be registered during the load */
+		if (ibdev->is_rep)
+			break;
 		write_lock(&roce->netdev_lock);
-		if (ibdev->is_rep) {
-			struct mlx5_eswitch *esw = ibdev->mdev->priv.eswitch;
-			struct mlx5_eswitch_rep	*rep = ibdev->port[0].rep;
-			struct net_device *rep_ndev;
-
-			rep_ndev = mlx5_ib_get_rep_netdev(esw, rep->vport);
-			if (rep_ndev == ndev)
-				roce->netdev = ndev;
-		} else if (ndev->dev.parent == &mdev->pdev->dev) {
+		if (ndev->dev.parent == &mdev->pdev->dev)
 			roce->netdev = ndev;
-		}
 		write_unlock(&roce->netdev_lock);
 		break;
 
 	case NETDEV_UNREGISTER:
+		/* In case of reps, ib device goes away before the netdevs */
 		write_lock(&roce->netdev_lock);
 		if (roce->netdev == ndev)
 			roce->netdev = NULL;
@@ -205,6 +228,10 @@ static int mlx5_netdev_event(struct notifier_block *this,
 			dev_put(lag_ndev);
 		}
 
+		if (ibdev->is_rep)
+			roce = mlx5_get_rep_roce(ibdev, ndev, &port_num);
+		if (!roce)
+			return NOTIFY_DONE;
 		if ((upper == ndev || (!upper && ndev == roce->netdev))
 		    && ibdev->ib_active) {
 			struct ib_event ibev = { };

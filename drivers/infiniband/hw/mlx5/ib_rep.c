@@ -71,6 +71,8 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 
 	ibdev->is_rep = true;
 	ibdev->port[0].rep = rep;
+	ibdev->port[0].roce.netdev =
+		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
 	ibdev->mdev = dev;
 	ibdev->num_ports = num_ports;
 
