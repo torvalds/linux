@@ -736,6 +736,13 @@ static int dsa_slave_get_phys_port_name(struct net_device *dev,
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
+	/* For non-legacy ports, devlink is used and it takes
+	 * care of the name generation. This ndo implementation
+	 * should be removed with legacy support.
+	 */
+	if (dp->ds->devlink)
+		return -EOPNOTSUPP;
+
 	if (snprintf(name, len, "p%d", dp->index) >= len)
 		return -EINVAL;
 
