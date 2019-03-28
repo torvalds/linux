@@ -3324,8 +3324,11 @@ nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	struct nfp_net *nn = netdev_priv(netdev);
 	int n;
 
+	/* If port is defined, devlink_port is registered and devlink core
+	 * is taking care of name formatting.
+	 */
 	if (nn->port)
-		return nfp_port_get_phys_port_name(netdev, name, len);
+		return -EOPNOTSUPP;
 
 	if (nn->dp.is_vf || nn->vnic_no_name)
 		return -EOPNOTSUPP;
