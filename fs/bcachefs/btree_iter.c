@@ -956,10 +956,22 @@ int __must_check __bch2_btree_iter_traverse(struct btree_iter *);
 
 static int btree_iter_traverse_error(struct btree_iter *iter, int ret)
 {
-	struct bch_fs *c = iter->trans->c;
-	struct btree_iter *linked, *sorted_iters, **i;
+	struct btree_trans *trans = iter->trans;
+	struct bch_fs *c = trans->c;
+	u8 sorted[BTREE_ITER_MAX];
+	unsigned i, nr_sorted = 0;
+
+	trans_for_each_iter(trans, iter)
+		sorted[nr_sorted++] = iter - trans->iters;
+
+#define btree_iter_cmp_by_idx(_l, _r)				\
+		btree_iter_cmp(&trans->iters[_l], &trans->iters[_r])
+
+	bubble_sort(sorted, nr_sorted, btree_iter_cmp_by_idx);
+#undef btree_iter_cmp_by_idx
+
 retry_all:
-	bch2_btree_iter_unlock(iter);
+	bch2_btree_trans_unlock(trans);
 
 	if (ret != -ENOMEM && ret != -EINTR)
 		goto io_error;
@@ -975,48 +987,19 @@ retry_all:
 		} while (ret);
 	}
 
-	/*
-	 * Linked iters are normally a circular singly linked list - break cycle
-	 * while we sort them:
-	 */
-	linked = iter->next;
-	iter->next = NULL;
-	sorted_iters = NULL;
+	/* Now, redo traversals in correct order: */
+	for (i = 0; i < nr_sorted; i++) {
+		iter = &trans->iters[sorted[i]];
 
-	while (linked) {
-		iter = linked;
-		linked = linked->next;
+		do {
+			ret = __bch2_btree_iter_traverse(iter);
+		} while (ret == -EINTR);
 
-		i = &sorted_iters;
-		while (*i && btree_iter_cmp(iter, *i) > 0)
-			i = &(*i)->next;
-
-		iter->next = *i;
-		*i = iter;
+		if (ret)
+			goto retry_all;
 	}
 
-	/* Make list circular again: */
-	iter = sorted_iters;
-	while (iter->next)
-		iter = iter->next;
-	iter->next = sorted_iters;
-
-	/* Now, redo traversals in correct order: */
-
-	iter = sorted_iters;
-	do {
-retry:
-		ret = __bch2_btree_iter_traverse(iter);
-		if (unlikely(ret)) {
-			if (ret == -EINTR)
-				goto retry;
-			goto retry_all;
-		}
-
-		iter = iter->next;
-	} while (iter != sorted_iters);
-
-	ret = btree_trans_has_multiple_iters(iter->trans) ? -EINTR : 0;
+	ret = btree_trans_has_multiple_iters(trans) ? -EINTR : 0;
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
 	return ret;
