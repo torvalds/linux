@@ -682,6 +682,7 @@ static bool devx_is_whitelist_cmd(void *in)
 	switch (opcode) {
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_CONTEXT:
+	case MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT:
 		return true;
 	default:
 		return false;
@@ -719,6 +720,7 @@ static bool devx_is_general_cmd(void *in)
 	switch (opcode) {
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_CONTEXT:
+	case MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT:
 	case MLX5_CMD_OP_QUERY_VPORT_STATE:
 	case MLX5_CMD_OP_QUERY_ADAPTER:
 	case MLX5_CMD_OP_QUERY_ISSI:
