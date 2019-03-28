@@ -1731,23 +1731,6 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 	return 0;
 }
 
-/* Remove invalid userptr BOs from hmm track list
- *
- * Stop HMM track the userptr update
- */
-static void untrack_invalid_user_pages(struct amdkfd_process_info *process_info)
-{
-	struct kgd_mem *mem, *tmp_mem;
-	struct amdgpu_bo *bo;
-
-	list_for_each_entry_safe(mem, tmp_mem,
-				 &process_info->userptr_inval_list,
-				 validate_list.head) {
-		bo = mem->bo;
-		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
-	}
-}
-
 /* Validate invalid userptr BOs
  *
  * Validates BOs on the userptr_inval_list, and moves them back to the
@@ -1865,6 +1848,12 @@ unreserve_out:
 out_free:
 	kfree(pd_bo_list_entries);
 out_no_mem:
+	list_for_each_entry_safe(mem, tmp_mem,
+				 &process_info->userptr_inval_list,
+				 validate_list.head) {
+		bo = mem->bo;
+		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+	}
 
 	return ret;
 }
@@ -1929,9 +1918,7 @@ static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work)
 		 * hanging. No point trying again.
 		 */
 	}
-
 unlock_out:
-	untrack_invalid_user_pages(process_info);
 	mutex_unlock(&process_info->lock);
 	mmput(mm);
 	put_task_struct(usertask);
