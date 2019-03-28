@@ -6630,7 +6630,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	if (MLX5_ESWITCH_MANAGER(mdev) &&
 	    mlx5_ib_eswitch_mode(mdev->priv.eswitch) == SRIOV_OFFLOADS) {
-		mlx5_ib_register_vport_reps(mdev);
+		if (!mlx5_core_mp_enabled(mdev))
+			mlx5_ib_register_vport_reps(mdev);
 		return mdev;
 	}
 
