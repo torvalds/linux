@@ -4084,22 +4084,7 @@ struct lpfc_acqe_grp5 {
 	uint32_t trailer;
 };
 
-static char *const trunk_errmsg[] = {	/* map errcode */
-	"",	/* There is no such error code at index 0*/
-	"link negotiated speed does not match existing"
-		" trunk - link was \"low\" speed",
-	"link negotiated speed does not match"
-		" existing trunk - link was \"middle\" speed",
-	"link negotiated speed does not match existing"
-		" trunk - link was \"high\" speed",
-	"Attached to non-trunking port - F_Port",
-	"Attached to non-trunking port - N_Port",
-	"FLOGI response timeout",
-	"non-FLOGI frame received",
-	"Invalid FLOGI response",
-	"Trunking initialization protocol",
-	"Trunk peer device mismatch",
-};
+extern const char *const trunk_errmsg[];
 
 struct lpfc_acqe_fc_la {
 	uint32_t word0;
