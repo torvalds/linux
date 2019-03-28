@@ -708,14 +708,11 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	}
 
 	if (ret == -EINTR) {
-		trans_for_each_update_iter(trans, i) {
-			int ret2 = bch2_btree_iter_traverse(i->iter);
-			if (ret2) {
-				trans_restart(" (traverse)");
-				return ret2;
-			}
+		int ret2 = bch2_btree_iter_traverse_all(trans);
 
-			BUG_ON(i->iter->uptodate > BTREE_ITER_NEED_PEEK);
+		if (ret2) {
+			trans_restart(" (traverse)");
+			return ret2;
 		}
 
 		/*

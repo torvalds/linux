@@ -954,9 +954,9 @@ static void btree_iter_up(struct btree_iter *iter)
 
 int __must_check __bch2_btree_iter_traverse(struct btree_iter *);
 
-static int btree_iter_traverse_error(struct btree_iter *iter, int ret)
+static int __btree_iter_traverse_all(struct btree_trans *trans,
+				     struct btree_iter *iter, int ret)
 {
-	struct btree_trans *trans = iter->trans;
 	struct bch_fs *c = trans->c;
 	u8 sorted[BTREE_ITER_MAX];
 	unsigned i, nr_sorted = 0;
@@ -973,10 +973,7 @@ static int btree_iter_traverse_error(struct btree_iter *iter, int ret)
 retry_all:
 	bch2_btree_trans_unlock(trans);
 
-	if (ret != -ENOMEM && ret != -EINTR)
-		goto io_error;
-
-	if (ret == -ENOMEM) {
+	if (unlikely(ret == -ENOMEM)) {
 		struct closure cl;
 
 		closure_init_stack(&cl);
@@ -986,6 +983,14 @@ retry_all:
 			closure_sync(&cl);
 		} while (ret);
 	}
+
+	if (unlikely(ret == -EIO)) {
+		iter->flags |= BTREE_ITER_ERROR;
+		iter->l[iter->level].b = BTREE_ITER_NOT_END;
+		goto out;
+	}
+
+	BUG_ON(ret && ret != -EINTR);
 
 	/* Now, redo traversals in correct order: */
 	for (i = 0; i < nr_sorted; i++) {
@@ -1003,12 +1008,11 @@ retry_all:
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
 	return ret;
-io_error:
-	BUG_ON(ret != -EIO);
+}
 
-	iter->flags |= BTREE_ITER_ERROR;
-	iter->l[iter->level].b = BTREE_ITER_NOT_END;
-	goto out;
+int bch2_btree_iter_traverse_all(struct btree_trans *trans)
+{
+	return __btree_iter_traverse_all(trans, NULL, 0);
 }
 
 static unsigned btree_iter_up_until_locked(struct btree_iter *iter,
@@ -1096,7 +1100,7 @@ int __must_check bch2_btree_iter_traverse(struct btree_iter *iter)
 
 	ret = __bch2_btree_iter_traverse(iter);
 	if (unlikely(ret))
-		ret = btree_iter_traverse_error(iter, ret);
+		ret = __btree_iter_traverse_all(iter->trans, iter, ret);
 
 	BUG_ON(ret == -EINTR && !btree_trans_has_multiple_iters(iter->trans));
 
@@ -1923,6 +1927,8 @@ void __bch2_trans_begin(struct btree_trans *trans)
 	trans->iters_unlink_on_commit	= 0;
 	trans->nr_updates		= 0;
 	trans->mem_top			= 0;
+
+	bch2_btree_iter_traverse_all(trans);
 }
 
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c)
