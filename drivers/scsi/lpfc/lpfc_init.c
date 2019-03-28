@@ -3080,7 +3080,7 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
  * This routine moves a batch of XRIs from lpfc_io_buf_list_put of HWQ 0
  * to expedite pool. Mark them as expedite.
  **/
-void lpfc_create_expedite_pool(struct lpfc_hba *phba)
+static void lpfc_create_expedite_pool(struct lpfc_hba *phba)
 {
 	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_io_buf *lpfc_ncmd;
@@ -3115,7 +3115,7 @@ void lpfc_create_expedite_pool(struct lpfc_hba *phba)
  * This routine returns XRIs from expedite pool to lpfc_io_buf_list_put
  * of HWQ 0. Clear the mark.
  **/
-void lpfc_destroy_expedite_pool(struct lpfc_hba *phba)
+static void lpfc_destroy_expedite_pool(struct lpfc_hba *phba)
 {
 	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_io_buf *lpfc_ncmd;
@@ -3235,7 +3235,7 @@ void lpfc_create_multixri_pools(struct lpfc_hba *phba)
  *
  * This routine returns XRIs from public/private to lpfc_io_buf_list_put.
  **/
-void lpfc_destroy_multixri_pools(struct lpfc_hba *phba)
+static void lpfc_destroy_multixri_pools(struct lpfc_hba *phba)
 {
 	u32 i;
 	u32 hwq_count;
@@ -4465,7 +4465,7 @@ finished:
 	return stat;
 }
 
-void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
+static void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -9312,7 +9312,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
  * This routine will populate the cq_lookup table by all
  * available CQ queue_id's.
  **/
-void
+static void
 lpfc_setup_cq_lookup(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *eq, *childq;

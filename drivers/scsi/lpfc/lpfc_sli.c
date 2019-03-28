@@ -3931,7 +3931,7 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
  * in txcmplq. The iocbs in the txcmplq is not guaranteed to complete before
  * the return of this function. The caller is not required to hold any locks.
  **/
-void
+static void
 lpfc_sli_abort_wqe_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
 	LIST_HEAD(completions);
@@ -7099,7 +7099,7 @@ lpfc_sli4_repost_sgl_list(struct lpfc_hba *phba,
  *
  * Returns: 0 = success, non-zero failure.
  **/
-int
+static int
 lpfc_sli4_repost_io_sgl_list(struct lpfc_hba *phba)
 {
 	LIST_HEAD(post_nblist);
@@ -7119,7 +7119,7 @@ lpfc_sli4_repost_io_sgl_list(struct lpfc_hba *phba)
 	return rc;
 }
 
-void
+static void
 lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
 	uint32_t len;

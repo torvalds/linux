@@ -870,7 +870,7 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * This function will send a unreg_login mailbox command to the firmware
  * to release a rpi.
  **/
-void
+static void
 lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		 struct lpfc_nodelist *ndlp, uint16_t rpi)
 {

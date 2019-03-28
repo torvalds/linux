@@ -312,7 +312,7 @@ lpfc_nvme_localport_delete(struct nvme_fc_local_port *localport)
  * Return value :
  * None
  */
-void
+static void
 lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 {
 	struct lpfc_nvme_rport *rport = remoteport->private;
@@ -2135,7 +2135,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
  * An uninterruptible wait is used because of the risk of transport-to-
  * driver state mismatch.
  */
-void
+static void
 lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			   struct lpfc_nvme_lport *lport,
 			   struct completion *lport_unreg_cmp)

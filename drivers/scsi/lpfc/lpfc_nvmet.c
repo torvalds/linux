@@ -220,7 +220,7 @@ lpfc_nvmet_cmd_template(void)
 	/* Word 12, 13, 14, 15 - is zero */
 }
 
-void
+static void
 lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
 {
 	lockdep_assert_held(&ctxp->ctxlock);
