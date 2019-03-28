@@ -41,11 +41,6 @@
 #include "fs_core.h"
 #include "lib/devcom.h"
 
-enum {
-	FDB_FAST_PATH = 0,
-	FDB_SLOW_PATH
-};
-
 /* There are two match-all miss flows, one for unicast dst mac and
  * one for multicast.
  */

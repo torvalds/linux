@@ -75,6 +75,11 @@ enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_EGRESS,
 };
 
+enum {
+	FDB_FAST_PATH,
+	FDB_SLOW_PATH,
+};
+
 struct mlx5_flow_table;
 struct mlx5_flow_group;
 struct mlx5_flow_namespace;
