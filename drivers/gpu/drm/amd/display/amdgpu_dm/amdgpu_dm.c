@@ -6312,6 +6312,7 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct dc_scaling_info scaling_info;
 		struct dc_stream_update stream_update;
 
 		memset(&stream_update, 0, sizeof(stream_update));
@@ -6342,9 +6343,6 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 				goto cleanup;
 			}
 
-			if (!state->allow_modeset)
-				continue;
-
 			if (crtc != new_plane_crtc)
 				continue;
 
@@ -6365,6 +6363,13 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 				stream_update.out_transfer_func =
 						new_dm_crtc_state->stream->out_transfer_func;
 			}
+
+			ret = fill_dc_scaling_info(new_plane_state,
+						   &scaling_info);
+			if (ret)
+				goto cleanup;
+
+			updates[num_plane].scaling_info = &scaling_info;
 
 			num_plane++;
 		}
