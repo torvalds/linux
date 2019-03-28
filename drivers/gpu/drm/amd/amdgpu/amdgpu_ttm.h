@@ -101,21 +101,10 @@ int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
 int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 
-#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
 bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm);
-#else
-static inline int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
-{
-	return -EPERM;
-}
-static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
-{
-	return false;
-}
-#endif
-
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
+void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm);
 int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
 bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);

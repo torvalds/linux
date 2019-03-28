@@ -710,9 +710,7 @@ struct amdgpu_ttm_tt {
 	uint64_t		userptr;
 	struct task_struct	*usertask;
 	uint32_t		userflags;
-#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 	struct hmm_range	range;
-#endif
 };
 
 /**
@@ -722,7 +720,6 @@ struct amdgpu_ttm_tt {
  * Calling function must call amdgpu_ttm_tt_userptr_range_done() once and only
  * once afterwards to stop HMM tracking
  */
-#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
@@ -805,7 +802,6 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 
 	return r;
 }
-#endif
 
 /**
  * amdgpu_ttm_tt_set_user_pages - Copy pages in, putting old pages as necessary.
@@ -820,6 +816,29 @@ void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages)
 
 	for (i = 0; i < ttm->num_pages; ++i)
 		ttm->pages[i] = pages ? pages[i] : NULL;
+}
+
+/**
+ * amdgpu_ttm_tt_mark_user_page - Mark pages as dirty
+ *
+ * Called while unpinning userptr pages
+ */
+void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned i;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		struct page *page = ttm->pages[i];
+
+		if (!page)
+			continue;
+
+		if (!(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY))
+			set_page_dirty(page);
+
+		mark_page_accessed(page);
+	}
 }
 
 /**
@@ -883,11 +902,9 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 
 	sg_free_table(ttm->sg);
 
-#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 	if (gtt->range.pfns &&
 	    ttm->pages[0] == hmm_pfn_to_page(&gtt->range, gtt->range.pfns[0]))
 		WARN_ONCE(1, "Missing get_user_page_done\n");
-#endif
 }
 
 int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
