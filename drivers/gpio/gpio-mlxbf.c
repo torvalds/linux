@@ -11,7 +11,6 @@
 #include <linux/pm.h>
 #include <linux/resource.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 /* Number of pins on BlueField */
 #define MLXBF_GPIO_NR 54
