@@ -61,6 +61,7 @@ struct kgd_mem {
 
 	atomic_t invalid;
 	struct amdkfd_process_info *process_info;
+	struct page **user_pages;
 
 	struct amdgpu_sync sync;
 

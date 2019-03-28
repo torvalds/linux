@@ -43,7 +43,6 @@
 #include <linux/pagemap.h>
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
-#include <linux/hmm.h>
 #include "amdgpu.h"
 #include "amdgpu_object.h"
 #include "amdgpu_trace.h"
@@ -704,102 +703,98 @@ static unsigned long amdgpu_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 /*
  * TTM backend functions.
  */
+struct amdgpu_ttm_gup_task_list {
+	struct list_head	list;
+	struct task_struct	*task;
+};
+
 struct amdgpu_ttm_tt {
 	struct ttm_dma_tt	ttm;
 	u64			offset;
 	uint64_t		userptr;
 	struct task_struct	*usertask;
 	uint32_t		userflags;
-	struct hmm_range	range;
+	spinlock_t              guptasklock;
+	struct list_head        guptasks;
+	atomic_t		mmu_invalidations;
+	uint32_t		last_set_pages;
 };
 
 /**
- * amdgpu_ttm_tt_get_user_pages - get device accessible pages that back user
- * memory and start HMM tracking CPU page table update
+ * amdgpu_ttm_tt_get_user_pages - Pin pages of memory pointed to by a USERPTR
+ * pointer to memory
  *
- * Calling function must call amdgpu_ttm_tt_userptr_range_done() once and only
- * once afterwards to stop HMM tracking
+ * Called by amdgpu_gem_userptr_ioctl() and amdgpu_cs_parser_bos().
+ * This provides a wrapper around the get_user_pages() call to provide
+ * device accessible pages that back user memory.
  */
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	struct mm_struct *mm = gtt->usertask->mm;
-	unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
-	struct hmm_range *range = &gtt->range;
-	int r = 0, i;
+	unsigned int flags = 0;
+	unsigned pinned = 0;
+	int r;
 
 	if (!mm) /* Happens during process shutdown */
 		return -ESRCH;
 
-	amdgpu_hmm_init_range(range);
+	if (!(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY))
+		flags |= FOLL_WRITE;
 
 	down_read(&mm->mmap_sem);
 
-	range->vma = find_vma(mm, gtt->userptr);
-	if (!range_in_vma(range->vma, gtt->userptr, end))
-		r = -EFAULT;
-	else if ((gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) &&
-		range->vma->vm_file)
-		r = -EPERM;
-	if (r)
-		goto out;
+	if (gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) {
+		/*
+		 * check that we only use anonymous memory to prevent problems
+		 * with writeback
+		 */
+		unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
+		struct vm_area_struct *vma;
 
-	range->pfns = kvmalloc_array(ttm->num_pages, sizeof(uint64_t),
-				     GFP_KERNEL);
-	if (range->pfns == NULL) {
-		r = -ENOMEM;
-		goto out;
+		vma = find_vma(mm, gtt->userptr);
+		if (!vma || vma->vm_file || vma->vm_end < end) {
+			up_read(&mm->mmap_sem);
+			return -EPERM;
+		}
 	}
-	range->start = gtt->userptr;
-	range->end = end;
 
-	range->pfns[0] = range->flags[HMM_PFN_VALID];
-	range->pfns[0] |= amdgpu_ttm_tt_is_readonly(ttm) ?
-				0 : range->flags[HMM_PFN_WRITE];
-	for (i = 1; i < ttm->num_pages; i++)
-		range->pfns[i] = range->pfns[0];
+	/* loop enough times using contiguous pages of memory */
+	do {
+		unsigned num_pages = ttm->num_pages - pinned;
+		uint64_t userptr = gtt->userptr + pinned * PAGE_SIZE;
+		struct page **p = pages + pinned;
+		struct amdgpu_ttm_gup_task_list guptask;
 
-	/* This may trigger page table update */
-	r = hmm_vma_fault(range, true);
-	if (r)
-		goto out_free_pfns;
+		guptask.task = current;
+		spin_lock(&gtt->guptasklock);
+		list_add(&guptask.list, &gtt->guptasks);
+		spin_unlock(&gtt->guptasklock);
+
+		if (mm == current->mm)
+			r = get_user_pages(userptr, num_pages, flags, p, NULL);
+		else
+			r = get_user_pages_remote(gtt->usertask,
+					mm, userptr, num_pages,
+					flags, p, NULL, NULL);
+
+		spin_lock(&gtt->guptasklock);
+		list_del(&guptask.list);
+		spin_unlock(&gtt->guptasklock);
+
+		if (r < 0)
+			goto release_pages;
+
+		pinned += r;
+
+	} while (pinned < ttm->num_pages);
 
 	up_read(&mm->mmap_sem);
-
-	for (i = 0; i < ttm->num_pages; i++)
-		pages[i] = hmm_pfn_to_page(range, range->pfns[i]);
-
 	return 0;
 
-out_free_pfns:
-	kvfree(range->pfns);
-	range->pfns = NULL;
-out:
+release_pages:
+	release_pages(pages, pinned);
 	up_read(&mm->mmap_sem);
-	return r;
-}
-
-/**
- * amdgpu_ttm_tt_userptr_range_done - stop HMM track the CPU page table change
- * Check if the pages backing this ttm range have been invalidated
- *
- * Returns: true if pages are still valid
- */
-bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
-{
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	bool r = false;
-
-	if (!gtt || !gtt->userptr)
-		return false;
-
-	WARN_ONCE(!gtt->range.pfns, "No user pages to check\n");
-	if (gtt->range.pfns) {
-		r = hmm_vma_range_done(&gtt->range);
-		kvfree(gtt->range.pfns);
-		gtt->range.pfns = NULL;
-	}
-
 	return r;
 }
 
@@ -812,10 +807,16 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
  */
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 
-	for (i = 0; i < ttm->num_pages; ++i)
+	gtt->last_set_pages = atomic_read(&gtt->mmu_invalidations);
+	for (i = 0; i < ttm->num_pages; ++i) {
+		if (ttm->pages[i])
+			put_page(ttm->pages[i]);
+
 		ttm->pages[i] = pages ? pages[i] : NULL;
+	}
 }
 
 /**
@@ -900,11 +901,10 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	/* unmap the pages mapped to the device */
 	dma_unmap_sg(adev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
 
-	sg_free_table(ttm->sg);
+	/* mark the pages as dirty */
+	amdgpu_ttm_tt_mark_user_pages(ttm);
 
-	if (gtt->range.pfns &&
-	    ttm->pages[0] == hmm_pfn_to_page(&gtt->range, gtt->range.pfns[0]))
-		WARN_ONCE(1, "Missing get_user_page_done\n");
+	sg_free_table(ttm->sg);
 }
 
 int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
@@ -1254,6 +1254,11 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 	gtt->usertask = current->group_leader;
 	get_task_struct(gtt->usertask);
 
+	spin_lock_init(&gtt->guptasklock);
+	INIT_LIST_HEAD(&gtt->guptasks);
+	atomic_set(&gtt->mmu_invalidations, 0);
+	gtt->last_set_pages = 0;
+
 	return 0;
 }
 
@@ -1282,6 +1287,7 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 				  unsigned long end)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	struct amdgpu_ttm_gup_task_list *entry;
 	unsigned long size;
 
 	if (gtt == NULL || !gtt->userptr)
@@ -1294,20 +1300,48 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 	if (gtt->userptr > end || gtt->userptr + size <= start)
 		return false;
 
+	/* Search the lists of tasks that hold this mapping and see
+	 * if current is one of them.  If it is return false.
+	 */
+	spin_lock(&gtt->guptasklock);
+	list_for_each_entry(entry, &gtt->guptasks, list) {
+		if (entry->task == current) {
+			spin_unlock(&gtt->guptasklock);
+			return false;
+		}
+	}
+	spin_unlock(&gtt->guptasklock);
+
+	atomic_inc(&gtt->mmu_invalidations);
+
 	return true;
 }
 
 /**
- * amdgpu_ttm_tt_is_userptr - Have the pages backing by userptr?
+ * amdgpu_ttm_tt_userptr_invalidated - Has the ttm_tt object been invalidated?
  */
-bool amdgpu_ttm_tt_is_userptr(struct ttm_tt *ttm)
+bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
+				       int *last_invalidated)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	int prev_invalidated = *last_invalidated;
+
+	*last_invalidated = atomic_read(&gtt->mmu_invalidations);
+	return prev_invalidated != *last_invalidated;
+}
+
+/**
+ * amdgpu_ttm_tt_userptr_needs_pages - Have the pages backing this ttm_tt object
+ * been invalidated since the last time they've been set?
+ */
+bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 
 	if (gtt == NULL || !gtt->userptr)
 		return false;
 
-	return true;
+	return atomic_read(&gtt->mmu_invalidations) != gtt->last_set_pages;
 }
 
 /**

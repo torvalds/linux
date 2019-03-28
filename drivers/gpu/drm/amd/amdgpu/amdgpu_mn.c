@@ -220,6 +220,8 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
 			true, false, MAX_SCHEDULE_TIMEOUT);
 		if (r <= 0)
 			DRM_ERROR("(%ld) failed to wait for user bo\n", r);
+
+		amdgpu_ttm_tt_mark_user_pages(bo->tbo.ttm);
 	}
 }
 
@@ -500,26 +502,3 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 	mutex_unlock(&adev->mn_lock);
 }
 
-/* flags used by HMM internal, not related to CPU/GPU PTE flags */
-static const uint64_t hmm_range_flags[HMM_PFN_FLAG_MAX] = {
-		(1 << 0), /* HMM_PFN_VALID */
-		(1 << 1), /* HMM_PFN_WRITE */
-		0 /* HMM_PFN_DEVICE_PRIVATE */
-};
-
-static const uint64_t hmm_range_values[HMM_PFN_VALUE_MAX] = {
-		0xfffffffffffffffeUL, /* HMM_PFN_ERROR */
-		0, /* HMM_PFN_NONE */
-		0xfffffffffffffffcUL /* HMM_PFN_SPECIAL */
-};
-
-void amdgpu_hmm_init_range(struct hmm_range *range)
-{
-	if (range) {
-		range->flags = hmm_range_flags;
-		range->values = hmm_range_values;
-		range->pfn_shift = PAGE_SHIFT;
-		range->pfns = NULL;
-		INIT_LIST_HEAD(&range->list);
-	}
-}
