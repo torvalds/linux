@@ -186,12 +186,18 @@ static int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_tx_err_ctx *err_ctx)
 
 static int mlx5e_tx_reporter_recover_all(struct mlx5e_priv *priv)
 {
-	int err;
+	int err = 0;
 
 	rtnl_lock();
 	mutex_lock(&priv->state_lock);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto out;
+
 	mlx5e_close_locked(priv->netdev);
 	err = mlx5e_open_locked(priv->netdev);
+
+out:
 	mutex_unlock(&priv->state_lock);
 	rtnl_unlock();
 
