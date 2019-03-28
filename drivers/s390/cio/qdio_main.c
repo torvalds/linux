@@ -551,11 +551,8 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 
 	count = get_inbound_buffer_frontier(q);
 
-	if (count) {
-		q->last_move = q->first_to_check;
-		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
-			q->u.in.timestamp = get_tod_clock();
-	}
+	if (count && !is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
+		q->u.in.timestamp = get_tod_clock();
 
 	return count;
 }
@@ -780,10 +777,8 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q)
 
 	count = get_outbound_buffer_frontier(q);
 
-	if (count) {
-		q->last_move = q->first_to_check;
+	if (count)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
-	}
 
 	return count;
 }

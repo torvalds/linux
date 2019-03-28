@@ -228,9 +228,6 @@ struct qdio_q {
 	 */
 	int first_to_check;
 
-	/* first_to_check of the last time */
-	int last_move;
-
 	/* beginning position for calling the program */
 	int first_to_kick;
 
