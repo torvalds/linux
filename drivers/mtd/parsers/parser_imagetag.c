@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/of.h>
 
 /* Ensure strings read from flash structs are null terminated */
 #define STR_NULL_TERMINATE(x) \
@@ -200,9 +201,16 @@ out:
 	return nrparts;
 }
 
+static const struct of_device_id parse_bcm963xx_imagetag_match_table[] = {
+	{ .compatible = "brcm,bcm963xx-imagetag" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, parse_bcm963xx_imagetag_match_table);
+
 static struct mtd_part_parser bcm963xx_imagetag_parser = {
 	.parse_fn = bcm963xx_parse_imagetag_partitions,
 	.name = "bcm963xx-imagetag",
+	.of_match_table = parse_bcm963xx_imagetag_match_table,
 };
 module_mtd_part_parser(bcm963xx_imagetag_parser);
 
