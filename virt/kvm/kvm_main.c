@@ -3063,6 +3063,8 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 #endif
 	case KVM_CAP_MAX_VCPU_ID:
 		return KVM_MAX_VCPU_ID;
+	case KVM_CAP_NR_MEMSLOTS:
+		return KVM_USER_MEM_SLOTS;
 	default:
 		break;
 	}

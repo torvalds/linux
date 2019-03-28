@@ -513,9 +513,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		else if (sclp.has_esca && sclp.has_64bscao)
 			r = KVM_S390_ESCA_CPU_SLOTS;
 		break;
-	case KVM_CAP_NR_MEMSLOTS:
-		r = KVM_USER_MEM_SLOTS;
-		break;
 	case KVM_CAP_S390_COW:
 		r = MACHINE_HAS_ESOP;
 		break;
