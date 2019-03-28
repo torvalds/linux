@@ -125,14 +125,14 @@ struct rt6_exception {
 #define FIB6_MAX_DEPTH 5
 
 struct fib6_nh {
-	struct in6_addr		nh_gw;
+	struct in6_addr		fib_nh_gw6;
 	bool			fib_nh_has_gw;
-	struct net_device	*nh_dev;
-	struct lwtunnel_state	*nh_lwtstate;
+	struct net_device	*fib_nh_dev;
+	struct lwtunnel_state	*fib_nh_lws;
 
-	unsigned int		nh_flags;
-	atomic_t		nh_upper_bound;
-	int			nh_weight;
+	unsigned int		fib_nh_flags;
+	atomic_t		fib_nh_upper_bound;
+	int			fib_nh_weight;
 };
 
 struct fib6_info {
@@ -442,7 +442,7 @@ void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 
 static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.nh_dev;
+	return f6i->fib6_nh.fib_nh_dev;
 }
 
 int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
@@ -453,7 +453,7 @@ void fib6_nh_release(struct fib6_nh *fib6_nh);
 static inline
 struct lwtunnel_state *fib6_info_nh_lwt(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.nh_lwtstate;
+	return f6i->fib6_nh.fib_nh_lws;
 }
 
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,

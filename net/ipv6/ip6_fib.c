@@ -2306,12 +2306,12 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 #endif
 	if (rt->fib6_nh.fib_nh_has_gw) {
 		flags |= RTF_GATEWAY;
-		seq_printf(seq, "%pi6", &rt->fib6_nh.nh_gw);
+		seq_printf(seq, "%pi6", &rt->fib6_nh.fib_nh_gw6);
 	} else {
 		seq_puts(seq, "00000000000000000000000000000000");
 	}
 
-	dev = rt->fib6_nh.nh_dev;
+	dev = rt->fib6_nh.fib_nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
 		   rt->fib6_metric, atomic_read(&rt->fib6_ref), 0,
 		   flags, dev ? dev->name : "");

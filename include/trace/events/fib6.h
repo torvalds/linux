@@ -62,8 +62,8 @@ TRACE_EVENT(fib6_table_lookup,
 			__entry->dport = 0;
 		}
 
-		if (f6i->fib6_nh.nh_dev) {
-			__assign_str(name, f6i->fib6_nh.nh_dev);
+		if (f6i->fib6_nh.fib_nh_dev) {
+			__assign_str(name, f6i->fib6_nh.fib_nh_dev);
 		} else {
 			__assign_str(name, "-");
 		}
@@ -75,7 +75,7 @@ TRACE_EVENT(fib6_table_lookup,
 
 		} else if (f6i) {
 			in6 = (struct in6_addr *)__entry->gw;
-			*in6 = f6i->fib6_nh.nh_gw;
+			*in6 = f6i->fib6_nh.fib_nh_gw6;
 		}
 	),
 
