@@ -480,12 +480,8 @@ static void bch2_gc_free(struct bch_fs *c)
 		ca->usage[1] = NULL;
 	}
 
-	percpu_down_write(&c->mark_lock);
-
 	free_percpu(c->usage[1]);
 	c->usage[1] = NULL;
-
-	percpu_up_write(&c->mark_lock);
 }
 
 static void bch2_gc_done(struct bch_fs *c, bool initial)
@@ -525,8 +521,6 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 	copy_field(_f, "dev %u has wrong " _msg, i, ##__VA_ARGS__)
 #define copy_fs_field(_f, _msg, ...)					\
 	copy_field(_f, "fs has wrong " _msg, ##__VA_ARGS__)
-
-	percpu_down_write(&c->mark_lock);
 
 	{
 		struct genradix_iter dst_iter = genradix_iter_init(&c->stripes[0], 0);
@@ -635,8 +629,6 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 		}
 	}
 
-	percpu_up_write(&c->mark_lock);
-
 #undef copy_fs_field
 #undef copy_dev_field
 #undef copy_bucket_field
@@ -649,8 +641,6 @@ static int bch2_gc_start(struct bch_fs *c)
 	struct bch_dev *ca;
 	unsigned i;
 
-	percpu_down_write(&c->mark_lock);
-
 	/*
 	 * indicate to stripe code that we need to allocate for the gc stripes
 	 * radix tree, too
@@ -661,8 +651,6 @@ static int bch2_gc_start(struct bch_fs *c)
 
 	c->usage[1] = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
 					 sizeof(u64), GFP_KERNEL);
-	percpu_up_write(&c->mark_lock);
-
 	if (!c->usage[1])
 		return -ENOMEM;
 
@@ -685,8 +673,6 @@ static int bch2_gc_start(struct bch_fs *c)
 		}
 	}
 
-	percpu_down_write(&c->mark_lock);
-
 	for_each_member_device(ca, c, i) {
 		struct bucket_array *dst = __bucket_array(ca, 1);
 		struct bucket_array *src = __bucket_array(ca, 0);
@@ -702,8 +688,6 @@ static int bch2_gc_start(struct bch_fs *c)
 			dst->b[b].gen_valid = src->b[b].gen_valid;
 		}
 	};
-
-	percpu_up_write(&c->mark_lock);
 
 	return bch2_ec_mem_alloc(c, true);
 }
@@ -737,7 +721,10 @@ int bch2_gc(struct bch_fs *c, struct list_head *journal, bool initial)
 
 	down_write(&c->gc_lock);
 again:
+	percpu_down_write(&c->mark_lock);
 	ret = bch2_gc_start(c);
+	percpu_up_write(&c->mark_lock);
+
 	if (ret)
 		goto out;
 
@@ -762,13 +749,19 @@ out:
 			bch_info(c, "Fixed gens, restarting mark and sweep:");
 			clear_bit(BCH_FS_FIXED_GENS, &c->flags);
 			__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
+
+			percpu_down_write(&c->mark_lock);
 			bch2_gc_free(c);
+			percpu_up_write(&c->mark_lock);
+
 			goto again;
 		}
 
 		bch_info(c, "Unable to fix bucket gens, looping");
 		ret = -EINVAL;
 	}
+
+	percpu_down_write(&c->mark_lock);
 
 	if (!ret)
 		bch2_gc_done(c, initial);
@@ -777,6 +770,8 @@ out:
 	__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
 
 	bch2_gc_free(c);
+	percpu_up_write(&c->mark_lock);
+
 	up_write(&c->gc_lock);
 
 	trace_gc_end(c);
