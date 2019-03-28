@@ -216,12 +216,8 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 	q->bands = qopt->bands;
 	memcpy(q->prio2band, qopt->priomap, TC_PRIO_MAX+1);
 
-	for (i = q->bands; i < oldbands; i++) {
-		struct Qdisc *child = q->queues[i];
-
-		qdisc_tree_reduce_backlog(child, child->q.qlen,
-					  child->qstats.backlog);
-	}
+	for (i = q->bands; i < oldbands; i++)
+		qdisc_tree_flush_backlog(q->queues[i]);
 
 	for (i = oldbands; i < q->bands; i++) {
 		q->queues[i] = queues[i];

@@ -217,15 +217,6 @@ static struct qfq_class *qfq_find_class(struct Qdisc *sch, u32 classid)
 	return container_of(clc, struct qfq_class, common);
 }
 
-static void qfq_purge_queue(struct qfq_class *cl)
-{
-	unsigned int len = cl->qdisc->q.qlen;
-	unsigned int backlog = cl->qdisc->qstats.backlog;
-
-	qdisc_reset(cl->qdisc);
-	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
-}
-
 static const struct nla_policy qfq_policy[TCA_QFQ_MAX + 1] = {
 	[TCA_QFQ_WEIGHT] = { .type = NLA_U32 },
 	[TCA_QFQ_LMAX] = { .type = NLA_U32 },
@@ -551,7 +542,7 @@ static int qfq_delete_class(struct Qdisc *sch, unsigned long arg)
 
 	sch_tree_lock(sch);
 
-	qfq_purge_queue(cl);
+	qdisc_purge_queue(cl->qdisc);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
 	sch_tree_unlock(sch);

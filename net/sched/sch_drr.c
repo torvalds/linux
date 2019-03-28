@@ -50,15 +50,6 @@ static struct drr_class *drr_find_class(struct Qdisc *sch, u32 classid)
 	return container_of(clc, struct drr_class, common);
 }
 
-static void drr_purge_queue(struct drr_class *cl)
-{
-	unsigned int len = cl->qdisc->q.qlen;
-	unsigned int backlog = cl->qdisc->qstats.backlog;
-
-	qdisc_reset(cl->qdisc);
-	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
-}
-
 static const struct nla_policy drr_policy[TCA_DRR_MAX + 1] = {
 	[TCA_DRR_QUANTUM]	= { .type = NLA_U32 },
 };
@@ -167,7 +158,7 @@ static int drr_delete_class(struct Qdisc *sch, unsigned long arg)
 
 	sch_tree_lock(sch);
 
-	drr_purge_queue(cl);
+	qdisc_purge_queue(cl->qdisc);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
 	sch_tree_unlock(sch);
