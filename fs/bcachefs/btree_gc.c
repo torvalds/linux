@@ -476,25 +476,26 @@ static void bch2_gc_free(struct bch_fs *c)
 	c->usage[1] = NULL;
 }
 
-static void bch2_gc_done(struct bch_fs *c, bool initial)
+static int bch2_gc_done(struct bch_fs *c, bool initial)
 {
 	struct bch_dev *ca;
 	bool verify = !initial ||
 		(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO));
 	unsigned i;
+	int ret = 0;
 
 #define copy_field(_f, _msg, ...)					\
 	if (dst->_f != src->_f) {					\
 		if (verify)						\
-			bch_err(c, _msg ": got %llu, should be %llu, fixing"\
+			fsck_err(c, _msg ": got %llu, should be %llu"	\
 				, ##__VA_ARGS__, dst->_f, src->_f);	\
 		dst->_f = src->_f;					\
 	}
 #define copy_stripe_field(_f, _msg, ...)				\
 	if (dst->_f != src->_f) {					\
 		if (verify)						\
-			bch_err_ratelimited(c, "stripe %zu has wrong "_msg\
-				": got %u, should be %u, fixing",	\
+			fsck_err(c, "stripe %zu has wrong "_msg		\
+				": got %u, should be %u",		\
 				dst_iter.pos, ##__VA_ARGS__,		\
 				dst->_f, src->_f);			\
 		dst->_f = src->_f;					\
@@ -503,8 +504,8 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 #define copy_bucket_field(_f)						\
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
 		if (verify)						\
-			bch_err_ratelimited(c, "dev %u bucket %zu has wrong " #_f\
-				": got %u, should be %u, fixing", i, b,	\
+			fsck_err(c, "dev %u bucket %zu has wrong " #_f	\
+				": got %u, should be %u", i, b,		\
 				dst->b[b].mark._f, src->b[b].mark._f);	\
 		dst->b[b]._mark._f = src->b[b].mark._f;			\
 		dst->b[b]._mark.dirty = true;				\
@@ -620,6 +621,8 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 #undef copy_bucket_field
 #undef copy_stripe_field
 #undef copy_field
+fsck_err:
+	return ret;
 }
 
 static int bch2_gc_start(struct bch_fs *c)
@@ -750,7 +753,7 @@ out:
 	percpu_down_write(&c->mark_lock);
 
 	if (!ret)
-		bch2_gc_done(c, initial);
+		ret = bch2_gc_done(c, initial);
 
 	/* Indicates that gc is no longer in progress: */
 	__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
