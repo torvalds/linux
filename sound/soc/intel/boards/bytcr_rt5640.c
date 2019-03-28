@@ -1154,7 +1154,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	struct byt_rt5640_private *priv;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
-	const char *i2c_name = NULL;
+	struct acpi_device *adev;
 	int ret_val = 0;
 	int dai_index = 0;
 	int i;
@@ -1178,11 +1178,11 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (i2c_name) {
+	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
+	if (adev) {
 		snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
-			"%s%s", "i2c-", i2c_name);
-
+			 "i2c-%s", acpi_dev_name(adev));
+		put_device(&adev->dev);
 		byt_rt5640_dais[dai_index].codec_name = byt_rt5640_codec_name;
 	}
 
