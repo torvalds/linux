@@ -4866,8 +4866,6 @@ error0:
 
 static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 {
-	struct mlx5_ib_dev *dev =
-		container_of(devr, struct mlx5_ib_dev, devr);
 	int port;
 
 	mlx5_ib_destroy_srq(devr->s1, NULL);
@@ -4881,7 +4879,7 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	kfree(devr->p0);
 
 	/* Make sure no change P_Key work items are still executing */
-	for (port = 0; port < dev->num_ports; ++port)
+	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
 		cancel_work_sync(&devr->ports[port].pkey_change_work);
 }
 
