@@ -559,12 +559,6 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 		struct bucket_array *src = __bucket_array(ca, 1);
 		size_t b;
 
-		if (initial) {
-			memcpy(dst, src,
-			       sizeof(struct bucket_array) +
-			       sizeof(struct bucket) * dst->nbuckets);
-		}
-
 		for (b = 0; b < src->nbuckets; b++) {
 			copy_bucket_field(gen);
 			copy_bucket_field(data_type);
