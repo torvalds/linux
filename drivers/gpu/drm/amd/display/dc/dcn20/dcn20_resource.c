@@ -2136,6 +2136,10 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 	if (pipe_cnt != pipe_idx)
 		pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, &context->res_ctx, pipes);
 
+	pipes[0].clks_cfg.voltage = vlevel;
+	pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].dcfclk_mhz;
+	pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].socclk_mhz;
+
 	/* only pipe 0 is read for voltage and dcf/soc clocks */
 	if (vlevel < 1) {
 		pipes[0].clks_cfg.voltage = 1;
