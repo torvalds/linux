@@ -636,16 +636,12 @@ static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 	return phys_aob;
 }
 
-static void qdio_kick_handler(struct qdio_q *q)
+static void qdio_kick_handler(struct qdio_q *q, unsigned int count)
 {
 	int start = q->first_to_kick;
-	int end = q->first_to_check;
-	int count;
 
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
-
-	count = sub_buf(end, start);
 
 	if (q->is_input_q) {
 		qperf_inc(q, inbound_handler);
@@ -662,7 +658,7 @@ static void qdio_kick_handler(struct qdio_q *q)
 		   q->irq_ptr->int_parm);
 
 	/* for the next time */
-	q->first_to_kick = end;
+	q->first_to_kick = add_buf(start, count);
 	q->qdio_error = 0;
 }
 
@@ -685,7 +681,7 @@ static void __qdio_inbound_processing(struct qdio_q *q)
 	if (count == 0)
 		return;
 
-	qdio_kick_handler(q);
+	qdio_kick_handler(q, count);
 
 	if (!qdio_inbound_q_done(q)) {
 		/* means poll time is not yet over */
@@ -843,7 +839,7 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 
 	count = qdio_outbound_q_moved(q);
 	if (count)
-		qdio_kick_handler(q);
+		qdio_kick_handler(q, count);
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT && !pci_out_supported(q->irq_ptr) &&
 	    !qdio_outbound_q_done(q))
@@ -911,7 +907,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	if (count == 0)
 		return;
 
-	qdio_kick_handler(q);
+	qdio_kick_handler(q, count);
 
 	if (!qdio_inbound_q_done(q)) {
 		qperf_inc(q, tasklet_inbound_resched);
@@ -1674,7 +1670,6 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 			  int *error)
 {
 	struct qdio_q *q;
-	int start, end;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	int count;
 
@@ -1699,15 +1694,14 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return -EIO;
 
-	start = q->first_to_kick;
-	end = q->first_to_check;
-	*bufnr = start;
+	*bufnr = q->first_to_kick;
 	*error = q->qdio_error;
 
 	/* for the next time */
-	q->first_to_kick = end;
+	q->first_to_kick = add_buf(q->first_to_kick, count);
 	q->qdio_error = 0;
-	return sub_buf(end, start);
+
+	return count;
 }
 EXPORT_SYMBOL(qdio_get_next_buffers);
 
