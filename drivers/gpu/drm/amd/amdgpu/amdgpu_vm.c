@@ -787,15 +787,22 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	}
 
 	if (entries) {
-		uint64_t value = 0;
+		uint64_t value = 0, flags = 0;
 
-		/* Workaround for fault priority problem on GMC9 */
-		if (level == AMDGPU_VM_PTB &&
-		    adev->asic_type >= CHIP_VEGA10)
-			value = AMDGPU_PTE_EXECUTABLE;
+		if (adev->asic_type >= CHIP_VEGA10) {
+			if (level != AMDGPU_VM_PTB) {
+				/* Handle leaf PDEs as PTEs */
+				flags |= AMDGPU_PDE_PTE;
+				amdgpu_gmc_get_vm_pde(adev, level,
+						      &value, &flags);
+			} else {
+				/* Workaround for fault priority problem on GMC9 */
+				flags = AMDGPU_PTE_EXECUTABLE;
+			}
+		}
 
 		r = vm->update_funcs->update(&params, bo, addr, 0, entries,
-					     0, value);
+					     value, flags);
 		if (r)
 			return r;
 	}
