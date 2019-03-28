@@ -74,15 +74,14 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	unsigned int n = 6;
+
 	while (n-- > 0)
-		if (i + n > 0)
-			regs->gprs[2 + i + n] = args[n];
-	if (i == 0)
-		regs->orig_gpr2 = args[0];
+		if (n > 0)
+			regs->gprs[2 + n] = args[n];
+	regs->orig_gpr2 = args[0];
 }
 
 static inline int syscall_get_arch(void)

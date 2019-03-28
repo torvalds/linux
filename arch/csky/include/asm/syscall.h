@@ -52,17 +52,11 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 
 static inline void
 syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
-		      unsigned int i, unsigned int n, const unsigned long *args)
+		      const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	if (i == 0) {
-		regs->orig_a0 = args[0];
-		args++;
-		n--;
-	} else {
-		i--;
-	}
-	memcpy(&regs->a1 + i, args, n * sizeof(regs->a1));
+	regs->orig_a0 = args[0];
+	args++;
+	memcpy(&regs->a1, args, 5 * sizeof(regs->a1));
 }
 
 static inline int

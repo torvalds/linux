@@ -138,63 +138,26 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
 # ifdef CONFIG_IA32_EMULATION
-	if (task->thread_info.status & TS_COMPAT)
-		switch (i) {
-		case 0:
-			if (!n--) break;
-			regs->bx = *args++;
-		case 1:
-			if (!n--) break;
-			regs->cx = *args++;
-		case 2:
-			if (!n--) break;
-			regs->dx = *args++;
-		case 3:
-			if (!n--) break;
-			regs->si = *args++;
-		case 4:
-			if (!n--) break;
-			regs->di = *args++;
-		case 5:
-			if (!n--) break;
-			regs->bp = *args++;
-		case 6:
-			if (!n--) break;
-		default:
-			BUG();
-			break;
-		}
-	else
+	if (task->thread_info.status & TS_COMPAT) {
+		regs->bx = *args++;
+		regs->cx = *args++;
+		regs->dx = *args++;
+		regs->si = *args++;
+		regs->di = *args++;
+		regs->bp = *args;
+	} else
 # endif
-		switch (i) {
-		case 0:
-			if (!n--) break;
-			regs->di = *args++;
-		case 1:
-			if (!n--) break;
-			regs->si = *args++;
-		case 2:
-			if (!n--) break;
-			regs->dx = *args++;
-		case 3:
-			if (!n--) break;
-			regs->r10 = *args++;
-		case 4:
-			if (!n--) break;
-			regs->r8 = *args++;
-		case 5:
-			if (!n--) break;
-			regs->r9 = *args++;
-		case 6:
-			if (!n--) break;
-		default:
-			BUG();
-			break;
-		}
+	{
+		regs->di = *args++;
+		regs->si = *args++;
+		regs->dx = *args++;
+		regs->r10 = *args++;
+		regs->r8 = *args++;
+		regs->r9 = *args;
+	}
 }
 
 static inline int syscall_get_arch(void)

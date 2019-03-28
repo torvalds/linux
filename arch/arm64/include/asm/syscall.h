@@ -75,26 +75,12 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	if (n == 0)
-		return;
+	regs->orig_x0 = args[0];
+	args++;
 
-	if (i + n > SYSCALL_MAX_ARGS) {
-		pr_warning("%s called with max args %d, handling only %d\n",
-			   __func__, i + n, SYSCALL_MAX_ARGS);
-		n = SYSCALL_MAX_ARGS - i;
-	}
-
-	if (i == 0) {
-		regs->orig_x0 = args[0];
-		args++;
-		i++;
-		n--;
-	}
-
-	memcpy(&regs->regs[i], args, n * sizeof(args[0]));
+	memcpy(&regs->regs[1], args, 5 * sizeof(args[0]));
 }
 
 /*

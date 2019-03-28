@@ -59,40 +59,14 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	switch (i) {
-	case 0:
-		if (!n--)
-			break;
-		regs->a4 = *args++;
-	case 1:
-		if (!n--)
-			break;
-		regs->b4 = *args++;
-	case 2:
-		if (!n--)
-			break;
-		regs->a6 = *args++;
-	case 3:
-		if (!n--)
-			break;
-		regs->b6 = *args++;
-	case 4:
-		if (!n--)
-			break;
-		regs->a8 = *args++;
-	case 5:
-		if (!n--)
-			break;
-		regs->a9 = *args++;
-	case 6:
-		if (!n)
-			break;
-	default:
-		BUG();
-	}
+	regs->a4 = *args++;
+	regs->b4 = *args++;
+	regs->a6 = *args++;
+	regs->b6 = *args++;
+	regs->a8 = *args++;
+	regs->a9 = *args;
 }
 
 #endif /* __ASM_C6X_SYSCALLS_H */

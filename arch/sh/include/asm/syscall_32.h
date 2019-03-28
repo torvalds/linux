@@ -62,23 +62,14 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	/* Same note as above applies */
-	BUG_ON(i);
-
-	switch (n) {
-	case 6: regs->regs[1] = args[5];
-	case 5: regs->regs[0] = args[4];
-	case 4: regs->regs[7] = args[3];
-	case 3: regs->regs[6] = args[2];
-	case 2: regs->regs[5] = args[1];
-	case 1: regs->regs[4] = args[0];
-		break;
-	default:
-		BUG();
-	}
+	regs->regs[1] = args[5];
+	regs->regs[0] = args[4];
+	regs->regs[7] = args[3];
+	regs->regs[6] = args[2];
+	regs->regs[5] = args[1];
+	regs->regs[4] = args[0];
 }
 
 static inline int syscall_get_arch(void)

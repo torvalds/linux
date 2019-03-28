@@ -86,15 +86,12 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	memcpy(&regs->gpr[3 + i], args, n * sizeof(args[0]));
+	memcpy(&regs->gpr[3], args, 6 * sizeof(args[0]));
 
 	/* Also copy the first argument into orig_gpr3 */
-	if (i == 0 && n > 0)
-		regs->orig_gpr3 = args[0];
+	regs->orig_gpr3 = args[0];
 }
 
 static inline int syscall_get_arch(void)

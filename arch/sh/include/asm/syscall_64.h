@@ -54,11 +54,9 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	memcpy(&regs->regs[2 + i], args, n * sizeof(args[0]));
+	memcpy(&regs->regs[2], args, 6 * sizeof(args[0]));
 }
 
 static inline int syscall_get_arch(void)
