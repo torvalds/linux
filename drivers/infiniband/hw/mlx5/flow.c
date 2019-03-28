@@ -670,15 +670,9 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_CREATE),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_DESTROY));
 
-static bool flow_is_supported(struct ib_device *device)
-{
-	return !to_mdev(device)->is_rep;
-}
-
 const struct uapi_definition mlx5_ib_flow_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
-		MLX5_IB_OBJECT_FLOW_MATCHER,
-		UAPI_DEF_IS_OBJ_SUPPORTED(flow_is_supported)),
+		MLX5_IB_OBJECT_FLOW_MATCHER),
 	UAPI_DEF_CHAIN_OBJ_TREE(
 		UVERBS_OBJECT_FLOW,
 		&mlx5_ib_fs),
