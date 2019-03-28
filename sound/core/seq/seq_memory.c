@@ -384,7 +384,6 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 {
 	int cell;
 	struct snd_seq_event_cell *cellptr;
-	unsigned long flags;
 
 	if (snd_BUG_ON(!pool))
 		return -EINVAL;
@@ -395,9 +394,9 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 		return -ENOMEM;
 
 	/* add new cells to the free cell list */
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	if (pool->ptr) {
-		spin_unlock_irqrestore(&pool->lock, flags);
+		spin_unlock_irq(&pool->lock);
 		kvfree(cellptr);
 		return 0;
 	}
@@ -416,7 +415,7 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	/* init statistics */
 	pool->max_used = 0;
 	pool->total_elements = pool->size;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 	return 0;
 }
 
@@ -435,7 +434,6 @@ void snd_seq_pool_mark_closing(struct snd_seq_pool *pool)
 /* remove events */
 int snd_seq_pool_done(struct snd_seq_pool *pool)
 {
-	unsigned long flags;
 	struct snd_seq_event_cell *ptr;
 
 	if (snd_BUG_ON(!pool))
@@ -449,18 +447,18 @@ int snd_seq_pool_done(struct snd_seq_pool *pool)
 		schedule_timeout_uninterruptible(1);
 	
 	/* release all resources */
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	ptr = pool->ptr;
 	pool->ptr = NULL;
 	pool->free = NULL;
 	pool->total_elements = 0;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	kvfree(ptr);
 
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	pool->closing = 0;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	return 0;
 }
