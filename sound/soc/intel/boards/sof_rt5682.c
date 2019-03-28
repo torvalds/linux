@@ -3,6 +3,7 @@
 
 /*
  * Intel SOF Machine Driver with Realtek rt5682 Codec
+ * and speaker codec MAX98357A
  */
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -21,18 +22,21 @@
 #include "../../codecs/rt5682.h"
 #include "../../codecs/hdac_hdmi.h"
 
-#define DUAL_CHANNEL 2
-#define QUAD_CHANNEL 4
 #define NAME_SIZE 32
 
-#define SOF_RT5682_SSP(quirk)		((quirk) & GENMASK(2, 0))
-#define SOF_RT5682_SSP_MASK		(GENMASK(2, 0))
-#define SOF_RT5682_MCLK_EN		BIT(3)
-#define SOF_RT5682_MCLK_24MHZ		BIT(4)
+#define SOF_RT5682_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
+#define SOF_RT5682_SSP_CODEC_MASK			(GENMASK(2, 0))
+#define SOF_RT5682_MCLK_EN			BIT(3)
+#define SOF_RT5682_MCLK_24MHZ			BIT(4)
+#define SOF_SPEAKER_AMP_PRESENT		BIT(5)
+#define SOF_RT5682_SSP_AMP(quirk)		((quirk) & GENMASK(8, 6))
+#define SOF_RT5682_SSP_AMP_MASK			(GENMASK(8, 6))
+#define SOF_RT5682_SSP_AMP_SHIFT		6
+
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
-					SOF_RT5682_SSP(0);
+					SOF_RT5682_SSP_CODEC(0);
 
 static int is_legacy_cpu;
 
@@ -64,7 +68,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_MCLK_24MHZ |
-					SOF_RT5682_SSP(1)),
+					SOF_RT5682_SSP_CODEC(1)),
 	},
 	{
 		.callback = sof_rt5682_quirk_cb,
@@ -74,7 +78,9 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_MCLK_24MHZ |
-					SOF_RT5682_SSP(0)),
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.callback = sof_rt5682_quirk_cb,
@@ -83,7 +89,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Ice Lake Client"),
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_SSP(0)),
+					SOF_RT5682_SSP_CODEC(0)),
 	},
 	{}
 };
@@ -238,7 +244,6 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 
 		i++;
 	}
-
 	if (!component)
 		return -EINVAL;
 
@@ -248,11 +253,13 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+	SOC_DAPM_PIN_SWITCH("Spk"),
 };
 
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_SPK("Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
@@ -264,6 +271,24 @@ static const struct snd_soc_dapm_route sof_map[] = {
 	{ "IN1P", NULL, "Headset Mic" },
 
 };
+
+static const struct snd_soc_dapm_route speaker_map[] = {
+	/* speaker */
+	{ "Spk", NULL, "Speaker" },
+};
+
+static int speaker_codec_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, speaker_map,
+				      ARRAY_SIZE(speaker_map));
+
+	if (ret)
+		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
+	return ret;
+}
 
 /* sof audio machine driver for rt5682 codec */
 static struct snd_soc_card sof_audio_card_rt5682 = {
@@ -299,8 +324,16 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	}
 };
 
+static struct snd_soc_dai_link_component max98357a_component[] = {
+	{
+		.name = "MX98357A:00",
+		.dai_name = "HiFi",
+	}
+};
+
 static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
-							  int ssp_port,
+							  int ssp_codec,
+							  int ssp_amp,
 							  int dmic_num,
 							  int hdmi_num)
 {
@@ -309,13 +342,13 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	int i, id = 0;
 
 	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
-			     (1 + dmic_num + hdmi_num), GFP_KERNEL);
+			     sof_audio_card_rt5682.num_links, GFP_KERNEL);
 	if (!links)
 		goto devm_err;
 
-	/* SSP */
+	/* codec SSP */
 	links[id].name = devm_kasprintf(dev, GFP_KERNEL,
-					"SSP%d-Codec", ssp_port);
+					"SSP%d-Codec", ssp_codec);
 	if (!links[id].name)
 		goto devm_err;
 
@@ -332,7 +365,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].no_pcm = 1;
 	if (is_legacy_cpu) {
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"ssp%d-port", ssp_port);
+							"ssp%d-port",
+							ssp_codec);
 		if (!links[id].cpu_dai_name)
 			goto devm_err;
 	} else {
@@ -347,7 +381,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		 */
 		links[id].ignore_pmdown_time = 1;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"SSP%d Pin", ssp_port);
+							"SSP%d Pin",
+							ssp_codec);
 		if (!links[id].cpu_dai_name)
 			goto devm_err;
 	}
@@ -413,8 +448,39 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		id++;
 	}
 
-	return links;
+	/* speaker amp */
+	if (sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT) {
+		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
+						"SSP%d-Codec", ssp_amp);
+		if (!links[id].name)
+			goto devm_err;
 
+		links[id].id = id;
+		links[id].codecs = max98357a_component;
+		links[id].num_codecs = ARRAY_SIZE(max98357a_component);
+		links[id].platforms = platform_component;
+		links[id].num_platforms = ARRAY_SIZE(platform_component);
+		links[id].init = speaker_codec_init,
+		links[id].nonatomic = true;
+		links[id].dpcm_playback = 1;
+		links[id].no_pcm = 1;
+		if (is_legacy_cpu) {
+			links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+								"ssp%d-port",
+								ssp_amp);
+			if (!links[id].cpu_dai_name)
+				goto devm_err;
+
+		} else {
+			links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+								"SSP%d Pin",
+								ssp_amp);
+			if (!links[id].cpu_dai_name)
+				goto devm_err;
+		}
+	}
+
+	return links;
 devm_err:
 	return NULL;
 }
@@ -425,7 +491,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
 	int dmic_num, hdmi_num;
-	int ret;
+	int ret, ssp_amp, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
@@ -436,7 +502,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		dmic_num = 0;
 		hdmi_num = 0;
 		/* default quirk for legacy cpu */
-		sof_rt5682_quirk = SOF_RT5682_SSP(2);
+		sof_rt5682_quirk = SOF_RT5682_SSP_CODEC(2);
 	} else {
 		dmic_num = 1;
 		hdmi_num = 3;
@@ -444,17 +510,24 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	dmi_check_system(sof_rt5682_quirk_table);
 
-	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n",
-		sof_rt5682_quirk);
+	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n", sof_rt5682_quirk);
 
-	dai_links = sof_card_dai_links_create(&pdev->dev, sof_rt5682_quirk &
-					      SOF_RT5682_SSP_MASK,
+	ssp_amp = (sof_rt5682_quirk & SOF_RT5682_SSP_AMP_MASK) >>
+			SOF_RT5682_SSP_AMP_SHIFT;
+
+	ssp_codec = sof_rt5682_quirk & SOF_RT5682_SSP_CODEC_MASK;
+
+	/* compute number of dai links */
+	sof_audio_card_rt5682.num_links = 1 + dmic_num + hdmi_num;
+	if (sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT)
+		sof_audio_card_rt5682.num_links++;
+
+	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, ssp_amp,
 					      dmic_num, hdmi_num);
 	if (!dai_links)
 		return -ENOMEM;
 
 	sof_audio_card_rt5682.dai_link = dai_links;
-	sof_audio_card_rt5682.num_links = 1 + dmic_num + hdmi_num;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
@@ -485,5 +558,6 @@ module_platform_driver(sof_audio)
 /* Module information */
 MODULE_DESCRIPTION("SOF Audio Machine driver");
 MODULE_AUTHOR("Bard Liao <bard.liao@intel.com>");
+MODULE_AUTHOR("Sathya Prakash M R <sathya.prakash.m.r@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:sof_rt5682");
