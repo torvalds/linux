@@ -244,13 +244,13 @@ static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&pool->output_sleep, &wait);
-		spin_unlock_irq(&pool->lock);
+		spin_unlock_irqrestore(&pool->lock, flags);
 		if (mutexp)
 			mutex_unlock(mutexp);
 		schedule();
 		if (mutexp)
 			mutex_lock(mutexp);
-		spin_lock_irq(&pool->lock);
+		spin_lock_irqsave(&pool->lock, flags);
 		remove_wait_queue(&pool->output_sleep, &wait);
 		/* interrupted? */
 		if (signal_pending(current)) {
