@@ -10,6 +10,7 @@
 #ifndef __QETH_CORE_H__
 #define __QETH_CORE_H__
 
+#include <linux/completion.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
@@ -21,6 +22,7 @@
 #include <linux/hashtable.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 #include <net/ipv6.h>
@@ -585,6 +587,7 @@ struct qeth_cmd_buffer {
 	enum qeth_cmd_buffer_state state;
 	struct qeth_channel *channel;
 	struct qeth_reply *reply;
+	long timeout;
 	unsigned char *data;
 	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
 			 struct qeth_cmd_buffer *iob);
@@ -609,6 +612,11 @@ struct qeth_channel {
 	atomic_t irq_pending;
 	int io_buf_no;
 };
+
+static inline bool qeth_trylock_channel(struct qeth_channel *channel)
+{
+	return atomic_cmpxchg(&channel->irq_pending, 0, 1) == 0;
+}
 
 /**
  *  OSA card related definitions
@@ -636,12 +644,11 @@ struct qeth_seqno {
 
 struct qeth_reply {
 	struct list_head list;
-	wait_queue_head_t wait_q;
+	struct completion received;
 	int (*callback)(struct qeth_card *, struct qeth_reply *,
 		unsigned long);
 	u32 seqno;
 	unsigned long offset;
-	atomic_t received;
 	int rc;
 	void *param;
 	refcount_t refcnt;
