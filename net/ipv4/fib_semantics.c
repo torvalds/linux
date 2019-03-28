@@ -558,7 +558,6 @@ static void fib_rebalance(struct fib_info *fi)
 {
 	int total;
 	int w;
-	struct in_device *in_dev;
 
 	if (fi->fib_nhs < 2)
 		return;
@@ -568,10 +567,7 @@ static void fib_rebalance(struct fib_info *fi)
 		if (nh->nh_flags & RTNH_F_DEAD)
 			continue;
 
-		in_dev = __in_dev_get_rtnl(nh->nh_dev);
-
-		if (in_dev &&
-		    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		if (ip_ignore_linkdown(nh->nh_dev) &&
 		    nh->nh_flags & RTNH_F_LINKDOWN)
 			continue;
 
@@ -582,12 +578,9 @@ static void fib_rebalance(struct fib_info *fi)
 	change_nexthops(fi) {
 		int upper_bound;
 
-		in_dev = __in_dev_get_rtnl(nexthop_nh->nh_dev);
-
 		if (nexthop_nh->nh_flags & RTNH_F_DEAD) {
 			upper_bound = -1;
-		} else if (in_dev &&
-			   IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		} else if (ip_ignore_linkdown(nexthop_nh->nh_dev) &&
 			   nexthop_nh->nh_flags & RTNH_F_LINKDOWN) {
 			upper_bound = -1;
 		} else {
@@ -1325,12 +1318,8 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		    nla_put_u32(skb, RTA_OIF, fi->fib_nh->nh_oif))
 			goto nla_put_failure;
 		if (fi->fib_nh->nh_flags & RTNH_F_LINKDOWN) {
-			struct in_device *in_dev;
-
 			rcu_read_lock();
-			in_dev = __in_dev_get_rcu(fi->fib_nh->nh_dev);
-			if (in_dev &&
-			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev))
+			if (ip_ignore_linkdown(fi->fib_nh->nh_dev))
 				rtm->rtm_flags |= RTNH_F_DEAD;
 			rcu_read_unlock();
 		}
@@ -1361,12 +1350,8 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 
 			rtnh->rtnh_flags = nh->nh_flags & 0xFF;
 			if (nh->nh_flags & RTNH_F_LINKDOWN) {
-				struct in_device *in_dev;
-
 				rcu_read_lock();
-				in_dev = __in_dev_get_rcu(nh->nh_dev);
-				if (in_dev &&
-				    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev))
+				if (ip_ignore_linkdown(nh->nh_dev))
 					rtnh->rtnh_flags |= RTNH_F_DEAD;
 				rcu_read_unlock();
 			}
@@ -1433,7 +1418,7 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local)
 static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
 				 enum fib_event_type event_type)
 {
-	struct in_device *in_dev = __in_dev_get_rtnl(fib_nh->nh_dev);
+	bool ignore_link_down = ip_ignore_linkdown(fib_nh->nh_dev);
 	struct fib_nh_notifier_info info = {
 		.fib_nh = fib_nh,
 	};
@@ -1442,14 +1427,12 @@ static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
 	case FIB_EVENT_NH_ADD:
 		if (fib_nh->nh_flags & RTNH_F_DEAD)
 			break;
-		if (IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
-		    fib_nh->nh_flags & RTNH_F_LINKDOWN)
+		if (ignore_link_down && fib_nh->nh_flags & RTNH_F_LINKDOWN)
 			break;
 		return call_fib4_notifiers(dev_net(fib_nh->nh_dev), event_type,
 					   &info.info);
 	case FIB_EVENT_NH_DEL:
-		if ((in_dev && IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
-		     fib_nh->nh_flags & RTNH_F_LINKDOWN) ||
+		if ((ignore_link_down && fib_nh->nh_flags & RTNH_F_LINKDOWN) ||
 		    (fib_nh->nh_flags & RTNH_F_DEAD))
 			return call_fib4_notifiers(dev_net(fib_nh->nh_dev),
 						   event_type, &info.info);

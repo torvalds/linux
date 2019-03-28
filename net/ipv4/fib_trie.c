@@ -1471,12 +1471,10 @@ found:
 			continue;
 		for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
 			const struct fib_nh *nh = &fi->fib_nh[nhsel];
-			struct in_device *in_dev = __in_dev_get_rcu(nh->nh_dev);
 
 			if (nh->nh_flags & RTNH_F_DEAD)
 				continue;
-			if (in_dev &&
-			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+			if (ip_ignore_linkdown(nh->nh_dev) &&
 			    nh->nh_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
