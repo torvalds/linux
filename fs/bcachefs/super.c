@@ -175,7 +175,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	bool wrote;
-	unsigned i;
+	unsigned i, clean_passes = 0;
 	int ret;
 
 	bch2_rebalance_stop(c);
@@ -195,15 +195,15 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		goto allocator_not_running;
 
 	do {
-		ret = bch2_alloc_write(c, false, &wrote);
-		if (ret) {
-			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
-			break;
-		}
-
 		ret = bch2_stripes_write(c, &wrote);
 		if (ret) {
 			bch2_fs_inconsistent(c, "error writing out stripes");
+			break;
+		}
+
+		ret = bch2_alloc_write(c, false, &wrote);
+		if (ret) {
+			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
 			break;
 		}
 
@@ -221,7 +221,9 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		 */
 		closure_wait_event(&c->btree_interior_update_wait,
 				   !bch2_btree_interior_updates_nr_pending(c));
-	} while (wrote);
+
+		clean_passes = wrote ? 0 : clean_passes + 1;
+	} while (clean_passes < 2);
 allocator_not_running:
 	for_each_member_device(ca, c, i)
 		bch2_dev_allocator_stop(ca);
