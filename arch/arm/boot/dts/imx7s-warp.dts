@@ -77,6 +77,10 @@
 	assigned-clock-rates = <884736000>;
 };
 
+&csi {
+	status = "okay";
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
@@ -213,6 +217,12 @@
 	};
 };
 
+&mipi_csi {
+	clock-frequency = <166000000>;
+	fsl,csis-hs-settle = <3>;
+	status = "okay";
+};
+
 &sai1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai1>;
@@ -276,6 +286,10 @@
 	no-1-8-v;
 	fsl,tuning-step = <2>;
 	non-removable;
+	status = "okay";
+};
+
+&video_mux {
 	status = "okay";
 };
 
