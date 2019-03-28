@@ -3809,10 +3809,15 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 		bool mcast)
 {
 	struct mlx5_flow_namespace *ns = NULL;
-	struct mlx5_ib_flow_prio *prio;
-	int max_table_size;
+	struct mlx5_ib_flow_prio *prio = NULL;
+	int max_table_size = 0;
 	u32 flags = 0;
 	int priority;
+
+	if (mcast)
+		priority = MLX5_IB_FLOW_MCAST_PRIO;
+	else
+		priority = ib_prio_to_core_prio(fs_matcher->priority, false);
 
 	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS) {
 		max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
@@ -3822,20 +3827,19 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 		if (MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
 					      reformat_l3_tunnel_to_l2))
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	} else { /* Can only be MLX5_FLOW_NAMESPACE_EGRESS */
-		max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
-					log_max_ft_size));
+	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS) {
+		max_table_size = BIT(
+			MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, log_max_ft_size));
 		if (MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, reformat))
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
+	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB) {
+		max_table_size = BIT(
+			MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev, log_max_ft_size));
+		priority = FDB_BYPASS_PATH;
 	}
 
 	if (max_table_size < MLX5_FS_MAX_ENTRIES)
 		return ERR_PTR(-ENOMEM);
-
-	if (mcast)
-		priority = MLX5_IB_FLOW_MCAST_PRIO;
-	else
-		priority = ib_prio_to_core_prio(fs_matcher->priority, false);
 
 	ns = mlx5_get_flow_namespace(dev->mdev, fs_matcher->ns_type);
 	if (!ns)
@@ -3843,8 +3847,13 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 
 	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS)
 		prio = &dev->flow_db->prios[priority];
-	else
+	else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS)
 		prio = &dev->flow_db->egress_prios[priority];
+	else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB)
+		prio = &dev->flow_db->fdb;
+
+	if (!prio)
+		return ERR_PTR(-EINVAL);
 
 	if (prio->flow_table)
 		return prio;
