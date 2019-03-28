@@ -268,6 +268,18 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 	return rc;
 }
 
+static int qeth_l3_modify_ip(struct qeth_card *card, struct qeth_ipaddr *addr,
+			     bool add)
+{
+	int rc;
+
+	spin_lock_bh(&card->ip_lock);
+	rc = add ? qeth_l3_add_ip(card, addr) : qeth_l3_delete_ip(card, addr);
+	spin_unlock_bh(&card->ip_lock);
+
+	return rc;
+}
+
 static void qeth_l3_drain_rx_mode_cache(struct qeth_card *card)
 {
 	struct qeth_ipaddr *addr;
@@ -636,7 +648,6 @@ int qeth_l3_modify_rxip_vipa(struct qeth_card *card, bool add, const u8 *ip,
 			     enum qeth_prot_versions proto)
 {
 	struct qeth_ipaddr addr;
-	int rc;
 
 	qeth_l3_init_ipaddr(&addr, type, proto);
 	if (proto == QETH_PROT_IPV4)
@@ -644,16 +655,13 @@ int qeth_l3_modify_rxip_vipa(struct qeth_card *card, bool add, const u8 *ip,
 	else
 		memcpy(&addr.u.a6.addr, ip, 16);
 
-	spin_lock_bh(&card->ip_lock);
-	rc = add ? qeth_l3_add_ip(card, &addr) : qeth_l3_delete_ip(card, &addr);
-	spin_unlock_bh(&card->ip_lock);
-	return rc;
+	return qeth_l3_modify_ip(card, &addr, add);
 }
 
 int qeth_l3_modify_hsuid(struct qeth_card *card, bool add)
 {
 	struct qeth_ipaddr addr;
-	int rc, i;
+	unsigned int i;
 
 	qeth_l3_init_ipaddr(&addr, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV6);
 	addr.u.a6.addr.s6_addr[0] = 0xfe;
@@ -661,10 +669,7 @@ int qeth_l3_modify_hsuid(struct qeth_card *card, bool add)
 	for (i = 0; i < 8; i++)
 		addr.u.a6.addr.s6_addr[8+i] = card->options.hsuid[i];
 
-	spin_lock_bh(&card->ip_lock);
-	rc = add ? qeth_l3_add_ip(card, &addr) : qeth_l3_delete_ip(card, &addr);
-	spin_unlock_bh(&card->ip_lock);
-	return rc;
+	return qeth_l3_modify_ip(card, &addr, add);
 }
 
 static int qeth_l3_register_addr_entry(struct qeth_card *card,
@@ -2527,14 +2532,10 @@ static int qeth_l3_handle_ip_event(struct qeth_card *card,
 {
 	switch (event) {
 	case NETDEV_UP:
-		spin_lock_bh(&card->ip_lock);
-		qeth_l3_add_ip(card, addr);
-		spin_unlock_bh(&card->ip_lock);
+		qeth_l3_modify_ip(card, addr, true);
 		return NOTIFY_OK;
 	case NETDEV_DOWN:
-		spin_lock_bh(&card->ip_lock);
-		qeth_l3_delete_ip(card, addr);
-		spin_unlock_bh(&card->ip_lock);
+		qeth_l3_modify_ip(card, addr, false);
 		return NOTIFY_OK;
 	default:
 		return NOTIFY_DONE;
