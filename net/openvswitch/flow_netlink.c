@@ -404,6 +404,7 @@ static const struct ovs_len_tbl ovs_tunnel_key_lens[OVS_TUNNEL_KEY_ATTR_MAX + 1]
 	[OVS_TUNNEL_KEY_ATTR_IPV6_SRC]      = { .len = sizeof(struct in6_addr) },
 	[OVS_TUNNEL_KEY_ATTR_IPV6_DST]      = { .len = sizeof(struct in6_addr) },
 	[OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS]   = { .len = OVS_ATTR_VARIABLE },
+	[OVS_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE]   = { .len = 0 },
 };
 
 static const struct ovs_len_tbl
@@ -667,6 +668,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			      bool log)
 {
 	bool ttl = false, ipv4 = false, ipv6 = false;
+	bool info_bridge_mode = false;
 	__be16 tun_flags = 0;
 	int opts_type = 0;
 	struct nlattr *a;
@@ -783,6 +785,10 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			tun_flags |= TUNNEL_ERSPAN_OPT;
 			opts_type = type;
 			break;
+		case OVS_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE:
+			info_bridge_mode = true;
+			ipv4 = true;
+			break;
 		default:
 			OVS_NLERR(log, "Unknown IP tunnel attribute %d",
 				  type);
@@ -813,16 +819,29 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			OVS_NLERR(log, "IP tunnel dst address not specified");
 			return -EINVAL;
 		}
-		if (ipv4 && !match->key->tun_key.u.ipv4.dst) {
-			OVS_NLERR(log, "IPv4 tunnel dst address is zero");
-			return -EINVAL;
+		if (ipv4) {
+			if (info_bridge_mode) {
+				if (match->key->tun_key.u.ipv4.src ||
+				    match->key->tun_key.u.ipv4.dst ||
+				    match->key->tun_key.tp_src ||
+				    match->key->tun_key.tp_dst ||
+				    match->key->tun_key.ttl ||
+				    match->key->tun_key.tos ||
+				    tun_flags & ~TUNNEL_KEY) {
+					OVS_NLERR(log, "IPv4 tun info is not correct");
+					return -EINVAL;
+				}
+			} else if (!match->key->tun_key.u.ipv4.dst) {
+				OVS_NLERR(log, "IPv4 tunnel dst address is zero");
+				return -EINVAL;
+			}
 		}
 		if (ipv6 && ipv6_addr_any(&match->key->tun_key.u.ipv6.dst)) {
 			OVS_NLERR(log, "IPv6 tunnel dst address is zero");
 			return -EINVAL;
 		}
 
-		if (!ttl) {
+		if (!ttl && !info_bridge_mode) {
 			OVS_NLERR(log, "IP tunnel TTL not specified.");
 			return -EINVAL;
 		}
@@ -851,12 +870,17 @@ static int vxlan_opt_to_nlattr(struct sk_buff *skb,
 static int __ip_tun_to_nlattr(struct sk_buff *skb,
 			      const struct ip_tunnel_key *output,
 			      const void *tun_opts, int swkey_tun_opts_len,
-			      unsigned short tun_proto)
+			      unsigned short tun_proto, u8 mode)
 {
 	if (output->tun_flags & TUNNEL_KEY &&
 	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id,
 			 OVS_TUNNEL_KEY_ATTR_PAD))
 		return -EMSGSIZE;
+
+	if (mode & IP_TUNNEL_INFO_BRIDGE)
+		return nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE)
+		       ? -EMSGSIZE : 0;
+
 	switch (tun_proto) {
 	case AF_INET:
 		if (output->u.ipv4.src &&
@@ -919,7 +943,7 @@ static int __ip_tun_to_nlattr(struct sk_buff *skb,
 static int ip_tun_to_nlattr(struct sk_buff *skb,
 			    const struct ip_tunnel_key *output,
 			    const void *tun_opts, int swkey_tun_opts_len,
-			    unsigned short tun_proto)
+			    unsigned short tun_proto, u8 mode)
 {
 	struct nlattr *nla;
 	int err;
@@ -929,7 +953,7 @@ static int ip_tun_to_nlattr(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	err = __ip_tun_to_nlattr(skb, output, tun_opts, swkey_tun_opts_len,
-				 tun_proto);
+				 tun_proto, mode);
 	if (err)
 		return err;
 
@@ -943,7 +967,7 @@ int ovs_nla_put_tunnel_info(struct sk_buff *skb,
 	return __ip_tun_to_nlattr(skb, &tun_info->key,
 				  ip_tunnel_info_opts(tun_info),
 				  tun_info->options_len,
-				  ip_tunnel_info_af(tun_info));
+				  ip_tunnel_info_af(tun_info), tun_info->mode);
 }
 
 static int encode_vlan_from_nlattrs(struct sw_flow_match *match,
@@ -1981,7 +2005,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 			opts = TUN_METADATA_OPTS(output, swkey->tun_opts_len);
 
 		if (ip_tun_to_nlattr(skb, &output->tun_key, opts,
-				     swkey->tun_opts_len, swkey->tun_proto))
+				     swkey->tun_opts_len, swkey->tun_proto, 0))
 			goto nla_put_failure;
 	}
 
@@ -2606,6 +2630,8 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	tun_info->mode = IP_TUNNEL_INFO_TX;
 	if (key.tun_proto == AF_INET6)
 		tun_info->mode |= IP_TUNNEL_INFO_IPV6;
+	else if (key.tun_proto == AF_INET && key.tun_key.u.ipv4.dst == 0)
+		tun_info->mode |= IP_TUNNEL_INFO_BRIDGE;
 	tun_info->key = key.tun_key;
 
 	/* We need to store the options in the action itself since
@@ -3367,7 +3393,7 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 		err =  ip_tun_to_nlattr(skb, &tun_info->key,
 					ip_tunnel_info_opts(tun_info),
 					tun_info->options_len,
-					ip_tunnel_info_af(tun_info));
+					ip_tunnel_info_af(tun_info), tun_info->mode);
 		if (err)
 			return err;
 		nla_nest_end(skb, start);
