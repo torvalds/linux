@@ -173,12 +173,12 @@ static int mlx5_netdev_event(struct notifier_block *this,
 	switch (event) {
 	case NETDEV_REGISTER:
 		write_lock(&roce->netdev_lock);
-		if (ibdev->rep) {
+		if (ibdev->is_rep) {
 			struct mlx5_eswitch *esw = ibdev->mdev->priv.eswitch;
+			struct mlx5_eswitch_rep	*rep = ibdev->port[0].rep;
 			struct net_device *rep_ndev;
 
-			rep_ndev = mlx5_ib_get_rep_netdev(esw,
-							  ibdev->rep->vport);
+			rep_ndev = mlx5_ib_get_rep_netdev(esw, rep->vport);
 			if (rep_ndev == ndev)
 				roce->netdev = ndev;
 		} else if (ndev->dev.parent == &mdev->pdev->dev) {
@@ -3153,10 +3153,10 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 		if (ft_type == MLX5_IB_FT_RX) {
 			fn_type = MLX5_FLOW_NAMESPACE_BYPASS;
 			prio = &dev->flow_db->prios[priority];
-			if (!dev->rep &&
+			if (!dev->is_rep &&
 			    MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, decap))
 				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_DECAP;
-			if (!dev->rep &&
+			if (!dev->is_rep &&
 			    MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
 					reformat_l3_tunnel_to_l2))
 				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
@@ -3166,7 +3166,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 							      log_max_ft_size));
 			fn_type = MLX5_FLOW_NAMESPACE_EGRESS;
 			prio = &dev->flow_db->egress_prios[priority];
-			if (!dev->rep &&
+			if (!dev->is_rep &&
 			    MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, reformat))
 				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 		}
@@ -3372,7 +3372,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	if (!is_valid_attr(dev->mdev, flow_attr))
 		return ERR_PTR(-EINVAL);
 
-	if (dev->rep && is_egress)
+	if (dev->is_rep && is_egress)
 		return ERR_PTR(-EINVAL);
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
@@ -3403,13 +3403,17 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	if (!flow_is_multicast_only(flow_attr))
 		set_underlay_qp(dev, spec, underlay_qpn);
 
-	if (dev->rep) {
+	if (dev->is_rep) {
 		void *misc;
 
+		if (!dev->port[flow_attr->port - 1].rep) {
+			err = -EINVAL;
+			goto free;
+		}
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				    misc_parameters);
 		MLX5_SET(fte_match_set_misc, misc, source_port,
-			 dev->rep->vport);
+			 dev->port[flow_attr->port - 1].rep->vport);
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 				    misc_parameters);
 		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);

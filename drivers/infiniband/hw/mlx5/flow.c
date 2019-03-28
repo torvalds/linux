@@ -621,7 +621,7 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER,
 
 static bool flow_is_supported(struct ib_device *device)
 {
-	return !to_mdev(device)->rep;
+	return !to_mdev(device)->is_rep;
 }
 
 const struct uapi_definition mlx5_ib_flow_defs[] = {

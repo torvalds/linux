@@ -720,6 +720,7 @@ struct mlx5_ib_port {
 	struct mlx5_ib_multiport mp;
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_roce roce;
+	struct mlx5_eswitch_rep		*rep;
 };
 
 struct mlx5_ib_dbg_param {
@@ -940,7 +941,7 @@ struct mlx5_ib_dev {
 	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_delay_drop	delay_drop;
 	const struct mlx5_ib_profile	*profile;
-	struct mlx5_eswitch_rep		*rep;
+	bool			is_rep;
 	int				lag_active;
 
 	struct mlx5_ib_lb_state		lb;

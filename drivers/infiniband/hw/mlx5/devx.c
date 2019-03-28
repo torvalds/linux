@@ -1904,7 +1904,7 @@ static bool devx_is_supported(struct ib_device *device)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 
-	return !dev->rep && MLX5_CAP_GEN(dev->mdev, log_max_uctx);
+	return !dev->is_rep && MLX5_CAP_GEN(dev->mdev, log_max_uctx);
 }
 
 const struct uapi_definition mlx5_ib_devx_defs[] = {

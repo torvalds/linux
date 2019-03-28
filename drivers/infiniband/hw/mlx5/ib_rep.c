@@ -69,7 +69,8 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		return -ENOMEM;
 	}
 
-	ibdev->rep = rep;
+	ibdev->is_rep = true;
+	ibdev->port[0].rep = rep;
 	ibdev->mdev = dev;
 	ibdev->num_ports = num_ports;
 
@@ -151,12 +152,12 @@ int create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
 
-	if (!dev->rep)
+	if (!dev->is_rep)
 		return 0;
 
 	flow_rule =
 		mlx5_eswitch_add_send_to_vport_rule(esw,
-						    dev->rep->vport,
+						    dev->port[0].rep->vport,
 						    sq->base.mqp.qpn);
 	if (IS_ERR(flow_rule))
 		return PTR_ERR(flow_rule);
