@@ -24,7 +24,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <sound/core.h>
 
 #include <sound/seq_kernel.h>
@@ -389,8 +389,8 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	if (snd_BUG_ON(!pool))
 		return -EINVAL;
 
-	cellptr = vmalloc(array_size(sizeof(struct snd_seq_event_cell),
-				     pool->size));
+	cellptr = kvmalloc_array(sizeof(struct snd_seq_event_cell), pool->size,
+				 GFP_KERNEL);
 	if (!cellptr)
 		return -ENOMEM;
 
@@ -398,7 +398,7 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	spin_lock_irqsave(&pool->lock, flags);
 	if (pool->ptr) {
 		spin_unlock_irqrestore(&pool->lock, flags);
-		vfree(cellptr);
+		kvfree(cellptr);
 		return 0;
 	}
 
@@ -456,7 +456,7 @@ int snd_seq_pool_done(struct snd_seq_pool *pool)
 	pool->total_elements = 0;
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	vfree(ptr);
+	kvfree(ptr);
 
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->closing = 0;
