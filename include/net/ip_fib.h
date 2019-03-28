@@ -419,6 +419,7 @@ void fib_select_path(struct net *net, struct fib_result *res,
 int fib_nh_init(struct net *net, struct fib_nh *fib_nh,
 		struct fib_config *cfg, int nh_weight,
 		struct netlink_ext_ack *extack);
+void fib_nh_release(struct net *net, struct fib_nh *fib_nh);
 
 /* Exported by fib_trie.c */
 void fib_trie_init(void);
