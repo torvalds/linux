@@ -1051,7 +1051,8 @@ static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 	QETH_CARD_TEXT(card, 5, "osndctrd");
 
 	wait_event(card->wait_q, qeth_trylock_channel(channel));
-	qeth_prepare_control_data(card, len, iob);
+	iob->finalize(card, iob, len);
+	QETH_DBF_HEX(CTRL, 2, iob->data, min(len, QETH_DBF_CTRL_LEN));
 	QETH_CARD_TEXT(card, 6, "osnoirqp");
 	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
 	rc = ccw_device_start_timeout(channel->ccwdev, channel->ccw,
