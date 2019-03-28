@@ -547,10 +547,20 @@ static inline struct devlink *priv_to_devlink(void *priv)
 	return container_of(priv, struct devlink, priv);
 }
 
+static inline struct devlink_port *
+netdev_to_devlink_port(struct net_device *dev)
+{
+	if (dev->netdev_ops->ndo_get_devlink_port)
+		return dev->netdev_ops->ndo_get_devlink_port(dev);
+	return NULL;
+}
+
 static inline struct devlink *netdev_to_devlink(struct net_device *dev)
 {
-	if (dev->netdev_ops->ndo_get_devlink)
-		return dev->netdev_ops->ndo_get_devlink(dev);
+	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
+
+	if (devlink_port)
+		return devlink_port->devlink;
 	return NULL;
 }
 
