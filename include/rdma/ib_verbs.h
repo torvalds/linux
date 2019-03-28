@@ -59,6 +59,8 @@
 #include <linux/mmu_notifier.h>
 #include <linux/uaccess.h>
 #include <linux/cgroup_rdma.h>
+#include <linux/irqflags.h>
+#include <linux/preempt.h>
 #include <uapi/rdma/ib_user_verbs.h>
 #include <rdma/restrack.h>
 #include <uapi/rdma/rdma_user_ioctl.h>
@@ -2281,8 +2283,11 @@ struct uverbs_attr_bundle;
 			 !__same_type(((struct drv_struct *)NULL)->member,     \
 				      struct ib_struct)))
 
+#define rdma_zalloc_drv_obj_gfp(ib_dev, ib_type, gfp)                         \
+	((struct ib_type *)kzalloc(ib_dev->ops.size_##ib_type, gfp))
+
 #define rdma_zalloc_drv_obj(ib_dev, ib_type)                                   \
-	((struct ib_type *)kzalloc(ib_dev->ops.size_##ib_type, GFP_KERNEL))
+	rdma_zalloc_drv_obj_gfp(ib_dev, ib_type, GFP_KERNEL)
 
 #define DECLARE_RDMA_OBJ_SIZE(ib_struct) size_t size_##ib_struct
 
