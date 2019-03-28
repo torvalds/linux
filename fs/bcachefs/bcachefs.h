@@ -473,14 +473,6 @@ struct bch_dev {
 	struct io_count __percpu *io_done;
 };
 
-/*
- * Flag bits for what phase of startup/shutdown the cache set is at, how we're
- * shutting down, etc.:
- *
- * BCH_FS_UNREGISTERING means we're not just shutting down, we're detaching
- * all the backing devices first (their cached data gets invalidated, and they
- * won't automatically reattach).
- */
 enum {
 	/* startup: */
 	BCH_FS_ALLOC_READ_DONE,
@@ -497,11 +489,10 @@ enum {
 
 	/* errors: */
 	BCH_FS_ERROR,
+	BCH_FS_ERRORS_FIXED,
 
 	/* misc: */
 	BCH_FS_BDEV_MOUNTED,
-	BCH_FS_FSCK_FIXED_ERRORS,
-	BCH_FS_FSCK_UNFIXED_ERRORS,
 	BCH_FS_FIXED_GENS,
 	BCH_FS_REBUILD_REPLICAS,
 	BCH_FS_HOLD_BTREE_WRITES,

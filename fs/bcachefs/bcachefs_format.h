@@ -1241,7 +1241,9 @@ LE64_BITMASK(BCH_SB_USRQUOTA,		struct bch_sb, flags[0], 57, 58);
 LE64_BITMASK(BCH_SB_GRPQUOTA,		struct bch_sb, flags[0], 58, 59);
 LE64_BITMASK(BCH_SB_PRJQUOTA,		struct bch_sb, flags[0], 59, 60);
 
-/* 60-64 unused */
+LE64_BITMASK(BCH_SB_HAS_ERRORS,		struct bch_sb, flags[0], 60, 61);
+
+/* 61-64 unused */
 
 LE64_BITMASK(BCH_SB_STR_HASH_TYPE,	struct bch_sb, flags[1],  0,  4);
 LE64_BITMASK(BCH_SB_COMPRESSION_TYPE,	struct bch_sb, flags[1],  4,  8);

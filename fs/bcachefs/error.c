@@ -72,12 +72,9 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 		vprintk(fmt, args);
 		va_end(args);
 
-		if (c->opts.errors == BCH_ON_ERROR_CONTINUE &&
-		    flags & FSCK_CAN_FIX)
-			return FSCK_ERR_FIX;
-
-		bch2_inconsistent_error(c);
-		return FSCK_ERR_EXIT;
+		return bch2_inconsistent_error(c)
+			? FSCK_ERR_EXIT
+			: FSCK_ERR_FIX;
 	}
 
 	mutex_lock(&c->fsck_error_lock);
@@ -110,11 +107,7 @@ print:
 
 	if (c->opts.fix_errors == FSCK_OPT_EXIT) {
 		bch_err(c, "%s, exiting", buf);
-		mutex_unlock(&c->fsck_error_lock);
-		return FSCK_ERR_EXIT;
-	}
-
-	if (flags & FSCK_CAN_FIX) {
+	} else if (flags & FSCK_CAN_FIX) {
 		if (c->opts.fix_errors == FSCK_OPT_ASK) {
 			printk(KERN_ERR "%s: fix?", buf);
 			fix = ask_yn();
@@ -142,13 +135,16 @@ print:
 
 	mutex_unlock(&c->fsck_error_lock);
 
-	set_bit(fix
-		? BCH_FS_FSCK_FIXED_ERRORS
-		: BCH_FS_FSCK_UNFIXED_ERRORS, &c->flags);
-
-	return fix				? FSCK_ERR_FIX
-		: flags & FSCK_CAN_IGNORE	? FSCK_ERR_IGNORE
-						: FSCK_ERR_EXIT;
+	if (fix) {
+		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+		return FSCK_ERR_FIX;
+	} else {
+		set_bit(BCH_FS_ERROR, &c->flags);
+		return c->opts.fix_errors == FSCK_OPT_EXIT ||
+			!(flags & FSCK_CAN_IGNORE)
+			? FSCK_ERR_EXIT
+			: FSCK_ERR_IGNORE;
+	}
 }
 
 void bch2_flush_fsck_errs(struct bch_fs *c)

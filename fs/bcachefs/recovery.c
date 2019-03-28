@@ -365,8 +365,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
 	}
 
-	if (!test_bit(BCH_FS_FSCK_UNFIXED_ERRORS, &c->flags))
+	if (c->opts.fsck &&
+	    !test_bit(BCH_FS_ERROR, &c->flags)) {
 		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
+		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
+	}
 	mutex_unlock(&c->sb_lock);
 
 	if (enabled_qtypes(c)) {

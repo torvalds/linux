@@ -707,6 +707,9 @@ int bch2_write_super(struct bch_fs *c)
 
 	le64_add_cpu(&c->disk_sb.sb->seq, 1);
 
+	if (test_bit(BCH_FS_ERROR, &c->flags))
+		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 1);
+
 	for_each_online_member(ca, c, i)
 		bch2_sb_from_fs(c, ca);
 
@@ -719,8 +722,7 @@ int bch2_write_super(struct bch_fs *c)
 		}
 	}
 
-	if (c->opts.nochanges ||
-	    test_bit(BCH_FS_ERROR, &c->flags))
+	if (c->opts.nochanges)
 		goto out;
 
 	for_each_online_member(ca, c, i) {
