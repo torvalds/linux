@@ -240,7 +240,6 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 	for (node = IMGU_NODE_NUM - 1;
 	     imgu_queue_getbuf(imgu, IMGU_NODE_IN, pipe);
 	     node = node ? node - 1 : IMGU_NODE_NUM - 1) {
-
 		if (node == IMGU_NODE_VF &&
 		    !imgu_pipe->nodes[IMGU_NODE_VF].enabled) {
 			dev_warn(&imgu->pci_dev->dev,
