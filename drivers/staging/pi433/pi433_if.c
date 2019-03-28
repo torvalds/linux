@@ -319,6 +319,12 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 	}
 
 	if (tx_cfg->enable_sync == OPTION_ON) {
+		ret = rf69_set_sync_size(dev->spi, tx_cfg->sync_length);
+		if (ret < 0)
+			return ret;
+		ret = rf69_set_sync_values(dev->spi, tx_cfg->sync_pattern);
+		if (ret < 0)
+			return ret;
 		ret = rf69_enable_sync(dev->spi);
 		if (ret < 0)
 			return ret;
@@ -344,16 +350,6 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 			return ret;
 	} else {
 		ret = rf69_disable_crc(dev->spi);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* configure sync, if enabled */
-	if (tx_cfg->enable_sync == OPTION_ON) {
-		ret = rf69_set_sync_size(dev->spi, tx_cfg->sync_length);
-		if (ret < 0)
-			return ret;
-		ret = rf69_set_sync_values(dev->spi, tx_cfg->sync_pattern);
 		if (ret < 0)
 			return ret;
 	}
