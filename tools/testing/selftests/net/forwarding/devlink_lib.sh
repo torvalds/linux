@@ -95,3 +95,98 @@ devlink_reload()
 			grep -c "size_new")
 	check_err $still_pending "Failed reload - There are still unset sizes"
 }
+
+declare -A DEVLINK_ORIG
+
+devlink_port_pool_threshold()
+{
+	local port=$1; shift
+	local pool=$1; shift
+
+	devlink sb port pool show $port pool $pool -j \
+		| jq '.port_pool."'"$port"'"[].threshold'
+}
+
+devlink_port_pool_th_set()
+{
+	local port=$1; shift
+	local pool=$1; shift
+	local th=$1; shift
+	local key="port_pool($port,$pool).threshold"
+
+	DEVLINK_ORIG[$key]=$(devlink_port_pool_threshold $port $pool)
+	devlink sb port pool set $port pool $pool th $th
+}
+
+devlink_port_pool_th_restore()
+{
+	local port=$1; shift
+	local pool=$1; shift
+	local key="port_pool($port,$pool).threshold"
+
+	devlink sb port pool set $port pool $pool th ${DEVLINK_ORIG[$key]}
+}
+
+devlink_pool_size_thtype()
+{
+	local pool=$1; shift
+
+	devlink sb pool show "$DEVLINK_DEV" pool $pool -j \
+	    | jq -r '.pool[][] | (.size, .thtype)'
+}
+
+devlink_pool_size_thtype_set()
+{
+	local pool=$1; shift
+	local thtype=$1; shift
+	local size=$1; shift
+	local key="pool($pool).size_thtype"
+
+	DEVLINK_ORIG[$key]=$(devlink_pool_size_thtype $pool)
+	devlink sb pool set "$DEVLINK_DEV" pool $pool size $size thtype $thtype
+}
+
+devlink_pool_size_thtype_restore()
+{
+	local pool=$1; shift
+	local key="pool($pool).size_thtype"
+	local -a orig=(${DEVLINK_ORIG[$key]})
+
+	devlink sb pool set "$DEVLINK_DEV" pool $pool \
+		size ${orig[0]} thtype ${orig[1]}
+}
+
+devlink_tc_bind_pool_th()
+{
+	local port=$1; shift
+	local tc=$1; shift
+	local dir=$1; shift
+
+	devlink sb tc bind show $port tc $tc type $dir -j \
+	    | jq -r '.tc_bind[][] | (.pool, .threshold)'
+}
+
+devlink_tc_bind_pool_th_set()
+{
+	local port=$1; shift
+	local tc=$1; shift
+	local dir=$1; shift
+	local pool=$1; shift
+	local th=$1; shift
+	local key="tc_bind($port,$dir,$tc).pool_th"
+
+	DEVLINK_ORIG[$key]=$(devlink_tc_bind_pool_th $port $tc $dir)
+	devlink sb tc bind set $port tc $tc type $dir pool $pool th $th
+}
+
+devlink_tc_bind_pool_th_restore()
+{
+	local port=$1; shift
+	local tc=$1; shift
+	local dir=$1; shift
+	local key="tc_bind($port,$dir,$tc).pool_th"
+	local -a orig=(${DEVLINK_ORIG[$key]})
+
+	devlink sb tc bind set $port tc $tc type $dir \
+		pool ${orig[0]} th ${orig[1]}
+}
