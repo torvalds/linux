@@ -1447,10 +1447,10 @@ static void rcu_cleanup_after_idle(void)
  * specified by rcu_nocb_mask.  For the CPUs in the set, there are kthreads
  * created that pull the callbacks from the corresponding CPU, wait for
  * a grace period to elapse, and invoke the callbacks.  These kthreads
- * are organized into leaders, which manage incoming callbacks, wait for
- * grace periods, and awaken followers, and the followers, which only
- * invoke callbacks.  Each leader is its own follower.  The no-CBs CPUs
- * do a wake_up() on their kthread when they insert a callback into any
+ * are organized into GP kthreads, which manage incoming callbacks, wait for
+ * grace periods, and awaken CB kthreads, and the CB kthreads, which only
+ * invoke callbacks.  Each GP kthread invokes its own CBs.  The no-CBs CPUs
+ * do a wake_up() on their GP kthread when they insert a callback into any
  * empty list, unless the rcu_nocb_poll boot parameter has been specified,
  * in which case each kthread actively polls its CPU.  (Which isn't so great
  * for energy efficiency, but which does reduce RCU's overhead on that CPU.)
@@ -1521,7 +1521,7 @@ bool rcu_is_nocb_cpu(int cpu)
 }
 
 /*
- * Kick the leader kthread for this NOCB group.  Caller holds ->nocb_lock
+ * Kick the GP kthread for this NOCB group.  Caller holds ->nocb_lock
  * and this function releases it.
  */
 static void __wake_nocb_leader(struct rcu_data *rdp, bool force,
@@ -1548,7 +1548,7 @@ static void __wake_nocb_leader(struct rcu_data *rdp, bool force,
 }
 
 /*
- * Kick the leader kthread for this NOCB group, but caller has not
+ * Kick the GP kthread for this NOCB group, but caller has not
  * acquired locks.
  */
 static void wake_nocb_leader(struct rcu_data *rdp, bool force)
@@ -1560,8 +1560,8 @@ static void wake_nocb_leader(struct rcu_data *rdp, bool force)
 }
 
 /*
- * Arrange to wake the leader kthread for this NOCB group at some
- * future time when it is safe to do so.
+ * Arrange to wake the GP kthread for this NOCB group at some future
+ * time when it is safe to do so.
  */
 static void wake_nocb_leader_defer(struct rcu_data *rdp, int waketype,
 				   const char *reason)
@@ -1783,7 +1783,7 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 }
 
 /*
- * Leaders come here to wait for additional callbacks to show up.
+ * No-CBs GP kthreads come here to wait for additional callbacks to show up.
  * This function does not return until callbacks appear.
  */
 static void nocb_leader_wait(struct rcu_data *my_rdp)
@@ -1812,8 +1812,8 @@ wait_again:
 	}
 
 	/*
-	 * Each pass through the following loop checks a follower for CBs.
-	 * We are our own first follower.  Any CBs found are moved to
+	 * Each pass through the following loop checks for CBs.
+	 * We are our own first CB kthread.  Any CBs found are moved to
 	 * nocb_gp_head, where they await a grace period.
 	 */
 	gotcbs = false;
@@ -1821,7 +1821,7 @@ wait_again:
 	for (rdp = my_rdp; rdp; rdp = rdp->nocb_next_cb_rdp) {
 		rdp->nocb_gp_head = READ_ONCE(rdp->nocb_head);
 		if (!rdp->nocb_gp_head)
-			continue;  /* No CBs here, try next follower. */
+			continue;  /* No CBs here, try next. */
 
 		/* Move callbacks to wait-for-GP list, which is empty. */
 		WRITE_ONCE(rdp->nocb_head, NULL);
@@ -1844,7 +1844,7 @@ wait_again:
 	/* Wait for one grace period. */
 	rcu_nocb_wait_gp(my_rdp);
 
-	/* Each pass through the following loop wakes a follower, if needed. */
+	/* Each pass through this loop wakes a CB kthread, if needed. */
 	for (rdp = my_rdp; rdp; rdp = rdp->nocb_next_cb_rdp) {
 		if (!rcu_nocb_poll &&
 		    READ_ONCE(rdp->nocb_head) &&
@@ -1854,27 +1854,27 @@ wait_again:
 			raw_spin_unlock_irqrestore(&my_rdp->nocb_lock, flags);
 		}
 		if (!rdp->nocb_gp_head)
-			continue; /* No CBs, so no need to wake follower. */
+			continue; /* No CBs, so no need to wake kthread. */
 
-		/* Append callbacks to follower's "done" list. */
+		/* Append callbacks to CB kthread's "done" list. */
 		raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
 		tail = rdp->nocb_cb_tail;
 		rdp->nocb_cb_tail = rdp->nocb_gp_tail;
 		*tail = rdp->nocb_gp_head;
 		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 		if (rdp != my_rdp && tail == &rdp->nocb_cb_head) {
-			/* List was empty, so wake up the follower.  */
+			/* List was empty, so wake up the kthread.  */
 			swake_up_one(&rdp->nocb_wq);
 		}
 	}
 
-	/* If we (the leader) don't have CBs, go wait some more. */
+	/* If we (the GP kthreads) don't have CBs, go wait some more. */
 	if (!my_rdp->nocb_cb_head)
 		goto wait_again;
 }
 
 /*
- * Followers come here to wait for additional callbacks to show up.
+ * No-CBs CB kthreads come here to wait for additional callbacks to show up.
  * This function does not return until callbacks appear.
  */
 static void nocb_follower_wait(struct rcu_data *rdp)
@@ -1894,9 +1894,10 @@ static void nocb_follower_wait(struct rcu_data *rdp)
 
 /*
  * Per-rcu_data kthread, but only for no-CBs CPUs.  Each kthread invokes
- * callbacks queued by the corresponding no-CBs CPU, however, there is
- * an optional leader-follower relationship so that the grace-period
- * kthreads don't have to do quite so many wakeups.
+ * callbacks queued by the corresponding no-CBs CPU, however, there is an
+ * optional GP-CB relationship so that the grace-period kthreads don't
+ * have to do quite so many wakeups (as in they only need to wake the
+ * no-CBs GP kthreads, not the CB kthreads).
  */
 static int rcu_nocb_kthread(void *arg)
 {
@@ -2056,7 +2057,7 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 /*
  * If the specified CPU is a no-CBs CPU that does not already have its
  * rcuo kthread, spawn it.  If the CPUs are brought online out of order,
- * this can require re-organizing the leader-follower relationships.
+ * this can require re-organizing the GP-CB relationships.
  */
 static void rcu_spawn_one_nocb_kthread(int cpu)
 {
@@ -2073,7 +2074,7 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
 	if (!rcu_is_nocb_cpu(cpu) || rdp_spawn->nocb_cb_kthread)
 		return;
 
-	/* If we didn't spawn the leader first, reorganize! */
+	/* If we didn't spawn the GP kthread first, reorganize! */
 	rdp_old_leader = rdp_spawn->nocb_gp_rdp;
 	if (rdp_old_leader != rdp_spawn && !rdp_old_leader->nocb_cb_kthread) {
 		rdp_last = NULL;
@@ -2125,18 +2126,18 @@ static void __init rcu_spawn_nocb_kthreads(void)
 		rcu_spawn_cpu_nocb_kthread(cpu);
 }
 
-/* How many follower CPU IDs per leader?  Default of -1 for sqrt(nr_cpu_ids). */
+/* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */
 static int rcu_nocb_leader_stride = -1;
 module_param(rcu_nocb_leader_stride, int, 0444);
 
 /*
- * Initialize leader-follower relationships for all no-CBs CPU.
+ * Initialize GP-CB relationships for all no-CBs CPU.
  */
 static void __init rcu_organize_nocb_kthreads(void)
 {
 	int cpu;
 	int ls = rcu_nocb_leader_stride;
-	int nl = 0;  /* Next leader. */
+	int nl = 0;  /* Next GP kthread. */
 	struct rcu_data *rdp;
 	struct rcu_data *rdp_leader = NULL;  /* Suppress misguided gcc warn. */
 	struct rcu_data *rdp_prev = NULL;
@@ -2156,12 +2157,12 @@ static void __init rcu_organize_nocb_kthreads(void)
 	for_each_cpu(cpu, rcu_nocb_mask) {
 		rdp = per_cpu_ptr(&rcu_data, cpu);
 		if (rdp->cpu >= nl) {
-			/* New leader, set up for followers & next leader. */
+			/* New GP kthread, set up for CBs & next GP. */
 			nl = DIV_ROUND_UP(rdp->cpu + 1, ls) * ls;
 			rdp->nocb_gp_rdp = rdp;
 			rdp_leader = rdp;
 		} else {
-			/* Another follower, link to previous leader. */
+			/* Another CB kthread, link to previous GP kthread. */
 			rdp->nocb_gp_rdp = rdp_leader;
 			rdp_prev->nocb_next_cb_rdp = rdp;
 		}

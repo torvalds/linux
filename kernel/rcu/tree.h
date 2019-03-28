@@ -206,17 +206,17 @@ struct rcu_data {
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 	struct timer_list nocb_timer;	/* Enforce finite deferral. */
 
-	/* The following fields are used by the leader, hence own cacheline. */
+	/* The following fields are used by GP kthread, hence own cacheline. */
 	struct rcu_head *nocb_gp_head ____cacheline_internodealigned_in_smp;
 					/* CBs waiting for GP. */
 	struct rcu_head **nocb_gp_tail;
-	bool nocb_gp_sleep;		/* Is the nocb leader thread asleep? */
+	bool nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
 	struct rcu_data *nocb_next_cb_rdp;
 					/* Next rcu_data in wakeup chain. */
 
-	/* The following fields are used by the follower, hence new cachline. */
+	/* The following fields are used by CB kthread, hence new cachline. */
 	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
-					/* Leader CPU takes GP-end wakeups. */
+					/* GP rdp takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
 	/* 6) RCU priority boosting. */
