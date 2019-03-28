@@ -2514,7 +2514,9 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct sof_ipc_dai_config config;
 	struct snd_soc_tplg_hw_config *hw_config;
+	int num_hw_configs;
 	int ret = 0;
+	int i = 0;
 
 	link->platform_name = dev_name(sdev->dev);
 
@@ -2552,15 +2554,31 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	 * DAI links are expected to have at least 1 hw_config.
 	 * But some older topologies might have no hw_config for HDA dai links.
 	 */
-	if (!le32_to_cpu(cfg->num_hw_configs) &&
-	    config.type != SOF_DAI_INTEL_HDA) {
-		dev_err(sdev->dev, "error: unexpected DAI config count %d!\n",
-			le32_to_cpu(cfg->num_hw_configs));
-		return -EINVAL;
+	num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
+	if (!num_hw_configs) {
+		if (config.type != SOF_DAI_INTEL_HDA) {
+			dev_err(sdev->dev, "error: unexpected DAI config count %d!\n",
+				le32_to_cpu(cfg->num_hw_configs));
+			return -EINVAL;
+		}
+	} else {
+		dev_dbg(sdev->dev, "tplg: %d hw_configs found, default id: %d!\n",
+			cfg->num_hw_configs, le32_to_cpu(cfg->default_hw_config_id));
+
+		for (i = 0; i < num_hw_configs; i++) {
+			if (cfg->hw_config[i].id == cfg->default_hw_config_id)
+				break;
+		}
+
+		if (i == num_hw_configs) {
+			dev_err(sdev->dev, "error: default hw_config id: %d not found!\n",
+				le32_to_cpu(cfg->default_hw_config_id));
+			return -EINVAL;
+		}
 	}
 
 	/* configure dai IPC message */
-	hw_config = &cfg->hw_config[0];
+	hw_config = &cfg->hw_config[i];
 
 	config.hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
 	config.format = le32_to_cpu(hw_config->fmt);
