@@ -727,10 +727,6 @@ enum dc_status dcn20_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
-	if (pipe_ctx->stream_res.tg->funcs->setup_global_lock)
-		pipe_ctx->stream_res.tg->funcs->setup_global_lock(
-				pipe_ctx->stream_res.tg);
-
 	/* program otg blank color */
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
@@ -1227,10 +1223,19 @@ static void dcn20_pipe_control_lock_global(
 		struct pipe_ctx *pipe,
 		bool lock)
 {
-	if (lock)
-		pipe->stream_res.tg->funcs->lock_global(pipe->stream_res.tg);
-	else
+	if (lock) {
+		pipe->stream_res.tg->funcs->lock_doublebuffer_enable(
+				pipe->stream_res.tg);
+		pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
+	} else {
 		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
+		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+				CRTC_STATE_VBLANK);
+		pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
+				pipe->stream_res.tg);
+	}
 }
 
 static void dcn20_pipe_control_lock(
