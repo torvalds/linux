@@ -210,6 +210,8 @@ enum btree_iter_uptodate {
  * @nodes_intent_locked	- bitmask indicating which locks are intent locks
  */
 struct btree_iter {
+	u8			idx;
+
 	struct btree_trans	*trans;
 	struct bpos		pos;
 

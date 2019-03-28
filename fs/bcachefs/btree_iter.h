@@ -36,15 +36,11 @@ static inline int btree_iter_err(const struct btree_iter *iter)
 /* Iterate over iters within a transaction: */
 
 static inline struct btree_iter *
-__trans_next_iter(struct btree_trans *trans, struct btree_iter *iter)
+__trans_next_iter(struct btree_trans *trans, unsigned idx)
 {
-	unsigned idx;
+	EBUG_ON(idx < trans->nr_iters && trans->iters[idx].idx != idx);
 
-	/* XXX expensive pointer subtraction: */
-
-	for (idx = iter - trans->iters;
-	     idx < trans->nr_iters;
-	     idx++)
+	for (; idx < trans->nr_iters; idx++)
 		if (trans->iters_linked & (1ULL << idx))
 			return &trans->iters[idx];
 
@@ -52,9 +48,9 @@ __trans_next_iter(struct btree_trans *trans, struct btree_iter *iter)
 }
 
 #define trans_for_each_iter(_trans, _iter)				\
-	for (_iter = (_trans)->iters;					\
-	     (_iter = __trans_next_iter((_trans), _iter));		\
-	     _iter++)
+	for (_iter = __trans_next_iter((_trans), 0);			\
+	     (_iter);							\
+	     _iter = __trans_next_iter((_trans), (_iter)->idx + 1))
 
 static inline bool __iter_has_node(const struct btree_iter *iter,
 				   const struct btree *b)
@@ -73,30 +69,23 @@ static inline bool __iter_has_node(const struct btree_iter *iter,
 
 static inline struct btree_iter *
 __trans_next_iter_with_node(struct btree_trans *trans, struct btree *b,
-			    struct btree_iter *iter)
+			    unsigned idx)
 {
-	unsigned idx;
+	EBUG_ON(idx < trans->nr_iters && trans->iters[idx].idx != idx);
 
-	/* XXX expensive pointer subtraction: */
-
-	for (idx = iter - trans->iters;
-	     idx < trans->nr_iters;
-	     idx++) {
-		if (!(trans->iters_linked & (1ULL << idx)))
-			continue;
-
-		iter = &trans->iters[idx];
-		if (__iter_has_node(iter, b))
-			return iter;
-	}
+	for (; idx < trans->nr_iters; idx++)
+		if ((trans->iters_linked & (1ULL << idx)) &&
+		    __iter_has_node(&trans->iters[idx], b))
+			return &trans->iters[idx];
 
 	return NULL;
 }
 
 #define trans_for_each_iter_with_node(_trans, _b, _iter)		\
-	for (_iter = (_trans)->iters;					\
-	     (_iter = __trans_next_iter_with_node((_trans), (_b), _iter));\
-	     _iter++)
+	for (_iter = __trans_next_iter_with_node((_trans), (_b), 0);	\
+	     (_iter);							\
+	     _iter = __trans_next_iter_with_node((_trans), (_b),	\
+						 (_iter)->idx + 1))
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_btree_iter_verify(struct btree_iter *, struct btree *);
