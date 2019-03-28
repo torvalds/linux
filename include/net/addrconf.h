@@ -425,6 +425,14 @@ static inline void in6_dev_hold(struct inet6_dev *idev)
 	refcount_inc(&idev->refcnt);
 }
 
+/* called with rcu_read_lock held */
+static inline bool ip6_ignore_linkdown(const struct net_device *dev)
+{
+	const struct inet6_dev *idev = __in6_dev_get(dev);
+
+	return !!idev->cnf.ignore_routes_with_linkdown;
+}
+
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
 
 static inline void in6_ifa_put(struct inet6_ifaddr *ifp)
