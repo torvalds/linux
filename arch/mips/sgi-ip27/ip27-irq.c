@@ -118,7 +118,6 @@ static void shutdown_bridge_irq(struct irq_data *d)
 {
 	struct hub_irq_data *hd = irq_data_get_irq_chip_data(d);
 	struct bridge_controller *bc;
-	int pin = hd->pin;
 
 	if (!hd)
 		return;
@@ -126,7 +125,7 @@ static void shutdown_bridge_irq(struct irq_data *d)
 	disable_hub_irq(d);
 
 	bc = hd->bc;
-	bridge_clr(bc, b_int_enable, (1 << pin));
+	bridge_clr(bc, b_int_enable, (1 << hd->pin));
 	bridge_read(bc, b_wid_tflush);
 }
 
