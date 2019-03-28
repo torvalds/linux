@@ -732,7 +732,7 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	k = bch2_btree_iter_peek_slot(iter);
 
-	ret = btree_iter_err(k);
+	ret = bkey_err(k);
 	if (unlikely(ret))
 		return ret;
 

@@ -226,7 +226,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	iter = bch2_trans_get_iter(&trans, i->id, i->from, BTREE_ITER_PREFETCH);
 	k = bch2_btree_iter_peek(iter);
 
-	while (k.k && !(err = btree_iter_err(k))) {
+	while (k.k && !(err = bkey_err(k))) {
 		bch2_bkey_val_to_text(&PBUF(i->buf), i->c, k);
 		i->bytes = strlen(i->buf);
 		BUG_ON(i->bytes >= PAGE_SIZE);
@@ -333,7 +333,7 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 	iter = bch2_trans_get_iter(&trans, i->id, i->from, BTREE_ITER_PREFETCH);
 
 	while ((k = bch2_btree_iter_peek(iter)).k &&
-	       !(err = btree_iter_err(k))) {
+	       !(err = bkey_err(k))) {
 		struct btree_iter_level *l = &iter->l[0];
 		struct bkey_packed *_k =
 			bch2_btree_node_iter_peek(&l->iter, l->b);

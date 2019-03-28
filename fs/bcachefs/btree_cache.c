@@ -814,7 +814,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 		 * We might have got -EINTR because trylock failed, and we're
 		 * holding other locks that would cause us to deadlock:
 		 */
-		for_each_linked_btree_iter(iter, linked)
+		trans_for_each_iter(iter->trans, linked)
 			if (btree_iter_cmp(iter, linked) < 0)
 				__bch2_btree_iter_unlock(linked);
 
@@ -839,13 +839,13 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 			}
 		}
 
-		bch2_btree_iter_relock(iter);
+		bch2_btree_trans_relock(iter->trans);
 	}
 out:
 	if (btree_lock_want(iter, level + 1) == BTREE_NODE_UNLOCKED)
 		btree_node_unlock(iter, level + 1);
 
-	bch2_btree_iter_verify_locks(iter);
+	bch2_btree_trans_verify_locks(iter->trans);
 
 	BUG_ON((!may_drop_locks || !IS_ERR(ret)) &&
 	       (iter->uptodate >= BTREE_ITER_NEED_RELOCK ||

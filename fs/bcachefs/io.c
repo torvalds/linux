@@ -1279,7 +1279,7 @@ retry:
 	rbio->bio.bi_status = 0;
 
 	k = bch2_btree_iter_peek_slot(iter);
-	if (btree_iter_err(k))
+	if (bkey_err(k))
 		goto err;
 
 	bkey_reassemble(&tmp.k, k);
@@ -1332,7 +1332,7 @@ retry:
 
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
-		bch2_btree_iter_unlock(iter);
+		bch2_btree_trans_unlock(&trans);
 
 		bytes = min_t(unsigned, bvec_iter.bi_size,
 			      (k.k->p.offset - bvec_iter.bi_sector) << 9);
@@ -1357,7 +1357,7 @@ retry:
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
 	 */
-	BUG_ON(!(iter->flags & BTREE_ITER_ERROR));
+	BUG_ON(!btree_iter_err(iter));
 	__bcache_io_error(c, "btree IO error");
 err:
 	rbio->bio.bi_status = BLK_STS_IOERR;
@@ -1893,7 +1893,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		 */
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
-		bch2_btree_iter_unlock(iter);
+		bch2_btree_trans_unlock(&trans);
 
 		bytes = min_t(unsigned, rbio->bio.bi_iter.bi_size,
 			      (k.k->p.offset - rbio->bio.bi_iter.bi_sector) << 9);
@@ -1915,7 +1915,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
 	 */
-	BUG_ON(!(iter->flags & BTREE_ITER_ERROR));
+	BUG_ON(!btree_iter_err(iter));
 	bcache_io_error(c, &rbio->bio, "btree IO error");
 
 	bch2_trans_exit(&trans);

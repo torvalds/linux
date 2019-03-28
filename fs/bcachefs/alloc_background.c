@@ -945,7 +945,7 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	bch2_btree_iter_set_pos(iter, POS(ca->dev_idx, b));
 retry:
 	k = bch2_btree_iter_peek_slot(iter);
-	ret = btree_iter_err(k);
+	ret = bkey_err(k);
 	if (ret)
 		return ret;
 

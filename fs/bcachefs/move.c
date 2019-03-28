@@ -77,7 +77,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		bool did_work = false;
 		int nr;
 
-		ret = btree_iter_err(k);
+		ret = bkey_err(k);
 		if (ret)
 			break;
 
@@ -539,7 +539,7 @@ peek:
 
 		if (!k.k)
 			break;
-		ret = btree_iter_err(k);
+		ret = bkey_err(k);
 		if (ret)
 			break;
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)

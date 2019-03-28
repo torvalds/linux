@@ -23,10 +23,43 @@ static inline struct btree *btree_node_parent(struct btree_iter *iter,
 	return btree_iter_node(iter, b->level + 1);
 }
 
+static inline bool btree_trans_has_multiple_iters(const struct btree_trans *trans)
+{
+	return hweight64(trans->iters_linked) > 1;
+}
+
 static inline bool btree_iter_linked(const struct btree_iter *iter)
 {
 	return iter->next != iter;
 }
+
+static inline int btree_iter_err(const struct btree_iter *iter)
+{
+	return iter->flags & BTREE_ITER_ERROR ? -EIO : 0;
+}
+
+/* Iterate over iters within a transaction: */
+
+static inline struct btree_iter *
+__trans_next_iter(struct btree_trans *trans, struct btree_iter *iter)
+{
+	unsigned idx;
+
+	/* XXX expensive pointer subtraction: */
+
+	for (idx = iter - trans->iters;
+	     idx < trans->nr_iters;
+	     idx++)
+		if (trans->iters_linked & (1ULL << idx))
+			return &trans->iters[idx];
+
+	return NULL;
+}
+
+#define trans_for_each_iter(_trans, _iter)				\
+	for (_iter = (_trans)->iters;					\
+	     (_iter = __trans_next_iter((_trans), _iter));		\
+	     _iter++)
 
 static inline bool __iter_has_node(const struct btree_iter *iter,
 				   const struct btree *b)
@@ -44,59 +77,39 @@ static inline bool __iter_has_node(const struct btree_iter *iter,
 }
 
 static inline struct btree_iter *
-__next_linked_iter(struct btree_iter *iter, struct btree_iter *linked)
+__trans_next_iter_with_node(struct btree_trans *trans, struct btree *b,
+			    struct btree_iter *iter)
 {
-	return linked->next != iter ? linked->next : NULL;
+	unsigned idx;
+
+	/* XXX expensive pointer subtraction: */
+
+	for (idx = iter - trans->iters;
+	     idx < trans->nr_iters;
+	     idx++) {
+		if (!(trans->iters_linked & (1ULL << idx)))
+			continue;
+
+		iter = &trans->iters[idx];
+		if (__iter_has_node(iter, b))
+			return iter;
+	}
+
+	return NULL;
 }
 
-static inline struct btree_iter *
-__next_iter_with_node(struct btree_iter *iter, struct btree *b,
-		      struct btree_iter *linked)
-{
-	while (linked && !__iter_has_node(linked, b))
-		linked = __next_linked_iter(iter, linked);
-
-	return linked;
-}
-
-/**
- * for_each_btree_iter - iterate over all iterators linked with @_iter,
- * including @_iter
- */
-#define for_each_btree_iter(_iter, _linked)				\
-	for ((_linked) = (_iter); (_linked);				\
-	     (_linked) = __next_linked_iter(_iter, _linked))
-
-/**
- * for_each_btree_iter_with_node - iterate over all iterators linked with @_iter
- * that also point to @_b
- *
- * @_b is assumed to be locked by @_iter
- *
- * Filters out iterators that don't have a valid btree_node iterator for @_b -
- * i.e. iterators for which bch2_btree_node_relock() would not succeed.
- */
-#define for_each_btree_iter_with_node(_iter, _b, _linked)		\
-	for ((_linked) = (_iter);					\
-	     ((_linked) = __next_iter_with_node(_iter, _b, _linked));	\
-	     (_linked) = __next_linked_iter(_iter, _linked))
-
-/**
- * for_each_linked_btree_iter - iterate over all iterators linked with @_iter,
- * _not_ including @_iter
- */
-#define for_each_linked_btree_iter(_iter, _linked)			\
-	for ((_linked) = (_iter)->next;					\
-	     (_linked) != (_iter);					\
-	     (_linked) = (_linked)->next)
+#define trans_for_each_iter_with_node(_trans, _b, _iter)		\
+	for (_iter = (_trans)->iters;					\
+	     (_iter = __trans_next_iter_with_node((_trans), (_b), _iter));\
+	     _iter++)
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_btree_iter_verify(struct btree_iter *, struct btree *);
-void bch2_btree_iter_verify_locks(struct btree_iter *);
+void bch2_btree_trans_verify_locks(struct btree_trans *);
 #else
 static inline void bch2_btree_iter_verify(struct btree_iter *iter,
 					  struct btree *b) {}
-static inline void bch2_btree_iter_verify_locks(struct btree_iter *iter) {}
+static inline void bch2_btree_trans_verify_locks(struct btree_trans *iter) {}
 #endif
 
 void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
@@ -104,7 +117,9 @@ void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
 			      unsigned, unsigned);
 
 int bch2_btree_iter_unlock(struct btree_iter *);
-bool bch2_btree_iter_relock(struct btree_iter *);
+
+bool bch2_btree_trans_relock(struct btree_trans *);
+void bch2_btree_trans_unlock(struct btree_trans *);
 
 bool __bch2_btree_iter_upgrade(struct btree_iter *, unsigned);
 bool __bch2_btree_iter_upgrade_nounlock(struct btree_iter *, unsigned);
@@ -252,7 +267,7 @@ static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 	     !IS_ERR_OR_NULL((_k).k);					\
 	     (_k) = __bch2_btree_iter_next(_iter, _flags))
 
-static inline int btree_iter_err(struct bkey_s_c k)
+static inline int bkey_err(struct bkey_s_c k)
 {
 	return PTR_ERR_OR_ZERO(k.k);
 }
