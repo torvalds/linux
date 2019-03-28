@@ -279,14 +279,6 @@ static void enc2_dp_set_dsc_config(struct stream_encoder *enc,
 					uint32_t dsc_slice_width)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-	uint32_t dsc_value = 0;
-
-	dsc_value = REG_READ(DP_DSC_CNTL);
-
-	/* dsc disable skip */
-	if ((dsc_value & 0x3) == 0x0)
-		return;
-
 
 	REG_UPDATE_2(DP_DSC_CNTL,
 			DP_DSC_MODE, dsc_mode,
