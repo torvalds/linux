@@ -70,7 +70,6 @@ struct tb_switch_nvm {
  * @boot: Whether the switch was already authorized on boot or not
  * @rpm: The switch supports runtime PM
  * @authorized: Whether the switch is authorized by user or policy
- * @work: Work used to automatically authorize a switch
  * @security_level: Switch supported security level
  * @key: Contains the key used to challenge the device or %NULL if not
  *	 supported. Size of the key is %TB_SWITCH_KEY_SIZE.
@@ -105,7 +104,6 @@ struct tb_switch {
 	bool boot;
 	bool rpm;
 	unsigned int authorized;
-	struct work_struct work;
 	enum tb_security_level security_level;
 	u8 *key;
 	u8 connection_id;
