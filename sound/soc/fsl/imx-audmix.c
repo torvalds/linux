@@ -161,7 +161,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 	}
 
 	if (!audmix_np) {
-		dev_err(&pdev->dev, "Missign DT node for parent device.\n");
+		dev_err(&pdev->dev, "Missing DT node for parent device.\n");
 		return -EINVAL;
 	}
 
