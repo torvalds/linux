@@ -87,9 +87,6 @@ static void lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba,
 				     struct lpfc_eqe *eqe);
 static bool lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba);
 static bool lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba);
-static int lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba,
-				   struct lpfc_sli_ring *pring,
-				   struct lpfc_iocbq *cmdiocb);
 
 static IOCB_t *
 lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
@@ -3922,33 +3919,6 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 }
 
 /**
- * lpfc_sli_abort_wqe_ring - Abort all iocbs in the ring
- * @phba: Pointer to HBA context object.
- * @pring: Pointer to driver SLI ring object.
- *
- * This function aborts all iocbs in the given ring and frees all the iocb
- * objects in txq. This function issues an abort iocb for all the iocb commands
- * in txcmplq. The iocbs in the txcmplq is not guaranteed to complete before
- * the return of this function. The caller is not required to hold any locks.
- **/
-static void
-lpfc_sli_abort_wqe_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
-{
-	LIST_HEAD(completions);
-	struct lpfc_iocbq *iocb, *next_iocb;
-
-	if (pring->ringno == LPFC_ELS_RING)
-		lpfc_fabric_abort_hba(phba);
-
-	spin_lock_irq(&phba->hbalock);
-	/* Next issue ABTS for everything on the txcmplq */
-	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list)
-		lpfc_sli4_abort_nvme_io(phba, pring, iocb);
-	spin_unlock_irq(&phba->hbalock);
-}
-
-
-/**
  * lpfc_sli_abort_fcp_rings - Abort all iocbs in all FCP rings
  * @phba: Pointer to HBA context object.
  * @pring: Pointer to driver SLI ring object.
@@ -3976,33 +3946,6 @@ lpfc_sli_abort_fcp_rings(struct lpfc_hba *phba)
 		lpfc_sli_abort_iocb_ring(phba, pring);
 	}
 }
-
-/**
- * lpfc_sli_abort_nvme_rings - Abort all wqes in all NVME rings
- * @phba: Pointer to HBA context object.
- *
- * This function aborts all wqes in NVME rings. This function issues an
- * abort wqe for all the outstanding IO commands in txcmplq. The iocbs in
- * the txcmplq is not guaranteed to complete before the return of this
- * function. The caller is not required to hold any locks.
- **/
-void
-lpfc_sli_abort_nvme_rings(struct lpfc_hba *phba)
-{
-	struct lpfc_sli_ring  *pring;
-	uint32_t i;
-
-	if ((phba->sli_rev < LPFC_SLI_REV4) ||
-	    !(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
-		return;
-
-	/* Abort all IO on each NVME ring. */
-	for (i = 0; i < phba->cfg_hdw_queue; i++) {
-		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
-		lpfc_sli_abort_wqe_ring(phba, pring);
-	}
-}
-
 
 /**
  * lpfc_sli_flush_fcp_rings - flush all iocbs in the fcp ring
@@ -11319,102 +11262,6 @@ abort_iotag_exit:
 	 * and handle it properly.  This routine no longer removes
 	 * iocb off txcmplq and call compl in case of IOCB_ERROR.
 	 */
-	return retval;
-}
-
-/**
- * lpfc_sli4_abort_nvme_io - Issue abort for a command iocb
- * @phba: Pointer to HBA context object.
- * @pring: Pointer to driver SLI ring object.
- * @cmdiocb: Pointer to driver command iocb object.
- *
- * This function issues an abort iocb for the provided command iocb down to
- * the port. Other than the case the outstanding command iocb is an abort
- * request, this function issues abort out unconditionally. This function is
- * called with hbalock held. The function returns 0 when it fails due to
- * memory allocation failure or when the command iocb is an abort request.
- **/
-static int
-lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-			struct lpfc_iocbq *cmdiocb)
-{
-	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_iocbq *abtsiocbp;
-	union lpfc_wqe128 *abts_wqe;
-	int retval;
-	int idx = cmdiocb->hba_wqidx;
-
-	/*
-	 * There are certain command types we don't want to abort.  And we
-	 * don't want to abort commands that are already in the process of
-	 * being aborted.
-	 */
-	if (cmdiocb->iocb.ulpCommand == CMD_ABORT_XRI_CN ||
-	    cmdiocb->iocb.ulpCommand == CMD_CLOSE_XRI_CN ||
-	    (cmdiocb->iocb_flag & LPFC_DRIVER_ABORTED) != 0)
-		return 0;
-
-	/* issue ABTS for this io based on iotag */
-	abtsiocbp = __lpfc_sli_get_iocbq(phba);
-	if (abtsiocbp == NULL)
-		return 0;
-
-	/* This signals the response to set the correct status
-	 * before calling the completion handler
-	 */
-	cmdiocb->iocb_flag |= LPFC_DRIVER_ABORTED;
-
-	/* Complete prepping the abort wqe and issue to the FW. */
-	abts_wqe = &abtsiocbp->wqe;
-
-	/* Clear any stale WQE contents */
-	memset(abts_wqe, 0, sizeof(union lpfc_wqe));
-	bf_set(abort_cmd_criteria, &abts_wqe->abort_cmd, T_XRI_TAG);
-
-	/* word 7 */
-	bf_set(wqe_cmnd, &abts_wqe->abort_cmd.wqe_com, CMD_ABORT_XRI_CX);
-	bf_set(wqe_class, &abts_wqe->abort_cmd.wqe_com,
-	       cmdiocb->iocb.ulpClass);
-
-	/* word 8 - tell the FW to abort the IO associated with this
-	 * outstanding exchange ID.
-	 */
-	abts_wqe->abort_cmd.wqe_com.abort_tag = cmdiocb->sli4_xritag;
-
-	/* word 9 - this is the iotag for the abts_wqe completion. */
-	bf_set(wqe_reqtag, &abts_wqe->abort_cmd.wqe_com,
-	       abtsiocbp->iotag);
-
-	/* word 10 */
-	bf_set(wqe_qosd, &abts_wqe->abort_cmd.wqe_com, 1);
-	bf_set(wqe_lenloc, &abts_wqe->abort_cmd.wqe_com, LPFC_WQE_LENLOC_NONE);
-
-	/* word 11 */
-	bf_set(wqe_cmd_type, &abts_wqe->abort_cmd.wqe_com, OTHER_COMMAND);
-	bf_set(wqe_wqec, &abts_wqe->abort_cmd.wqe_com, 1);
-	bf_set(wqe_cqid, &abts_wqe->abort_cmd.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
-
-	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
-	abtsiocbp->iocb_flag |= LPFC_IO_NVME;
-	abtsiocbp->vport = vport;
-	abtsiocbp->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
-	retval = lpfc_sli4_issue_wqe(phba, &phba->sli4_hba.hdwq[idx],
-				     abtsiocbp);
-	if (retval) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
-				 "6147 Failed abts issue_wqe with status x%x "
-				 "for oxid x%x\n",
-				 retval, cmdiocb->sli4_xritag);
-		lpfc_sli_release_iocbq(phba, abtsiocbp);
-		return retval;
-	}
-
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
-			 "6148 Drv Abort NVME Request Issued for "
-			 "ox_id x%x on reqtag x%x\n",
-			 cmdiocb->sli4_xritag,
-			 abtsiocbp->iotag);
-
 	return retval;
 }
 
