@@ -739,6 +739,8 @@ devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
+int devlink_compat_phys_port_name_get(struct net_device *dev,
+				      char *name, size_t len);
 
 #else
 
@@ -749,6 +751,13 @@ devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 
 static inline int
 devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_compat_phys_port_name_get(struct net_device *dev,
+				  char *name, size_t len)
 {
 	return -EOPNOTSUPP;
 }

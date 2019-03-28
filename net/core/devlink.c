@@ -5414,8 +5414,8 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
 
-int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
-				    char *name, size_t len)
+static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
+					     char *name, size_t len)
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int n = 0;
@@ -5444,6 +5444,12 @@ int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
 		return -EINVAL;
 
 	return 0;
+}
+
+int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				    char *name, size_t len)
+{
+	return __devlink_port_phys_port_name_get(devlink_port, name, len);
 }
 EXPORT_SYMBOL_GPL(devlink_port_get_phys_port_name);
 
@@ -6457,6 +6463,24 @@ out:
 	dev_put(dev);
 
 	return ret;
+}
+
+int devlink_compat_phys_port_name_get(struct net_device *dev,
+				      char *name, size_t len)
+{
+	struct devlink_port *devlink_port;
+
+	/* RTNL mutex is held here which ensures that devlink_port
+	 * instance cannot disappear in the middle. No need to take
+	 * any devlink lock as only permanent values are accessed.
+	 */
+	ASSERT_RTNL();
+
+	devlink_port = netdev_to_devlink_port(dev);
+	if (!devlink_port)
+		return -EOPNOTSUPP;
+
+	return __devlink_port_phys_port_name_get(devlink_port, name, len);
 }
 
 static int __init devlink_init(void)
