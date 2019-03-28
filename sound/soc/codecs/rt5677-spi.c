@@ -25,6 +25,7 @@
 #include <linux/sysfs.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
+#include <linux/acpi.h>
 
 #include "rt5677-spi.h"
 
@@ -226,9 +227,16 @@ static int rt5677_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
+static const struct acpi_device_id rt5677_spi_acpi_id[] = {
+	{ "RT5677AA", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, rt5677_spi_acpi_id);
+
 static struct spi_driver rt5677_spi_driver = {
 	.driver = {
 		.name = "rt5677",
+		.acpi_match_table = ACPI_PTR(rt5677_spi_acpi_id),
 	},
 	.probe = rt5677_spi_probe,
 };
