@@ -539,44 +539,44 @@ static void pseries_print_mce_info(struct pt_regs *regs,
 	int disposition = rtas_error_disposition(errp);
 
 	static const char * const initiators[] = {
-		"Unknown",
-		"CPU",
-		"PCI",
-		"ISA",
-		"Memory",
-		"Power Mgmt",
+		[0] = "Unknown",
+		[1] = "CPU",
+		[2] = "PCI",
+		[3] = "ISA",
+		[4] = "Memory",
+		[5] = "Power Mgmt",
 	};
 	static const char * const mc_err_types[] = {
-		"UE",
-		"SLB",
-		"ERAT",
-		"Unknown",
-		"TLB",
-		"D-Cache",
-		"Unknown",
-		"I-Cache",
+		[0] = "UE",
+		[1] = "SLB",
+		[2] = "ERAT",
+		[3] = "Unknown",
+		[4] = "TLB",
+		[5] = "D-Cache",
+		[6] = "Unknown",
+		[7] = "I-Cache",
 	};
 	static const char * const mc_ue_types[] = {
-		"Indeterminate",
-		"Instruction fetch",
-		"Page table walk ifetch",
-		"Load/Store",
-		"Page table walk Load/Store",
+		[0] = "Indeterminate",
+		[1] = "Instruction fetch",
+		[2] = "Page table walk ifetch",
+		[3] = "Load/Store",
+		[4] = "Page table walk Load/Store",
 	};
 
 	/* SLB sub errors valid values are 0x0, 0x1, 0x2 */
 	static const char * const mc_slb_types[] = {
-		"Parity",
-		"Multihit",
-		"Indeterminate",
+		[0] = "Parity",
+		[1] = "Multihit",
+		[2] = "Indeterminate",
 	};
 
 	/* TLB and ERAT sub errors valid values are 0x1, 0x2, 0x3 */
 	static const char * const mc_soft_types[] = {
-		"Unknown",
-		"Parity",
-		"Multihit",
-		"Indeterminate",
+		[0] = "Unknown",
+		[1] = "Parity",
+		[2] = "Multihit",
+		[3] = "Indeterminate",
 	};
 
 	if (!rtas_error_extended(errp)) {
