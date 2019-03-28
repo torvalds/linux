@@ -540,7 +540,6 @@ struct qeth_qdio_info {
 enum qeth_channel_states {
 	CH_STATE_UP,
 	CH_STATE_DOWN,
-	CH_STATE_ACTIVATING,
 	CH_STATE_HALTED,
 	CH_STATE_STOPPED,
 	CH_STATE_RCD,
