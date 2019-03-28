@@ -5446,13 +5446,6 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	return 0;
 }
 
-int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
-				    char *name, size_t len)
-{
-	return __devlink_port_phys_port_name_get(devlink_port, name, len);
-}
-EXPORT_SYMBOL_GPL(devlink_port_get_phys_port_name);
-
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
