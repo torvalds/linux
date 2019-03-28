@@ -333,7 +333,7 @@ calls for synchronization like :c:func:`spin_lock_bh` and
 
 
 Workqueues
-----------
+==========
 
 Workqueues are used to schedule actions to run in process context. The
 base unit with which they work is called work. There are two types of
@@ -563,7 +563,7 @@ a new thread kernel called *my_workqueue*, the name passed to
 :c:func:`create_singlethread_workqueue`.
 
 Kernel threads
---------------
+==============
 
 Kernel threads have emerged from the need to run kernel code in
 process context. Kernel threads are the basis of the workqueue
