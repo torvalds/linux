@@ -246,9 +246,9 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		 */
 		if (addr->proto == QETH_PROT_IPV4) {
 			addr->in_progress = 1;
-			spin_unlock_bh(&card->ip_lock);
+			mutex_unlock(&card->ip_lock);
 			rc = qeth_l3_register_addr_entry(card, addr);
-			spin_lock_bh(&card->ip_lock);
+			mutex_lock(&card->ip_lock);
 			addr->in_progress = 0;
 		} else
 			rc = qeth_l3_register_addr_entry(card, addr);
@@ -273,9 +273,9 @@ static int qeth_l3_modify_ip(struct qeth_card *card, struct qeth_ipaddr *addr,
 {
 	int rc;
 
-	spin_lock_bh(&card->ip_lock);
+	mutex_lock(&card->ip_lock);
 	rc = add ? qeth_l3_add_ip(card, addr) : qeth_l3_delete_ip(card, addr);
-	spin_unlock_bh(&card->ip_lock);
+	mutex_unlock(&card->ip_lock);
 
 	return rc;
 }
@@ -300,7 +300,7 @@ static void qeth_l3_clear_ip_htable(struct qeth_card *card, int recover)
 
 	QETH_CARD_TEXT(card, 4, "clearip");
 
-	spin_lock_bh(&card->ip_lock);
+	mutex_lock(&card->ip_lock);
 
 	hash_for_each_safe(card->ip_htable, i, tmp, addr, hnode) {
 		if (!recover) {
@@ -311,7 +311,7 @@ static void qeth_l3_clear_ip_htable(struct qeth_card *card, int recover)
 		addr->disp_flag = QETH_DISP_ADDR_ADD;
 	}
 
-	spin_unlock_bh(&card->ip_lock);
+	mutex_unlock(&card->ip_lock);
 }
 
 static void qeth_l3_recover_ip(struct qeth_card *card)
@@ -323,15 +323,15 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 4, "recovrip");
 
-	spin_lock_bh(&card->ip_lock);
+	mutex_lock(&card->ip_lock);
 
 	hash_for_each_safe(card->ip_htable, i, tmp, addr, hnode) {
 		if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
 			if (addr->proto == QETH_PROT_IPV4) {
 				addr->in_progress = 1;
-				spin_unlock_bh(&card->ip_lock);
+				mutex_unlock(&card->ip_lock);
 				rc = qeth_l3_register_addr_entry(card, addr);
-				spin_lock_bh(&card->ip_lock);
+				mutex_lock(&card->ip_lock);
 				addr->in_progress = 0;
 			} else
 				rc = qeth_l3_register_addr_entry(card, addr);
@@ -347,8 +347,7 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 		}
 	}
 
-	spin_unlock_bh(&card->ip_lock);
-
+	mutex_unlock(&card->ip_lock);
 }
 
 static int qeth_l3_setdelip_cb(struct qeth_card *card, struct qeth_reply *reply,
@@ -573,7 +572,7 @@ static void qeth_l3_clear_ipato_list(struct qeth_card *card)
 {
 	struct qeth_ipato_entry *ipatoe, *tmp;
 
-	spin_lock_bh(&card->ip_lock);
+	mutex_lock(&card->ip_lock);
 
 	list_for_each_entry_safe(ipatoe, tmp, &card->ipato.entries, entry) {
 		list_del(&ipatoe->entry);
@@ -581,7 +580,7 @@ static void qeth_l3_clear_ipato_list(struct qeth_card *card)
 	}
 
 	qeth_l3_update_ipato(card);
-	spin_unlock_bh(&card->ip_lock);
+	mutex_unlock(&card->ip_lock);
 }
 
 int qeth_l3_add_ipato_entry(struct qeth_card *card,
@@ -592,7 +591,7 @@ int qeth_l3_add_ipato_entry(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 2, "addipato");
 
-	spin_lock_bh(&card->ip_lock);
+	mutex_lock(&card->ip_lock);
 
 	list_for_each_entry(ipatoe, &card->ipato.entries, entry) {
 		if (ipatoe->proto != new->proto)
@@ -610,7 +609,7 @@ int qeth_l3_add_ipato_entry(struct qeth_card *card,
 		qeth_l3_update_ipato(card);
 	}
 
-	spin_unlock_bh(&card->ip_lock);
+	mutex_unlock(&card->ip_lock);
 
 	return rc;
 }
@@ -624,7 +623,7 @@ int qeth_l3_del_ipato_entry(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 2, "delipato");
 
-	spin_lock_bh(&card->ip_lock);
+	mutex_lock(&card->ip_lock);
 
 	list_for_each_entry_safe(ipatoe, tmp, &card->ipato.entries, entry) {
 		if (ipatoe->proto != proto)
@@ -639,7 +638,7 @@ int qeth_l3_del_ipato_entry(struct qeth_card *card,
 		}
 	}
 
-	spin_unlock_bh(&card->ip_lock);
+	mutex_unlock(&card->ip_lock);
 	return rc;
 }
 
@@ -2267,6 +2266,7 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	int rc;
 
 	hash_init(card->ip_htable);
+	mutex_init(&card->ip_lock);
 	card->cmd_wq = alloc_ordered_workqueue("%s_cmd", 0,
 					       dev_name(&gdev->dev));
 	if (!card->cmd_wq)

@@ -779,6 +779,7 @@ struct qeth_card {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
+	struct mutex ip_lock;
 	DECLARE_HASHTABLE(ip_mc_htable, 4);
 	struct work_struct rx_mode_work;
 	struct work_struct kernel_thread_starter;
@@ -786,7 +787,6 @@ struct qeth_card {
 	unsigned long thread_start_mask;
 	unsigned long thread_allowed_mask;
 	unsigned long thread_running_mask;
-	spinlock_t ip_lock;
 	struct qeth_ipato ipato;
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
