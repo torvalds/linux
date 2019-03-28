@@ -77,26 +77,26 @@ struct fnhe_hash_bucket {
 #define FNHE_RECLAIM_DEPTH	5
 
 struct fib_nh {
-	struct net_device	*nh_dev;
+	struct net_device	*fib_nh_dev;
 	struct hlist_node	nh_hash;
 	struct fib_info		*nh_parent;
-	unsigned int		nh_flags;
-	unsigned char		nh_scope;
+	unsigned int		fib_nh_flags;
+	unsigned char		fib_nh_scope;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int			nh_weight;
-	atomic_t		nh_upper_bound;
+	int			fib_nh_weight;
+	atomic_t		fib_nh_upper_bound;
 #endif
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			nh_tclassid;
 #endif
-	int			nh_oif;
-	__be32			nh_gw;
+	int			fib_nh_oif;
+	__be32			fib_nh_gw4;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
 	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
 	struct rtable __rcu	*nh_rth_input;
 	struct fnhe_hash_bucket	__rcu *nh_exceptions;
-	struct lwtunnel_state	*nh_lwtstate;
+	struct lwtunnel_state	*fib_nh_lws;
 };
 
 /*
@@ -125,7 +125,7 @@ struct fib_info {
 	int			fib_nhs;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
-#define fib_dev		fib_nh[0].nh_dev
+#define fib_dev		fib_nh[0].fib_nh_dev
 };
 
 
@@ -180,9 +180,9 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 	  atomic_read(&(net)->ipv4.dev_addr_genid)) ?	\
 	 FIB_RES_NH(res).nh_saddr :			\
 	 fib_info_update_nh_saddr((net), &FIB_RES_NH(res)))
-#define FIB_RES_GW(res)			(FIB_RES_NH(res).nh_gw)
-#define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
-#define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
+#define FIB_RES_GW(res)			(FIB_RES_NH(res).fib_nh_gw4)
+#define FIB_RES_DEV(res)		(FIB_RES_NH(res).fib_nh_dev)
+#define FIB_RES_OIF(res)		(FIB_RES_NH(res).fib_nh_oif)
 
 #define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
 					 FIB_RES_SADDR(net, res))

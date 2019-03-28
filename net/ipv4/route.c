@@ -644,7 +644,7 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 	unsigned int i;
 	int depth;
 
-	genid = fnhe_genid(dev_net(nh->nh_dev));
+	genid = fnhe_genid(dev_net(nh->fib_nh_dev));
 	hval = fnhe_hashfun(daddr);
 
 	spin_lock_bh(&fnhe_lock);
@@ -1356,7 +1356,7 @@ u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr)
 {
 	struct fib_info *fi = res->fi;
 	struct fib_nh *nh = &fi->fib_nh[res->nh_sel];
-	struct net_device *dev = nh->nh_dev;
+	struct net_device *dev = nh->fib_nh_dev;
 	u32 mtu = 0;
 
 	if (dev_net(dev)->ipv4.sysctl_ip_fwd_use_pmtu ||
@@ -1374,7 +1374,7 @@ u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr)
 	if (likely(!mtu))
 		mtu = min(READ_ONCE(dev->mtu), IP_MAX_MTU);
 
-	return mtu - lwtunnel_headroom(nh->nh_lwtstate, mtu);
+	return mtu - lwtunnel_headroom(nh->fib_nh_lws, mtu);
 }
 
 static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
@@ -1531,8 +1531,8 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 	if (fi) {
 		struct fib_nh *nh = &FIB_RES_NH(*res);
 
-		if (nh->nh_gw && nh->nh_scope == RT_SCOPE_LINK) {
-			rt->rt_gateway = nh->nh_gw;
+		if (nh->fib_nh_gw4 && nh->fib_nh_scope == RT_SCOPE_LINK) {
+			rt->rt_gateway = nh->fib_nh_gw4;
 			rt->rt_uses_gateway = 1;
 		}
 		ip_dst_init_metrics(&rt->dst, fi->fib_metrics);
@@ -1540,7 +1540,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
-		rt->dst.lwtstate = lwtstate_get(nh->nh_lwtstate);
+		rt->dst.lwtstate = lwtstate_get(nh->fib_nh_lws);
 		if (unlikely(fnhe))
 			cached = rt_bind_exception(rt, fnhe, daddr, do_cache);
 		else if (do_cache)
@@ -2075,7 +2075,7 @@ local_input:
 	if (do_cache) {
 		struct fib_nh *nh = &FIB_RES_NH(*res);
 
-		rth->dst.lwtstate = lwtstate_get(nh->nh_lwtstate);
+		rth->dst.lwtstate = lwtstate_get(nh->fib_nh_lws);
 		if (lwtunnel_input_redirect(rth->dst.lwtstate)) {
 			WARN_ON(rth->dst.input == lwtunnel_input);
 			rth->dst.lwtstate->orig_input = rth->dst.input;
@@ -2264,8 +2264,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		} else {
 			if (unlikely(fl4->flowi4_flags &
 				     FLOWI_FLAG_KNOWN_NH &&
-				     !(nh->nh_gw &&
-				       nh->nh_scope == RT_SCOPE_LINK))) {
+				     !(nh->fib_nh_gw4 &&
+				       nh->fib_nh_scope == RT_SCOPE_LINK))) {
 				do_cache = false;
 				goto add;
 			}
