@@ -1,3 +1,14 @@
+config MTD_PARSER_IMAGETAG
+	tristate "Parser for BCM963XX Image Tag format partitions"
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
+	select CRC32
+	help
+	  Image Tag is the firmware header used by broadcom on their xDSL line
+	  of devices. It is used to describe the offsets and lengths of kernel
+	  and rootfs partitions.
+	  This driver adds support for parsing a partition with an Image Tag
+	  header and creates up to two partitions, kernel and rootfs.
+
 config MTD_PARSER_TRX
 	tristate "Parser for TRX format partitions"
 	depends on MTD && (BCM47XX || ARCH_BCM_5301X || COMPILE_TEST)
