@@ -65,10 +65,8 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	ibdev->mdev = dev;
 	ibdev->num_ports = max(MLX5_CAP_GEN(dev, num_ports),
 			       MLX5_CAP_GEN(dev, num_vhca_ports));
-	if (!__mlx5_ib_add(ibdev, profile)) {
-		ib_dealloc_device(&ibdev->ib_dev);
+	if (!__mlx5_ib_add(ibdev, profile))
 		return -EINVAL;
-	}
 
 	rep->rep_if[REP_IB].priv = ibdev;
 
@@ -86,7 +84,6 @@ mlx5_ib_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	dev = mlx5_ib_rep_to_dev(rep);
 	__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
 	rep->rep_if[REP_IB].priv = NULL;
-	ib_dealloc_device(&dev->ib_dev);
 }
 
 static void *mlx5_ib_vport_get_proto_dev(struct mlx5_eswitch_rep *rep)

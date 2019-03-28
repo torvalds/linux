@@ -6417,6 +6417,8 @@ void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		if (profile->stage[stage].cleanup)
 			profile->stage[stage].cleanup(dev);
 	}
+
+	ib_dealloc_device(&dev->ib_dev);
 }
 
 void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
@@ -6639,8 +6641,6 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 
 	dev = context;
 	__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
-
-	ib_dealloc_device((struct ib_device *)dev);
 }
 
 static struct mlx5_interface mlx5_ib_interface = {
