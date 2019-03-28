@@ -923,6 +923,24 @@ static inline void qdisc_qstats_overlimit(struct Qdisc *sch)
 	sch->qstats.overlimits++;
 }
 
+static inline int qdisc_qstats_copy(struct gnet_dump *d, struct Qdisc *sch)
+{
+	__u32 qlen = qdisc_qlen_sum(sch);
+
+	return gnet_stats_copy_queue(d, sch->cpu_qstats, &sch->qstats, qlen);
+}
+
+static inline void qdisc_qstats_qlen_backlog(struct Qdisc *sch,  __u32 *qlen,
+					     __u32 *backlog)
+{
+	struct gnet_stats_queue qstats = { 0 };
+	__u32 len = qdisc_qlen_sum(sch);
+
+	__gnet_stats_copy_queue(&qstats, sch->cpu_qstats, &sch->qstats, len);
+	*qlen = qstats.qlen;
+	*backlog = qstats.backlog;
+}
+
 static inline void qdisc_skb_head_init(struct qdisc_skb_head *qh)
 {
 	qh->head = NULL;

@@ -1358,9 +1358,11 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class *)arg;
+	__u32 qlen;
 
 	cl->xstats.avgidle = cl->avgidle;
 	cl->xstats.undertime = 0;
+	qdisc_qstats_qlen_backlog(cl->q, &qlen, &cl->qstats.backlog);
 
 	if (cl->undertime != PSCHED_PASTPERFECT)
 		cl->xstats.undertime = cl->undertime - q->now;
@@ -1368,7 +1370,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &cl->qstats, cl->q->q.qlen) < 0)
+	    gnet_stats_copy_queue(d, NULL, &cl->qstats, qlen) < 0)
 		return -1;
 
 	return gnet_stats_copy_app(d, &cl->xstats, sizeof(cl->xstats));

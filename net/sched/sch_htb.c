@@ -1127,10 +1127,9 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 	};
 	__u32 qlen = 0;
 
-	if (!cl->level && cl->leaf.q) {
-		qlen = cl->leaf.q->q.qlen;
-		qs.backlog = cl->leaf.q->qstats.backlog;
-	}
+	if (!cl->level && cl->leaf.q)
+		qdisc_qstats_qlen_backlog(cl->leaf.q, &qlen, &qs.backlog);
+
 	cl->xstats.tokens = clamp_t(s64, PSCHED_NS2TICKS(cl->tokens),
 				    INT_MIN, INT_MAX);
 	cl->xstats.ctokens = clamp_t(s64, PSCHED_NS2TICKS(cl->ctokens),
