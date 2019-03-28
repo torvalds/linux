@@ -302,7 +302,7 @@ static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 	switch (in->fourcc) {
 	case V4L2_PIX_FMT_RGB565: /* rrrrrggg gggbbbbb */
 		for (i = 0; i < 2; i++) {
-			u16 pix = *(u16 *)(src[i]);
+			u16 pix = le16_to_cpu(*(__le16 *)(src[i]));
 
 			*r++ = (u8)(((pix & 0xf800) >> 11) << 3) | 0x07;
 			*g++ = (u8)((((pix & 0x07e0) >> 5)) << 2) | 0x03;
@@ -311,12 +311,11 @@ static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 		break;
 	case V4L2_PIX_FMT_RGB565X: /* gggbbbbb rrrrrggg */
 		for (i = 0; i < 2; i++) {
-			u16 pix = *(u16 *)(src[i]);
+			u16 pix = be16_to_cpu(*(__be16 *)(src[i]));
 
-			*r++ = (u8)(((0x00f8 & pix) >> 3) << 3) | 0x07;
-			*g++ = (u8)(((pix & 0x7) << 2) |
-				    ((pix & 0xe000) >> 5)) | 0x03;
-			*b++ = (u8)(((pix & 0x1f00) >> 8) << 3) | 0x07;
+			*r++ = (u8)(((pix & 0xf800) >> 11) << 3) | 0x07;
+			*g++ = (u8)((((pix & 0x07e0) >> 5)) << 2) | 0x03;
+			*b++ = (u8)((pix & 0x1f) << 3) | 0x07;
 		}
 		break;
 	default:
@@ -345,21 +344,26 @@ static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 	switch (out->fourcc) {
 	case V4L2_PIX_FMT_RGB565: /* rrrrrggg gggbbbbb */
 		for (i = 0; i < 2; i++) {
-			u16 *pix = (u16 *)*dst;
+			u16 pix;
+			__le16 *dst_pix = (__le16 *)*dst;
 
-			*pix = ((*r << 8) & 0xf800) | ((*g << 3) & 0x07e0) |
-			       (*b >> 3);
+			pix = ((*r << 8) & 0xf800) | ((*g << 3) & 0x07e0) |
+			      (*b >> 3);
+
+			*dst_pix = cpu_to_le16(pix);
 
 			*dst += 2;
 		}
 		return;
 	case V4L2_PIX_FMT_RGB565X: /* gggbbbbb rrrrrggg */
 		for (i = 0; i < 2; i++) {
-			u16 *pix = (u16 *)*dst;
-			u8 green = *g++ >> 2;
+			u16 pix;
+			__be16 *dst_pix = (__be16 *)*dst;
 
-			*pix = ((green << 8) & 0xe000) | (green & 0x07) |
-			       ((*b++ << 5) & 0x1f00) | ((*r++ & 0xf8));
+			pix = ((*r << 8) & 0xf800) | ((*g << 3) & 0x07e0) |
+			      (*b >> 3);
+
+			*dst_pix = cpu_to_be16(pix);
 
 			*dst += 2;
 		}
