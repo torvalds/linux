@@ -90,4 +90,10 @@ config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	help
 	  Say y here to enable rockchip vendor storage update loader support.
 	  The /dev/vendor_storage must set root user access only.
+
+config ROCKCHIP_DEBUG
+	bool "Rockchip DEBUG"
+	default y
+	help
+	  Print dbgpcsr for every cpu when panic.
 endif

@@ -15,3 +15,4 @@ obj-$(CONFIG_ROCKCHIP_SYSTEM_MONITOR) += rockchip_system_monitor.o
 
 obj-y += rk_vendor_storage.o
 obj-$(CONFIG_RK_FLASH) += flash_vendor_storage.o
+obj-$(CONFIG_ROCKCHIP_DEBUG) += rockchip_debug.o
