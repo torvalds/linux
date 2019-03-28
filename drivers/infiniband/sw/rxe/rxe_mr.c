@@ -179,7 +179,7 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 	}
 
 	mem->umem = umem;
-	num_buf = umem->nmap;
+	num_buf = ib_umem_num_pages(umem);
 
 	rxe_mem_init(access, mem);
 
