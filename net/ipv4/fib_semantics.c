@@ -457,6 +457,54 @@ static int fib_detect_death(struct fib_info *fi, int order,
 	return 1;
 }
 
+int fib_nh_init(struct net *net, struct fib_nh *nh,
+		struct fib_config *cfg, int nh_weight,
+		struct netlink_ext_ack *extack)
+{
+	int err = -ENOMEM;
+
+	nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
+	if (!nh->nh_pcpu_rth_output)
+		goto err_out;
+
+	if (cfg->fc_encap) {
+		struct lwtunnel_state *lwtstate;
+
+		err = -EINVAL;
+		if (cfg->fc_encap_type == LWTUNNEL_ENCAP_NONE) {
+			NL_SET_ERR_MSG(extack, "LWT encap type not specified");
+			goto lwt_failure;
+		}
+		err = lwtunnel_build_state(cfg->fc_encap_type,
+					   cfg->fc_encap, AF_INET, cfg,
+					   &lwtstate, extack);
+		if (err)
+			goto lwt_failure;
+
+		nh->nh_lwtstate = lwtstate_get(lwtstate);
+	}
+
+	nh->nh_oif = cfg->fc_oif;
+	nh->nh_gw = cfg->fc_gw;
+	nh->nh_flags = cfg->fc_flags;
+
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	nh->nh_tclassid = cfg->fc_flow;
+	if (nh->nh_tclassid)
+		net->ipv4.fib_num_tclassid_users++;
+#endif
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+	nh->nh_weight = nh_weight;
+#endif
+	return 0;
+
+lwt_failure:
+	rt_fibinfo_free_cpus(nh->nh_pcpu_rth_output);
+	nh->nh_pcpu_rth_output = NULL;
+err_out:
+	return err;
+}
+
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
 static int fib_count_nexthops(struct rtnexthop *rtnh, int remaining,
@@ -483,10 +531,14 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		       int remaining, struct fib_config *cfg,
 		       struct netlink_ext_ack *extack)
 {
+	struct net *net = fi->fib_net;
+	struct fib_config fib_cfg;
 	int ret;
 
 	change_nexthops(fi) {
 		int attrlen;
+
+		memset(&fib_cfg, 0, sizeof(fib_cfg));
 
 		if (!rtnh_ok(rtnh, remaining)) {
 			NL_SET_ERR_MSG(extack,
@@ -500,56 +552,54 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			return -EINVAL;
 		}
 
-		nexthop_nh->nh_flags =
-			(cfg->fc_flags & ~0xFF) | rtnh->rtnh_flags;
-		nexthop_nh->nh_oif = rtnh->rtnh_ifindex;
-		nexthop_nh->nh_weight = rtnh->rtnh_hops + 1;
+		fib_cfg.fc_flags = (cfg->fc_flags & ~0xFF) | rtnh->rtnh_flags;
+		fib_cfg.fc_oif = rtnh->rtnh_ifindex;
 
 		attrlen = rtnh_attrlen(rtnh);
 		if (attrlen > 0) {
 			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			nexthop_nh->nh_gw = nla ? nla_get_in_addr(nla) : 0;
-#ifdef CONFIG_IP_ROUTE_CLASSID
+			if (nla)
+				fib_cfg.fc_gw = nla_get_in_addr(nla);
+
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
-			nexthop_nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
-			if (nexthop_nh->nh_tclassid)
-				fi->fib_net->ipv4.fib_num_tclassid_users++;
-#endif
-			nla = nla_find(attrs, attrlen, RTA_ENCAP);
-			if (nla) {
-				struct lwtunnel_state *lwtstate;
-				struct nlattr *nla_entype;
+			if (nla)
+				fib_cfg.fc_flow = nla_get_u32(nla);
 
-				nla_entype = nla_find(attrs, attrlen,
-						      RTA_ENCAP_TYPE);
-				if (!nla_entype) {
-					NL_SET_BAD_ATTR(extack, nla);
-					NL_SET_ERR_MSG(extack,
-						       "Encap type is missing");
-					goto err_inval;
-				}
-
-				ret = lwtunnel_build_state(nla_get_u16(
-							   nla_entype),
-							   nla,  AF_INET, cfg,
-							   &lwtstate, extack);
-				if (ret)
-					goto errout;
-				nexthop_nh->nh_lwtstate =
-					lwtstate_get(lwtstate);
-			}
+			fib_cfg.fc_encap = nla_find(attrs, attrlen, RTA_ENCAP);
+			nla = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
+			if (nla)
+				fib_cfg.fc_encap_type = nla_get_u16(nla);
 		}
+
+		ret = fib_nh_init(net, nexthop_nh, &fib_cfg,
+				  rtnh->rtnh_hops + 1, extack);
+		if (ret)
+			goto errout;
 
 		rtnh = rtnh_next(rtnh, &remaining);
 	} endfor_nexthops(fi);
 
-	return 0;
-
-err_inval:
 	ret = -EINVAL;
-
+	if (cfg->fc_oif && fi->fib_nh->nh_oif != cfg->fc_oif) {
+		NL_SET_ERR_MSG(extack,
+			       "Nexthop device index does not match RTA_OIF");
+		goto errout;
+	}
+	if (cfg->fc_gw && fi->fib_nh->nh_gw != cfg->fc_gw) {
+		NL_SET_ERR_MSG(extack,
+			       "Nexthop gateway does not match RTA_GATEWAY");
+		goto errout;
+	}
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	if (cfg->fc_flow && fi->fib_nh->nh_tclassid != cfg->fc_flow) {
+		NL_SET_ERR_MSG(extack,
+			       "Nexthop class id does not match RTA_FLOW");
+		goto errout;
+	}
+#endif
+	ret = 0;
 errout:
 	return ret;
 }
@@ -1098,63 +1148,15 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
-		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
-		if (!nexthop_nh->nh_pcpu_rth_output)
-			goto failure;
 	} endfor_nexthops(fi)
 
-	if (cfg->fc_mp) {
+	if (cfg->fc_mp)
 		err = fib_get_nhs(fi, cfg->fc_mp, cfg->fc_mp_len, cfg, extack);
-		if (err != 0)
-			goto failure;
-		if (cfg->fc_oif && fi->fib_nh->nh_oif != cfg->fc_oif) {
-			NL_SET_ERR_MSG(extack,
-				       "Nexthop device index does not match RTA_OIF");
-			goto err_inval;
-		}
-		if (cfg->fc_gw && fi->fib_nh->nh_gw != cfg->fc_gw) {
-			NL_SET_ERR_MSG(extack,
-				       "Nexthop gateway does not match RTA_GATEWAY");
-			goto err_inval;
-		}
-#ifdef CONFIG_IP_ROUTE_CLASSID
-		if (cfg->fc_flow && fi->fib_nh->nh_tclassid != cfg->fc_flow) {
-			NL_SET_ERR_MSG(extack,
-				       "Nexthop class id does not match RTA_FLOW");
-			goto err_inval;
-		}
-#endif
-	} else {
-		struct fib_nh *nh = fi->fib_nh;
+	else
+		err = fib_nh_init(net, fi->fib_nh, cfg, 1, extack);
 
-		if (cfg->fc_encap) {
-			struct lwtunnel_state *lwtstate;
-
-			if (cfg->fc_encap_type == LWTUNNEL_ENCAP_NONE) {
-				NL_SET_ERR_MSG(extack,
-					       "LWT encap type not specified");
-				goto err_inval;
-			}
-			err = lwtunnel_build_state(cfg->fc_encap_type,
-						   cfg->fc_encap, AF_INET, cfg,
-						   &lwtstate, extack);
-			if (err)
-				goto failure;
-
-			nh->nh_lwtstate = lwtstate_get(lwtstate);
-		}
-		nh->nh_oif = cfg->fc_oif;
-		nh->nh_gw = cfg->fc_gw;
-		nh->nh_flags = cfg->fc_flags;
-#ifdef CONFIG_IP_ROUTE_CLASSID
-		nh->nh_tclassid = cfg->fc_flow;
-		if (nh->nh_tclassid)
-			fi->fib_net->ipv4.fib_num_tclassid_users++;
-#endif
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-		nh->nh_weight = 1;
-#endif
-	}
+	if (err != 0)
+		goto failure;
 
 	if (fib_props[cfg->fc_type].error) {
 		if (cfg->fc_gw || cfg->fc_oif || cfg->fc_mp) {

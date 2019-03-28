@@ -416,6 +416,10 @@ void fib_select_multipath(struct fib_result *res, int hash);
 void fib_select_path(struct net *net, struct fib_result *res,
 		     struct flowi4 *fl4, const struct sk_buff *skb);
 
+int fib_nh_init(struct net *net, struct fib_nh *fib_nh,
+		struct fib_config *cfg, int nh_weight,
+		struct netlink_ext_ack *extack);
+
 /* Exported by fib_trie.c */
 void fib_trie_init(void);
 struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
