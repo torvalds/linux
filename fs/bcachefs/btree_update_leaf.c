@@ -856,6 +856,10 @@ out_noupdates:
 	BUG_ON(!(trans->flags & BTREE_INSERT_ATOMIC) && ret == -EINTR);
 
 	bch2_trans_unlink_iters(trans, trans->iters_unlink_on_commit);
+	if (!ret) {
+		bch2_trans_unlink_iters(trans, ~trans->iters_touched);
+		trans->iters_touched = 0;
+	}
 	trans->nr_updates = 0;
 
 	return ret;

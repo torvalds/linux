@@ -1892,6 +1892,7 @@ int bch2_trans_unlock(struct btree_trans *trans)
 inline void bch2_trans_unlink_iters(struct btree_trans *trans, u64 iters)
 {
 	iters &= trans->iters_linked;
+	iters &= ~trans->iters_live;
 
 	while (iters) {
 		unsigned idx = __ffs64(iters);
@@ -1919,9 +1920,10 @@ void __bch2_trans_begin(struct btree_trans *trans)
 	iters_to_unlink |= trans->iters_unlink_on_restart;
 	iters_to_unlink |= trans->iters_unlink_on_commit;
 
+	trans->iters_live		= 0;
+
 	bch2_trans_unlink_iters(trans, iters_to_unlink);
 
-	trans->iters_live		= 0;
 	trans->iters_touched		= 0;
 	trans->iters_unlink_on_restart	= 0;
 	trans->iters_unlink_on_commit	= 0;
