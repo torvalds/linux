@@ -122,9 +122,9 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 }
 
 /*
- * __init_v4l2_vb2_buffer() - initialize the v4l2_vb2_buffer struct
+ * __init_vb2_v4l2_buffer() - initialize the vb2_v4l2_buffer struct
  */
-static void __init_v4l2_vb2_buffer(struct vb2_buffer *vb)
+static void __init_vb2_v4l2_buffer(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
@@ -595,7 +595,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 
 static const struct vb2_buf_ops v4l2_buf_ops = {
 	.verify_planes_array	= __verify_planes_array_core,
-	.init_buffer		= __init_v4l2_vb2_buffer,
+	.init_buffer		= __init_vb2_v4l2_buffer,
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
 	.copy_timestamp		= __copy_timestamp,
