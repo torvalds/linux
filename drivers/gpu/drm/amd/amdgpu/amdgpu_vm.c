@@ -769,14 +769,17 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	addr = 0;
 	if (ats_entries) {
-		uint64_t ats_value;
+		uint64_t value = 0, flags;
 
-		ats_value = AMDGPU_PTE_DEFAULT_ATC;
-		if (level != AMDGPU_VM_PTB)
-			ats_value |= AMDGPU_PDE_PTE;
+		flags = AMDGPU_PTE_DEFAULT_ATC;
+		if (level != AMDGPU_VM_PTB) {
+			/* Handle leaf PDEs as PTEs */
+			flags |= AMDGPU_PDE_PTE;
+			amdgpu_gmc_get_vm_pde(adev, level, &value, &flags);
+		}
 
 		r = vm->update_funcs->update(&params, bo, addr, 0, ats_entries,
-					     0, ats_value);
+					     value, flags);
 		if (r)
 			return r;
 
