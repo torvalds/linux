@@ -577,8 +577,9 @@ static void qeth_dequeue_reply(struct qeth_card *card, struct qeth_reply *reply)
 	spin_unlock_irq(&card->lock);
 }
 
-static void qeth_notify_reply(struct qeth_reply *reply)
+static void qeth_notify_reply(struct qeth_reply *reply, int reason)
 {
+	reply->rc = reason;
 	complete(&reply->received);
 }
 
@@ -664,10 +665,8 @@ void qeth_clear_ipacmd_list(struct qeth_card *card)
 	QETH_CARD_TEXT(card, 4, "clipalst");
 
 	spin_lock_irqsave(&card->lock, flags);
-	list_for_each_entry(reply, &card->cmd_waiter_list, list) {
-		reply->rc = -EIO;
-		qeth_notify_reply(reply);
-	}
+	list_for_each_entry(reply, &card->cmd_waiter_list, list)
+		qeth_notify_reply(reply, -EIO);
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 EXPORT_SYMBOL_GPL(qeth_clear_ipacmd_list);
@@ -744,10 +743,8 @@ static void qeth_cancel_cmd(struct qeth_cmd_buffer *iob, int rc)
 {
 	struct qeth_reply *reply = iob->reply;
 
-	if (reply) {
-		reply->rc = rc;
-		qeth_notify_reply(reply);
-	}
+	if (reply)
+		qeth_notify_reply(reply, rc);
 	qeth_release_buffer(iob->channel, iob);
 }
 
@@ -847,11 +844,8 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 		}
 	}
 
-	if (rc <= 0) {
-		reply->rc = rc;
-		qeth_notify_reply(reply);
-	}
-
+	if (rc <= 0)
+		qeth_notify_reply(reply, rc);
 	qeth_put_reply(reply);
 
 out:
