@@ -274,12 +274,10 @@ static void qeth_l3_drain_rx_mode_cache(struct qeth_card *card)
 	struct hlist_node *tmp;
 	int i;
 
-	spin_lock_bh(&card->mclock);
 	hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
 		hash_del(&addr->hnode);
 		kfree(addr);
 	}
-	spin_unlock_bh(&card->mclock);
 }
 
 static void qeth_l3_clear_ip_htable(struct qeth_card *card, int recover)
@@ -1484,8 +1482,6 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 	QETH_CARD_TEXT(card, 3, "setmulti");
 
 	if (!card->options.sniffer) {
-		spin_lock_bh(&card->mclock);
-
 		qeth_l3_add_multicast_ipv4(card);
 		qeth_l3_add_multicast_ipv6(card);
 
@@ -1512,8 +1508,6 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 				addr->disp_flag = QETH_DISP_ADDR_DELETE;
 			}
 		}
-
-		spin_unlock_bh(&card->mclock);
 
 		if (!qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
 			return;

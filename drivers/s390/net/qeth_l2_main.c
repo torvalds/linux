@@ -155,12 +155,10 @@ static void qeth_l2_drain_rx_mode_cache(struct qeth_card *card)
 	struct hlist_node *tmp;
 	int i;
 
-	spin_lock_bh(&card->mclock);
 	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
 		hash_del(&mac->hnode);
 		kfree(mac);
 	}
-	spin_unlock_bh(&card->mclock);
 }
 
 static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
@@ -530,8 +528,6 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 
 	QETH_CARD_TEXT(card, 3, "setmulti");
 
-	spin_lock_bh(&card->mclock);
-
 	netif_addr_lock_bh(dev);
 	netdev_for_each_mc_addr(ha, dev)
 		qeth_l2_add_mac(card, ha);
@@ -559,8 +555,6 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 			mac->disp_flag = QETH_DISP_ADDR_DELETE;
 		}
 	}
-
-	spin_unlock_bh(&card->mclock);
 
 	if (qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
 		qeth_setadp_promisc_mode(card);
