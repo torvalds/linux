@@ -1801,6 +1801,12 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	}
 	hisi_sas_dereg_device(hisi_hba, device);
 
+	if (dev_is_sata(device)) {
+		rc = hisi_sas_softreset_ata_disk(device);
+		if (rc)
+			return TMF_RESP_FUNC_FAILED;
+	}
+
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
 
 	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -ENODEV))

@@ -1721,7 +1721,7 @@ error_msg(struct i915_gpu_state *error, unsigned long engines, const char *msg)
 			i915_error_generate_code(error, engines));
 	if (engines) {
 		/* Just show the first executing process, more is confusing */
-		i = ffs(engines);
+		i = __ffs(engines);
 		len += scnprintf(error->error_msg + len,
 				 sizeof(error->error_msg) - len,
 				 ", in %s [%d]",
