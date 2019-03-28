@@ -2,16 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ##############################################################################
-# Source library
-
-relative_path="${BASH_SOURCE%/*}"
-if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
-	relative_path="."
-fi
-
-source "$relative_path/lib.sh"
-
-##############################################################################
 # Defines
 
 DEVLINK_DEV=$(devlink port show | grep "${NETIFS[p1]}" | \
