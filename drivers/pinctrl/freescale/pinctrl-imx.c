@@ -449,7 +449,7 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		}
 	} else {
 		pin_reg = &ipctl->pin_regs[pin_id];
-		if (!pin_reg || pin_reg->conf_reg == -1) {
+		if (pin_reg->conf_reg == -1) {
 			seq_puts(s, "N/A");
 			return;
 		}
