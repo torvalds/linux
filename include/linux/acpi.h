@@ -675,12 +675,6 @@ acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 	return NULL;
 }
 
-static inline const char *
-acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv)
-{
-	return NULL;
-}
-
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
 	return false;

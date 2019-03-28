@@ -835,22 +835,6 @@ acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 }
 EXPORT_SYMBOL(acpi_dev_get_first_match_dev);
 
-/* DEPRECATED, use acpi_dev_get_first_match_dev() instead */
-const char *
-acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv)
-{
-	struct acpi_dev_match_info match = {};
-	struct device *dev;
-
-	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
-	match.uid = uid;
-	match.hrv = hrv;
-
-	dev = bus_find_device(&acpi_bus_type, NULL, &match, acpi_dev_match_cb);
-	return dev ? match.dev_name : NULL;
-}
-EXPORT_SYMBOL(acpi_dev_get_first_match_name);
-
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c
  * because __setup cannot be used in modules.
