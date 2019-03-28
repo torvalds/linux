@@ -34,6 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/of.h>
 
 #define BCM963XX_CFE_BLOCK_SIZE		SZ_64K	/* always at least 64KiB */
 
@@ -311,9 +312,16 @@ out:
 	return ret;
 };
 
+static const struct of_device_id parse_bcm63xx_cfe_match_table[] = {
+	{ .compatible = "brcm,bcm963xx-cfe-nor-partitions" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, parse_bcm63xx_cfe_match_table);
+
 static struct mtd_part_parser bcm63xx_cfe_parser = {
 	.parse_fn = bcm63xx_parse_cfe_partitions,
 	.name = "bcm63xxpart",
+	.of_match_table = parse_bcm63xx_cfe_match_table,
 };
 module_mtd_part_parser(bcm63xx_cfe_parser);
 
