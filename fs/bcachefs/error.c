@@ -67,10 +67,20 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 	bool fix = false, print = true, suppressing = false;
 	char _buf[sizeof(s->buf)], *buf = _buf;
 
-	mutex_lock(&c->fsck_error_lock);
+	if (test_bit(BCH_FS_FSCK_DONE, &c->flags)) {
+		va_start(args, fmt);
+		vprintk(fmt, args);
+		va_end(args);
 
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
-		goto print;
+		if (c->opts.errors == BCH_ON_ERROR_CONTINUE &&
+		    flags & FSCK_CAN_FIX)
+			return FSCK_ERR_FIX;
+
+		bch2_inconsistent_error(c);
+		return FSCK_ERR_EXIT;
+	}
+
+	mutex_lock(&c->fsck_error_lock);
 
 	list_for_each_entry(s, &c->fsck_errors, list)
 		if (s->fmt == fmt)
