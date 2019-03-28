@@ -187,7 +187,6 @@ void intel_uncore_suspend(struct intel_uncore *uncore);
 void intel_uncore_resume_early(struct intel_uncore *uncore);
 void intel_uncore_runtime_resume(struct intel_uncore *uncore);
 
-u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
 void assert_forcewakes_inactive(struct intel_uncore *uncore);
 void assert_forcewakes_active(struct intel_uncore *uncore,
 			      enum forcewake_domains fw_domains);

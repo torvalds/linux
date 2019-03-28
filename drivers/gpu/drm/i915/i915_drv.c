@@ -1441,6 +1441,45 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 		      dram_info->ranks, yesno(dram_info->is_16gb_dimm));
 }
 
+static u32 gen9_edram_size_mb(struct drm_i915_private *dev_priv, u32 cap)
+{
+	const unsigned int ways[8] = { 4, 8, 12, 16, 16, 16, 16, 16 };
+	const unsigned int sets[4] = { 1, 1, 2, 2 };
+
+	return EDRAM_NUM_BANKS(cap) *
+		ways[EDRAM_WAYS_IDX(cap)] *
+		sets[EDRAM_SETS_IDX(cap)];
+}
+
+static void edram_detect(struct drm_i915_private *dev_priv)
+{
+	u32 edram_cap = 0;
+
+	if (!(IS_HASWELL(dev_priv) ||
+	      IS_BROADWELL(dev_priv) ||
+	      INTEL_GEN(dev_priv) >= 9))
+		return;
+
+	edram_cap = __raw_uncore_read32(&dev_priv->uncore, HSW_EDRAM_CAP);
+
+	/* NB: We can't write IDICR yet because we don't have gt funcs set up */
+
+	if (!(edram_cap & EDRAM_ENABLED))
+		return;
+
+	/*
+	 * The needed capability bits for size calculation are not there with
+	 * pre gen9 so return 128MB always.
+	 */
+	if (INTEL_GEN(dev_priv) < 9)
+		dev_priv->edram_size_mb = 128;
+	else
+		dev_priv->edram_size_mb =
+			gen9_edram_size_mb(dev_priv, edram_cap);
+
+	DRM_INFO("Found %uMB of eDRAM\n", dev_priv->edram_size_mb);
+}
+
 /**
  * i915_driver_init_hw - setup state requiring device access
  * @dev_priv: device private
@@ -1482,6 +1521,9 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	}
 
 	intel_sanitize_options(dev_priv);
+
+	/* needs to be done before ggtt probe */
+	edram_detect(dev_priv);
 
 	i915_perf_init(dev_priv);
 

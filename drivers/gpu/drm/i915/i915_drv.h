@@ -1707,8 +1707,11 @@ struct drm_i915_private {
 
 	struct intel_l3_parity l3_parity;
 
-	/* Cannot be determined by PCIID. You must always read a register. */
-	u32 edram_cap;
+	/*
+	 * edram size in MB.
+	 * Cannot be determined by PCIID. You must always read a register.
+	 */
+	u32 edram_size_mb;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -2468,7 +2471,7 @@ static inline unsigned int i915_sg_segment_size(void)
 
 #define HAS_LLC(dev_priv)	(INTEL_INFO(dev_priv)->has_llc)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
-#define HAS_EDRAM(dev_priv)	(!!((dev_priv)->edram_cap & EDRAM_ENABLED))
+#define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
 				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
 
