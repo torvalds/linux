@@ -10083,6 +10083,13 @@ int bnxt_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static struct devlink_port *bnxt_get_devlink_port(struct net_device *dev)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	return &bp->dl_port;
+}
+
 static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_open		= bnxt_open,
 	.ndo_start_xmit		= bnxt_start_xmit,
@@ -10115,7 +10122,8 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
 	.ndo_get_port_parent_id	= bnxt_get_port_parent_id,
-	.ndo_get_phys_port_name = bnxt_get_phys_port_name
+	.ndo_get_phys_port_name = bnxt_get_phys_port_name,
+	.ndo_get_devlink_port	= bnxt_get_devlink_port,
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
