@@ -76,27 +76,48 @@ struct fnhe_hash_bucket {
 #define FNHE_HASH_SIZE		(1 << FNHE_HASH_SHIFT)
 #define FNHE_RECLAIM_DEPTH	5
 
+struct fib_nh_common {
+	struct net_device	*nhc_dev;
+	int			nhc_oif;
+	unsigned int		nhc_flags;
+	struct lwtunnel_state	*nhc_lwtstate;
+	unsigned char		nhc_scope;
+	u8			nhc_family;
+	u8			nhc_has_gw:1,
+				unused:7;
+	union {
+		__be32          ipv4;
+		struct in6_addr ipv6;
+	} nhc_gw;
+
+	int			nhc_weight;
+	atomic_t		nhc_upper_bound;
+};
+
 struct fib_nh {
-	struct net_device	*fib_nh_dev;
+	struct fib_nh_common	nh_common;
 	struct hlist_node	nh_hash;
 	struct fib_info		*nh_parent;
-	unsigned int		fib_nh_flags;
-	unsigned char		fib_nh_scope;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int			fib_nh_weight;
-	atomic_t		fib_nh_upper_bound;
-#endif
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			nh_tclassid;
 #endif
-	int			fib_nh_oif;
-	__be32			fib_nh_gw4;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
 	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
 	struct rtable __rcu	*nh_rth_input;
 	struct fnhe_hash_bucket	__rcu *nh_exceptions;
-	struct lwtunnel_state	*fib_nh_lws;
+#define fib_nh_family		nh_common.nhc_family
+#define fib_nh_dev		nh_common.nhc_dev
+#define fib_nh_oif		nh_common.nhc_oif
+#define fib_nh_flags		nh_common.nhc_flags
+#define fib_nh_lws		nh_common.nhc_lwtstate
+#define fib_nh_scope		nh_common.nhc_scope
+#define fib_nh_family		nh_common.nhc_family
+#define fib_nh_has_gw		nh_common.nhc_has_gw
+#define fib_nh_gw4		nh_common.nhc_gw.ipv4
+#define fib_nh_gw6		nh_common.nhc_gw.ipv6
+#define fib_nh_weight		nh_common.nhc_weight
+#define fib_nh_upper_bound	nh_common.nhc_upper_bound
 };
 
 /*

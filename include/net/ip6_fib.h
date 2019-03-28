@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/ip_fib.h>
 #include <net/netlink.h>
 #include <net/inetpeer.h>
 #include <net/fib_notifier.h>
@@ -125,14 +126,7 @@ struct rt6_exception {
 #define FIB6_MAX_DEPTH 5
 
 struct fib6_nh {
-	struct in6_addr		fib_nh_gw6;
-	bool			fib_nh_has_gw;
-	struct net_device	*fib_nh_dev;
-	struct lwtunnel_state	*fib_nh_lws;
-
-	unsigned int		fib_nh_flags;
-	atomic_t		fib_nh_upper_bound;
-	int			fib_nh_weight;
+	struct fib_nh_common	nh_common;
 };
 
 struct fib6_info {

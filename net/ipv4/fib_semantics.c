@@ -468,6 +468,8 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 {
 	int err = -ENOMEM;
 
+	nh->fib_nh_family = AF_INET;
+
 	nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
 	if (!nh->nh_pcpu_rth_output)
 		goto err_out;
@@ -490,7 +492,10 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 	}
 
 	nh->fib_nh_oif = cfg->fc_oif;
-	nh->fib_nh_gw4 = cfg->fc_gw;
+	if (cfg->fc_gw) {
+		nh->fib_nh_gw4 = cfg->fc_gw;
+		nh->fib_nh_has_gw = 1;
+	}
 	nh->fib_nh_flags = cfg->fc_flags;
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
