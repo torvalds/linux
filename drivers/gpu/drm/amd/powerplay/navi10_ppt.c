@@ -139,7 +139,8 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_THERMAL_BIT)
 				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
 				| FEATURE_MASK(FEATURE_MMHUB_PG)
-				| FEATURE_MASK(FEATURE_ATHUB_PG);
+				| FEATURE_MASK(FEATURE_ATHUB_PG)
+				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
