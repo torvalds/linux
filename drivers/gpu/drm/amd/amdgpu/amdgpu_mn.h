@@ -53,8 +53,6 @@ static inline struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
 }
 static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
-	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
-		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
 	return -ENODEV;
 }
 static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
