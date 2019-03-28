@@ -2937,6 +2937,14 @@ int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
 	return 0;
 }
 
+int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
+{
+	struct mlx5e_channels new_channels = {};
+
+	new_channels.params = priv->channels.params;
+	return mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+}
+
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
 	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
@@ -4161,11 +4169,10 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 	if (!report_failed)
 		goto unlock;
 
-	mlx5e_close_locked(priv->netdev);
-	err = mlx5e_open_locked(priv->netdev);
+	err = mlx5e_safe_reopen_channels(priv);
 	if (err)
 		netdev_err(priv->netdev,
-			   "mlx5e_open_locked failed recovering from a tx_timeout, err(%d).\n",
+			   "mlx5e_safe_reopen_channels failed recovering from a tx_timeout, err(%d).\n",
 			   err);
 
 unlock:

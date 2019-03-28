@@ -194,8 +194,7 @@ static int mlx5e_tx_reporter_recover_all(struct mlx5e_priv *priv)
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		goto out;
 
-	mlx5e_close_locked(priv->netdev);
-	err = mlx5e_open_locked(priv->netdev);
+	err = mlx5e_safe_reopen_channels(priv);
 
 out:
 	mutex_unlock(&priv->state_lock);
