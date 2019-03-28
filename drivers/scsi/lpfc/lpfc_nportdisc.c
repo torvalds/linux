@@ -1733,7 +1733,6 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
 	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t did  = mb->un.varWords[1];
-	int rc = 0;
 
 	if (mb->mbxStatus) {
 		/* RegLogin failed */
@@ -1806,8 +1805,8 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 			 * GFT_ID to determine if remote port supports NVME.
 			 */
 			if (vport->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
-				rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
-						 0, ndlp->nlp_DID);
+				lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID, 0,
+					    ndlp->nlp_DID);
 				return ndlp->nlp_state;
 			}
 			ndlp->nlp_fc4_type = NLP_FC4_FCP;
