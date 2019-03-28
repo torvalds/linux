@@ -341,7 +341,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct rtl_80211_hdr_4addr *hdr;
 	int res, hdrlen;
 
-	if (crypt == NULL || crypt->ops->decrypt_mpdu == NULL)
+	if (!crypt || !crypt->ops->decrypt_mpdu)
 		return 0;
 	if (ieee->hwsec_active)
 	{
@@ -388,7 +388,7 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *s
 	struct rtl_80211_hdr_4addr *hdr;
 	int res, hdrlen;
 
-	if (crypt == NULL || crypt->ops->decrypt_msdu == NULL)
+	if (!crypt || !crypt->ops->decrypt_msdu)
 		return 0;
 	if (ieee->hwsec_active)
 	{
@@ -982,8 +982,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 		/* allow NULL decrypt to indicate an station specific override
 		 * for default encryption */
-		if (crypt && (crypt->ops == NULL ||
-			      crypt->ops->decrypt_mpdu == NULL))
+		if (crypt && (!crypt->ops || !crypt->ops->decrypt_mpdu))
 			crypt = NULL;
 
 		if (!crypt && (fc & IEEE80211_FCTL_WEP)) {
@@ -1284,7 +1283,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 
 //added by amy for reorder
-	if (!ieee->pHTInfo->bCurRxReorderEnable || pTS == NULL){
+	if (!ieee->pHTInfo->bCurRxReorderEnable || !pTS) {
 //added by amy for reorder
 		for(i = 0; i<rxb->nr_subframes; i++) {
 			struct sk_buff *sub_skb = rxb->subframes[i];
@@ -1420,9 +1419,9 @@ static int ieee80211_read_qos_info_element(struct
 	int ret = 0;
 	u16 size = sizeof(struct ieee80211_qos_information_element) - 2;
 
-	if (element_info == NULL)
+	if (!element_info)
 		return -1;
-	if (info_element == NULL)
+	if (!info_element)
 		return -1;
 
 	if ((info_element->id == QOS_ELEMENT_ID) && (info_element->len == size)) {
