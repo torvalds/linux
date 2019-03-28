@@ -99,18 +99,12 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *,
 int bch2_btree_node_update_key(struct bch_fs *, struct btree_iter *,
 			       struct btree *, struct bkey_i_btree_ptr *);
 
-static inline void
-bch2_trans_update(struct btree_trans *trans,
-		  struct btree_insert_entry entry)
-{
-	BUG_ON(trans->nr_updates >= trans->nr_iters + 4);
-
-	trans->updates[trans->nr_updates++] = entry;
-}
-
 int bch2_trans_commit(struct btree_trans *,
 		      struct disk_reservation *,
 		      u64 *, unsigned);
+
+struct btree_insert_entry *bch2_trans_update(struct btree_trans *,
+					     struct btree_insert_entry);
 
 #define bch2_trans_do(_c, _journal_seq, _flags, _do)			\
 ({									\

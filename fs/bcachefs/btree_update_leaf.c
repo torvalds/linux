@@ -809,8 +809,6 @@ int bch2_trans_commit(struct btree_trans *trans,
 	trans->journal_seq	= journal_seq;
 	trans->flags		= flags;
 
-	bubble_sort(trans->updates, trans->nr_updates, btree_trans_cmp);
-
 	trans_for_each_update(trans, i)
 		btree_insert_entry_checks(trans, i);
 	bch2_btree_trans_verify_locks(trans);
@@ -869,6 +867,26 @@ err:
 		goto retry;
 
 	goto out;
+}
+
+struct btree_insert_entry *bch2_trans_update(struct btree_trans *trans,
+					     struct btree_insert_entry entry)
+{
+	struct btree_insert_entry *i;
+
+	BUG_ON(trans->nr_updates >= trans->nr_iters + 4);
+
+	for (i = trans->updates;
+	     i < trans->updates + trans->nr_updates;
+	     i++)
+		if (btree_trans_cmp(entry, *i) < 0)
+			break;
+
+	memmove(&i[1], &i[0],
+		(void *) &trans->updates[trans->nr_updates] - (void *) i);
+	trans->nr_updates++;
+	*i = entry;
+	return i;
 }
 
 int bch2_btree_delete_at(struct btree_trans *trans,
