@@ -711,8 +711,7 @@ struct amdgpu_ttm_tt {
 	struct task_struct	*usertask;
 	uint32_t		userflags;
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-	struct hmm_range	*ranges;
-	int			nr_ranges;
+	struct hmm_range	range;
 #endif
 };
 
@@ -724,108 +723,62 @@ struct amdgpu_ttm_tt {
  * once afterwards to stop HMM tracking
  */
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-
-/* Support Userptr pages cross max 16 vmas */
-#define MAX_NR_VMAS	(16)
-
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	struct mm_struct *mm = gtt->usertask->mm;
-	unsigned long start = gtt->userptr;
-	unsigned long end = start + ttm->num_pages * PAGE_SIZE;
-	struct hmm_range *ranges;
-	struct vm_area_struct *vma = NULL, *vmas[MAX_NR_VMAS];
-	uint64_t *pfns, f;
-	int r = 0, i, nr_pages;
+	unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
+	struct hmm_range *range = &gtt->range;
+	int r = 0, i;
 
 	if (!mm) /* Happens during process shutdown */
 		return -ESRCH;
 
+	amdgpu_hmm_init_range(range);
+
 	down_read(&mm->mmap_sem);
 
-	/* user pages may cross multiple VMAs */
-	gtt->nr_ranges = 0;
-	do {
-		unsigned long vm_start;
-
-		if (gtt->nr_ranges >= MAX_NR_VMAS) {
-			DRM_ERROR("Too many VMAs in userptr range\n");
-			r = -EFAULT;
-			goto out;
-		}
-
-		vm_start = vma ? vma->vm_end : start;
-		vma = find_vma(mm, vm_start);
-		if (unlikely(!vma || vm_start < vma->vm_start)) {
-			r = -EFAULT;
-			goto out;
-		}
-		vmas[gtt->nr_ranges++] = vma;
-	} while (end > vma->vm_end);
-
-	DRM_DEBUG_DRIVER("0x%lx nr_ranges %d pages 0x%lx\n",
-		start, gtt->nr_ranges, ttm->num_pages);
-
-	if (unlikely((gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) &&
-		vmas[0]->vm_file)) {
+	range->vma = find_vma(mm, gtt->userptr);
+	if (!range_in_vma(range->vma, gtt->userptr, end))
+		r = -EFAULT;
+	else if ((gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) &&
+		range->vma->vm_file)
 		r = -EPERM;
+	if (r)
 		goto out;
-	}
 
-	ranges = kvmalloc_array(gtt->nr_ranges, sizeof(*ranges), GFP_KERNEL);
-	if (unlikely(!ranges)) {
+	range->pfns = kvmalloc_array(ttm->num_pages, sizeof(uint64_t),
+				     GFP_KERNEL);
+	if (range->pfns == NULL) {
 		r = -ENOMEM;
 		goto out;
 	}
+	range->start = gtt->userptr;
+	range->end = end;
 
-	pfns = kvmalloc_array(ttm->num_pages, sizeof(*pfns), GFP_KERNEL);
-	if (unlikely(!pfns)) {
-		r = -ENOMEM;
-		goto out_free_ranges;
-	}
+	range->pfns[0] = range->flags[HMM_PFN_VALID];
+	range->pfns[0] |= amdgpu_ttm_tt_is_readonly(ttm) ?
+				0 : range->flags[HMM_PFN_WRITE];
+	for (i = 1; i < ttm->num_pages; i++)
+		range->pfns[i] = range->pfns[0];
 
-	for (i = 0; i < gtt->nr_ranges; i++)
-		amdgpu_hmm_init_range(&ranges[i]);
-
-	f = ranges[0].flags[HMM_PFN_VALID];
-	f |= amdgpu_ttm_tt_is_readonly(ttm) ?
-				0 : ranges[0].flags[HMM_PFN_WRITE];
-	memset64(pfns, f, ttm->num_pages);
-
-	for (nr_pages = 0, i = 0; i < gtt->nr_ranges; i++) {
-		ranges[i].vma = vmas[i];
-		ranges[i].start = max(start, vmas[i]->vm_start);
-		ranges[i].end = min(end, vmas[i]->vm_end);
-		ranges[i].pfns = pfns + nr_pages;
-		nr_pages += (ranges[i].end - ranges[i].start) / PAGE_SIZE;
-
-		r = hmm_vma_fault(&ranges[i], true);
-		if (unlikely(r))
-			break;
-	}
-	if (unlikely(r)) {
-		while (i--)
-			hmm_vma_range_done(&ranges[i]);
-
+	/* This may trigger page table update */
+	r = hmm_vma_fault(range, true);
+	if (r)
 		goto out_free_pfns;
-	}
 
 	up_read(&mm->mmap_sem);
 
 	for (i = 0; i < ttm->num_pages; i++)
-		pages[i] = hmm_pfn_to_page(&ranges[0], pfns[i]);
-	gtt->ranges = ranges;
+		pages[i] = hmm_pfn_to_page(range, range->pfns[i]);
 
 	return 0;
 
 out_free_pfns:
-	kvfree(pfns);
-out_free_ranges:
-	kvfree(ranges);
+	kvfree(range->pfns);
+	range->pfns = NULL;
 out:
 	up_read(&mm->mmap_sem);
-
 	return r;
 }
 
@@ -839,23 +792,15 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	bool r = false;
-	int i;
 
 	if (!gtt || !gtt->userptr)
 		return false;
 
-	DRM_DEBUG_DRIVER("user_pages_done 0x%llx nr_ranges %d pages 0x%lx\n",
-		gtt->userptr, gtt->nr_ranges, ttm->num_pages);
-
-	WARN_ONCE(!gtt->ranges || !gtt->ranges[0].pfns,
-		"No user pages to check\n");
-
-	if (gtt->ranges) {
-		for (i = 0; i < gtt->nr_ranges; i++)
-			r |= hmm_vma_range_done(&gtt->ranges[i]);
-		kvfree(gtt->ranges[0].pfns);
-		kvfree(gtt->ranges);
-		gtt->ranges = NULL;
+	WARN_ONCE(!gtt->range.pfns, "No user pages to check\n");
+	if (gtt->range.pfns) {
+		r = hmm_vma_range_done(&gtt->range);
+		kvfree(gtt->range.pfns);
+		gtt->range.pfns = NULL;
 	}
 
 	return r;
@@ -939,9 +884,8 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	sg_free_table(ttm->sg);
 
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-	if (gtt->ranges &&
-	    ttm->pages[0] == hmm_pfn_to_page(&gtt->ranges[0],
-					     gtt->ranges[0].pfns[0]))
+	if (gtt->range.pfns &&
+	    ttm->pages[0] == hmm_pfn_to_page(&gtt->range, gtt->range.pfns[0]))
 		WARN_ONCE(1, "Missing get_user_page_done\n");
 #endif
 }
