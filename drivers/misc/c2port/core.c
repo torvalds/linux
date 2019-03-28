@@ -690,7 +690,7 @@ static ssize_t c2port_store_flash_page_erase(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct c2port_device *c2dev = dev_get_drvdata(dev);
-    struct c2port_ops *ops = c2dev->ops;
+	struct c2port_ops *ops = c2dev->ops;
 	int ret;
 	int block_num;
 	
