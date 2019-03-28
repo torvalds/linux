@@ -907,10 +907,10 @@ lpfc_handle_rrq_active(struct lpfc_hba *phba)
 		mod_timer(&phba->rrq_tmr, next_time);
 	list_for_each_entry_safe(rrq, nextrrq, &send_rrq, list) {
 		list_del(&rrq->list);
-		if (!rrq->send_rrq)
+		if (!rrq->send_rrq) {
 			/* this call will free the rrq */
-		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-		else if (lpfc_send_rrq(phba, rrq)) {
+			lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+		} else if (lpfc_send_rrq(phba, rrq)) {
 			/* if we send the rrq then the completion handler
 			*  will clear the bit in the xribitmap.
 			*/
