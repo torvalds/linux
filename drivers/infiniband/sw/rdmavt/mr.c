@@ -392,7 +392,7 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (IS_ERR(umem))
 		return (void *)umem;
 
-	n = umem->nmap;
+	n = ib_umem_num_pages(umem);
 
 	mr = __rvt_alloc_mr(n, pd);
 	if (IS_ERR(mr)) {
