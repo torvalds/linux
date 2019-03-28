@@ -13542,7 +13542,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0390 Cannot schedule soft IRQ "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
-				cqid, cq->queue_id, smp_processor_id());
+				cqid, cq->queue_id, raw_smp_processor_id());
 }
 
 /**
@@ -14091,7 +14091,7 @@ work_cq:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0363 Cannot schedule soft IRQ "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
-				cqid, cq->queue_id, smp_processor_id());
+				cqid, cq->queue_id, raw_smp_processor_id());
 }
 
 /**
@@ -14230,7 +14230,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 
 	eqi = phba->sli4_hba.eq_info;
 	icnt = this_cpu_inc_return(eqi->icnt);
-	fpeq->last_cpu = smp_processor_id();
+	fpeq->last_cpu = raw_smp_processor_id();
 
 	if (icnt > LPFC_EQD_ISR_TRIGGER &&
 	    phba->cfg_irq_chann == 1 &&

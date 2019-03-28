@@ -229,7 +229,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 	if (qhandle == NULL)
 		return -ENOMEM;
 
-	qhandle->cpu_id = smp_processor_id();
+	qhandle->cpu_id = raw_smp_processor_id();
 	qhandle->qidx = qidx;
 	/*
 	 * NVME qidx == 0 is the admin queue, so both admin queue
@@ -1143,7 +1143,7 @@ out_err:
 	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
 		uint32_t cpu;
 		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
-		cpu = smp_processor_id();
+		cpu = raw_smp_processor_id();
 		if (cpu < LPFC_CHECK_CPU_CNT) {
 			if (lpfc_ncmd->cpu != cpu)
 				lpfc_printf_vlog(vport,
@@ -1561,7 +1561,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_HDWQ) {
 		idx = lpfc_queue_info->index;
 	} else {
-		cpu = smp_processor_id();
+		cpu = raw_smp_processor_id();
 		idx = phba->sli4_hba.cpu_map[cpu].hdwq;
 	}
 
@@ -1641,7 +1641,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		lpfc_ncmd->ts_cmd_wqput = ktime_get_ns();
 
 	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
-		cpu = smp_processor_id();
+		cpu = raw_smp_processor_id();
 		if (cpu < LPFC_CHECK_CPU_CNT) {
 			lpfc_ncmd->cpu = cpu;
 			if (idx != cpu)

@@ -433,7 +433,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	 * Use the CPU context list, from the MRQ the IO was received on
 	 * (ctxp->idx), to save context structure.
 	 */
-	cpu = smp_processor_id();
+	cpu = raw_smp_processor_id();
 	infop = lpfc_get_ctx_list(phba, cpu, ctxp->idx);
 	spin_lock_irqsave(&infop->nvmet_ctx_list_lock, iflag);
 	list_add_tail(&ctx_buf->list, &infop->nvmet_ctx_list);
@@ -763,7 +763,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	}
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-		id = smp_processor_id();
+		id = raw_smp_processor_id();
 		if (id < LPFC_CHECK_CPU_CNT) {
 			if (ctxp->cpu != id)
 				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
@@ -904,7 +904,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		ctxp->hdwq = &phba->sli4_hba.hdwq[rsp->hwqid];
 
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-		int id = smp_processor_id();
+		int id = raw_smp_processor_id();
 		if (id < LPFC_CHECK_CPU_CNT) {
 			if (rsp->hwqid != id)
 				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
@@ -1118,7 +1118,7 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 
 
 	lpfc_nvmeio_data(phba, "NVMET DEFERRCV: xri x%x sz %d CPU %02x\n",
-			 ctxp->oxid, ctxp->size, smp_processor_id());
+			 ctxp->oxid, ctxp->size, raw_smp_processor_id());
 
 	if (!nvmebuf) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
@@ -1594,7 +1594,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 
 		lpfc_nvmeio_data(phba,
 			"NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
-			xri, smp_processor_id(), 0);
+			xri, raw_smp_processor_id(), 0);
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6319 NVMET Rcv ABTS:acc xri x%x\n", xri);
@@ -1610,7 +1610,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 	lpfc_nvmeio_data(phba, "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
-			 xri, smp_processor_id(), 1);
+			 xri, raw_smp_processor_id(), 1);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6320 NVMET Rcv ABTS:rjt xri x%x\n", xri);
@@ -2044,7 +2044,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	 * be empty, thus it would need to be replenished with the
 	 * context list from another CPU for this MRQ.
 	 */
-	current_cpu = smp_processor_id();
+	current_cpu = raw_smp_processor_id();
 	current_infop = lpfc_get_ctx_list(phba, current_cpu, idx);
 	spin_lock_irqsave(&current_infop->nvmet_ctx_list_lock, iflag);
 	if (current_infop->nvmet_ctx_list_cnt) {
@@ -2074,7 +2074,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 #endif
 
 	lpfc_nvmeio_data(phba, "NVMET FCP  RCV: xri x%x sz %d CPU %02x\n",
-			 oxid, size, smp_processor_id());
+			 oxid, size, raw_smp_processor_id());
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
