@@ -4,9 +4,8 @@
 ##############################################################################
 # Defines
 
-DEVLINK_DEV=$(devlink port show | grep "${NETIFS[p1]}" | \
-	      grep -v "${NETIFS[p1]}[0-9]" | cut -d" " -f1 | \
-	      rev | cut -d"/" -f2- | rev)
+DEVLINK_DEV=$(devlink port show "${NETIFS[p1]}" -j \
+		     | jq -r '.port | keys[]' | cut -d/ -f-2)
 if [ -z "$DEVLINK_DEV" ]; then
 	echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
 	exit 1
