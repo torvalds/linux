@@ -149,7 +149,7 @@ void hubp2_set_vm_system_aperture_settings(struct hubp *hubp,
 			SYSTEM_ACCESS_MODE, 0x3);
 }
 
-static void hubp2_program_deadline(
+void hubp2_program_deadline(
 		struct hubp *hubp,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)

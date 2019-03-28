@@ -31,7 +31,7 @@
 #define TO_DCN20_HUBP(hubp)\
 	container_of(hubp, struct dcn20_hubp, base)
 
-#define HUBP_REG_LIST_DCN20(id)\
+#define HUBP_REG_LIST_DCN2_COMMON(id)\
 	HUBP_REG_LIST_DCN(id),\
 	HUBP_REG_LIST_DCN_VM(id),\
 	SRI(PREFETCH_SETTINGS, HUBPREQ, id),\
@@ -64,11 +64,14 @@
 	SRI(FLIP_PARAMETERS_2, HUBPREQ, id),\
 	SRI(DCN_CUR1_TTU_CNTL1, HUBPREQ, id),\
 	SRI(DCSURF_FLIP_CONTROL2, HUBPREQ, id), \
-	SRI(VMID_SETTINGS_0, HUBPREQ, id),\
+	SRI(VMID_SETTINGS_0, HUBPREQ, id)
+
+#define HUBP_REG_LIST_DCN20(id)\
+	HUBP_REG_LIST_DCN2_COMMON(id),\
 	SR(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB),\
 	SR(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB)
 
-#define HUBP_MASK_SH_LIST_DCN20(mask_sh)\
+#define HUBP_MASK_SH_LIST_DCN2_COMMON(mask_sh)\
 	HUBP_MASK_SH_LIST_DCN(mask_sh),\
 	HUBP_MASK_SH_LIST_DCN_VM(mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_SURFACE_CONFIG, ROTATION_ANGLE, mask_sh),\
@@ -121,7 +124,10 @@
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL, HUBPREQ_MASTER_UPDATE_LOCK_STATUS, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL2, SURFACE_GSL_ENABLE, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL2, SURFACE_TRIPLE_BUFFER_ENABLE, mask_sh),\
-	HUBP_SF(HUBPREQ0_VMID_SETTINGS_0, VMID, mask_sh),\
+	HUBP_SF(HUBPREQ0_VMID_SETTINGS_0, VMID, mask_sh)
+
+#define HUBP_MASK_SH_LIST_DCN20(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN2_COMMON(mask_sh),\
 	HUBP_SF(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, DCN_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, mask_sh),\
 	HUBP_SF(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, mask_sh),\
 	HUBP_SF(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mask_sh)
@@ -141,7 +147,11 @@
 	uint32_t FLIP_PARAMETERS_1;\
 	uint32_t FLIP_PARAMETERS_2;\
 	uint32_t DCN_CUR1_TTU_CNTL1;\
-	uint32_t VMID_SETTINGS_0
+	uint32_t VMID_SETTINGS_0;\
+	uint32_t FLIP_PARAMETERS_3;\
+	uint32_t FLIP_PARAMETERS_4;\
+	uint32_t VBLANK_PARAMETERS_5;\
+	uint32_t VBLANK_PARAMETERS_6
 
 #define DCN2_HUBP_REG_FIELD_VARIABLE_LIST(type) \
 	DCN_HUBP_REG_FIELD_LIST(type); \
@@ -166,7 +176,11 @@
 	type HUBPREQ_MASTER_UPDATE_LOCK_STATUS;\
 	type SURFACE_GSL_ENABLE;\
 	type SURFACE_TRIPLE_BUFFER_ENABLE;\
-	type VMID
+	type VMID;\
+	type REFCYC_PER_VM_GROUP_FLIP;\
+	type REFCYC_PER_VM_REQ_FLIP;\
+	type REFCYC_PER_VM_GROUP_VBLANK;\
+	type REFCYC_PER_VM_REQ_VBLANK
 
 struct dcn_hubp2_registers {
 	DCN2_HUBP_REG_COMMON_VARIABLE_LIST;
@@ -238,6 +252,27 @@ bool hubp2_is_triplebuffer_enabled(
 		struct hubp *hubp);
 
 void hubp2_set_flip_control_surface_gsl(struct hubp *hubp, bool enable);
+
+void hubp2_program_deadline(
+		struct hubp *hubp,
+		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
+		struct _vcs_dpi_display_ttu_regs_st *ttu_attr);
+
+bool hubp2_program_surface_flip_and_addr(
+	struct hubp *hubp,
+	const struct dc_plane_address *address,
+	bool flip_immediate,
+	uint8_t vmid);
+
+void hubp2_program_surface_config(
+	struct hubp *hubp,
+	enum surface_pixel_format format,
+	union dc_tiling_info *tiling_info,
+	union plane_size *plane_size,
+	enum dc_rotation_angle rotation,
+	struct dc_plane_dcc_param *dcc,
+	bool horizontal_mirror,
+	unsigned int compat_level);
 
 #endif /* __DC_MEM_INPUT_DCN20_H__ */
 
