@@ -1524,7 +1524,7 @@ int fmc_prepare(struct fmdev *fmdev)
 		}
 
 		ret = 0;
-	} else if (ret == -1) {
+	} else if (ret < 0) {
 		fmerr("st_register failed %d\n", ret);
 		return -EAGAIN;
 	}
