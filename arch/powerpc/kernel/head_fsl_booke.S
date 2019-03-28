@@ -194,13 +194,6 @@ set_ivor:
 #endif
 	mtspr	SPRN_MAS4, r2
 
-#if 0
-	/* Enable DOZE */
-	mfspr	r2,SPRN_HID0
-	oris	r2,r2,HID0_DOZE@h
-	mtspr	SPRN_HID0, r2
-#endif
-
 #if !defined(CONFIG_BDI_SWITCH)
 	/*
 	 * The Abatron BDI JTAG debugger does not tolerate others

@@ -1652,6 +1652,8 @@ qla2x00_port_speed_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	rval = kstrtol(buf, 10, &type);
+	if (rval)
+		return rval;
 	speed = type;
 	if (type == 40 || type == 80 || type == 160 ||
 	    type == 320) {

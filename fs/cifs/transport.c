@@ -486,15 +486,31 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 }
 
 static int
-wait_for_free_credits(struct TCP_Server_Info *server, const int timeout,
-		      int *credits, unsigned int *instance)
+wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
+		      const int timeout, const int flags,
+		      unsigned int *instance)
 {
 	int rc;
+	int *credits;
+	int optype;
+	long int t;
+
+	if (timeout < 0)
+		t = MAX_JIFFY_OFFSET;
+	else
+		t = msecs_to_jiffies(timeout);
+
+	optype = flags & CIFS_OP_MASK;
 
 	*instance = 0;
 
+	credits = server->ops->get_credits_field(server, optype);
+	/* Since an echo is already inflight, no need to wait to send another */
+	if (*credits <= 0 && optype == CIFS_ECHO_OP)
+		return -EAGAIN;
+
 	spin_lock(&server->req_lock);
-	if (timeout == CIFS_ASYNC_OP) {
+	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
 		*credits -= 1;
@@ -504,14 +520,21 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int timeout,
 	}
 
 	while (1) {
-		if (*credits <= 0) {
+		if (*credits < num_credits) {
 			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
-			rc = wait_event_killable(server->request_q,
-						 has_credits(server, credits));
+			rc = wait_event_killable_timeout(server->request_q,
+				has_credits(server, credits, num_credits), t);
 			cifs_num_waiters_dec(server);
-			if (rc)
-				return rc;
+			if (!rc) {
+				trace_smb3_credit_timeout(server->CurrentMid,
+					server->hostname, num_credits);
+				cifs_dbg(VFS, "wait timed out after %d ms\n",
+					 timeout);
+				return -ENOTSUPP;
+			}
+			if (rc == -ERESTARTSYS)
+				return -ERESTARTSYS;
 			spin_lock(&server->req_lock);
 		} else {
 			if (server->tcpStatus == CifsExiting) {
@@ -520,14 +543,52 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int timeout,
 			}
 
 			/*
+			 * For normal commands, reserve the last MAX_COMPOUND
+			 * credits to compound requests.
+			 * Otherwise these compounds could be permanently
+			 * starved for credits by single-credit requests.
+			 *
+			 * To prevent spinning CPU, block this thread until
+			 * there are >MAX_COMPOUND credits available.
+			 * But only do this is we already have a lot of
+			 * credits in flight to avoid triggering this check
+			 * for servers that are slow to hand out credits on
+			 * new sessions.
+			 */
+			if (!optype && num_credits == 1 &&
+			    server->in_flight > 2 * MAX_COMPOUND &&
+			    *credits <= MAX_COMPOUND) {
+				spin_unlock(&server->req_lock);
+				cifs_num_waiters_inc(server);
+				rc = wait_event_killable_timeout(
+					server->request_q,
+					has_credits(server, credits,
+						    MAX_COMPOUND + 1),
+					t);
+				cifs_num_waiters_dec(server);
+				if (!rc) {
+					trace_smb3_credit_timeout(
+						server->CurrentMid,
+						server->hostname, num_credits);
+					cifs_dbg(VFS, "wait timed out after %d ms\n",
+						 timeout);
+					return -ENOTSUPP;
+				}
+				if (rc == -ERESTARTSYS)
+					return -ERESTARTSYS;
+				spin_lock(&server->req_lock);
+				continue;
+			}
+
+			/*
 			 * Can not count locking commands against total
 			 * as they are allowed to block on server.
 			 */
 
 			/* update # of requests on the wire to server */
-			if (timeout != CIFS_BLOCKING_OP) {
-				*credits -= 1;
-				server->in_flight++;
+			if ((flags & CIFS_TIMEOUT_MASK) != CIFS_BLOCKING_OP) {
+				*credits -= num_credits;
+				server->in_flight += num_credits;
 				*instance = server->reconnect_instance;
 			}
 			spin_unlock(&server->req_lock);
@@ -538,16 +599,36 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int timeout,
 }
 
 static int
-wait_for_free_request(struct TCP_Server_Info *server, const int timeout,
-		      const int optype, unsigned int *instance)
+wait_for_free_request(struct TCP_Server_Info *server, const int flags,
+		      unsigned int *instance)
 {
-	int *val;
+	return wait_for_free_credits(server, 1, -1, flags,
+				     instance);
+}
 
-	val = server->ops->get_credits_field(server, optype);
-	/* Since an echo is already inflight, no need to wait to send another */
-	if (*val <= 0 && optype == CIFS_ECHO_OP)
-		return -EAGAIN;
-	return wait_for_free_credits(server, timeout, val, instance);
+static int
+wait_for_compound_request(struct TCP_Server_Info *server, int num,
+			  const int flags, unsigned int *instance)
+{
+	int *credits;
+
+	credits = server->ops->get_credits_field(server, flags & CIFS_OP_MASK);
+
+	spin_lock(&server->req_lock);
+	if (*credits < num) {
+		/*
+		 * Return immediately if not too many requests in flight since
+		 * we will likely be stuck on waiting for credits.
+		 */
+		if (server->in_flight < num - *credits) {
+			spin_unlock(&server->req_lock);
+			return -ENOTSUPP;
+		}
+	}
+	spin_unlock(&server->req_lock);
+
+	return wait_for_free_credits(server, num, 60000, flags,
+				     instance);
 }
 
 int
@@ -646,16 +727,16 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 		mid_handle_t *handle, void *cbdata, const int flags,
 		const struct cifs_credits *exist_credits)
 {
-	int rc, timeout, optype;
+	int rc;
 	struct mid_q_entry *mid;
 	struct cifs_credits credits = { .value = 0, .instance = 0 };
 	unsigned int instance;
+	int optype;
 
-	timeout = flags & CIFS_TIMEOUT_MASK;
 	optype = flags & CIFS_OP_MASK;
 
 	if ((flags & CIFS_HAS_CREDITS) == 0) {
-		rc = wait_for_free_request(server, timeout, optype, &instance);
+		rc = wait_for_free_request(server, flags, &instance);
 		if (rc)
 			return rc;
 		credits.value = 1;
@@ -871,18 +952,15 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		   const int flags, const int num_rqst, struct smb_rqst *rqst,
 		   int *resp_buf_type, struct kvec *resp_iov)
 {
-	int i, j, rc = 0;
-	int timeout, optype;
+	int i, j, optype, rc = 0;
 	struct mid_q_entry *midQ[MAX_COMPOUND];
 	bool cancelled_mid[MAX_COMPOUND] = {false};
 	struct cifs_credits credits[MAX_COMPOUND] = {
 		{ .value = 0, .instance = 0 }
 	};
 	unsigned int instance;
-	unsigned int first_instance = 0;
 	char *buf;
 
-	timeout = flags & CIFS_TIMEOUT_MASK;
 	optype = flags & CIFS_OP_MASK;
 
 	for (i = 0; i < num_rqst; i++)
@@ -896,81 +974,24 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (ses->server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
-	spin_lock(&ses->server->req_lock);
-	if (ses->server->credits < num_rqst) {
-		/*
-		 * Return immediately if not too many requests in flight since
-		 * we will likely be stuck on waiting for credits.
-		 */
-		if (ses->server->in_flight < num_rqst - ses->server->credits) {
-			spin_unlock(&ses->server->req_lock);
-			return -ENOTSUPP;
-		}
-	} else {
-		/* enough credits to send the whole compounded request */
-		ses->server->credits -= num_rqst;
-		ses->server->in_flight += num_rqst;
-		first_instance = ses->server->reconnect_instance;
-	}
-	spin_unlock(&ses->server->req_lock);
-
-	if (first_instance) {
-		cifs_dbg(FYI, "Acquired %d credits at once\n", num_rqst);
-		for (i = 0; i < num_rqst; i++) {
-			credits[i].value = 1;
-			credits[i].instance = first_instance;
-		}
-		goto setup_rqsts;
-	}
-
 	/*
-	 * There are not enough credits to send the whole compound request but
-	 * there are requests in flight that may bring credits from the server.
+	 * Wait for all the requests to become available.
 	 * This approach still leaves the possibility to be stuck waiting for
 	 * credits if the server doesn't grant credits to the outstanding
-	 * requests. This should be fixed by returning immediately and letting
-	 * a caller fallback to sequential commands instead of compounding.
-	 * Ensure we obtain 1 credit per request in the compound chain.
+	 * requests and if the client is completely idle, not generating any
+	 * other requests.
+	 * This can be handled by the eventual session reconnect.
 	 */
+	rc = wait_for_compound_request(ses->server, num_rqst, flags,
+				       &instance);
+	if (rc)
+		return rc;
+
 	for (i = 0; i < num_rqst; i++) {
-		rc = wait_for_free_request(ses->server, timeout, optype,
-					   &instance);
-
-		if (rc == 0) {
-			credits[i].value = 1;
-			credits[i].instance = instance;
-			/*
-			 * All parts of the compound chain must get credits from
-			 * the same session, otherwise we may end up using more
-			 * credits than the server granted. If there were
-			 * reconnects in between, return -EAGAIN and let callers
-			 * handle it.
-			 */
-			if (i == 0)
-				first_instance = instance;
-			else if (first_instance != instance) {
-				i++;
-				rc = -EAGAIN;
-			}
-		}
-
-		if (rc) {
-			/*
-			 * We haven't sent an SMB packet to the server yet but
-			 * we already obtained credits for i requests in the
-			 * compound chain - need to return those credits back
-			 * for future use. Note that we need to call add_credits
-			 * multiple times to match the way we obtained credits
-			 * in the first place and to account for in flight
-			 * requests correctly.
-			 */
-			for (j = 0; j < i; j++)
-				add_credits(ses->server, &credits[j], optype);
-			return rc;
-		}
+		credits[i].value = 1;
+		credits[i].instance = instance;
 	}
 
-setup_rqsts:
 	/*
 	 * Make sure that we sign in the same order that we send on this socket
 	 * and avoid races inside tcp sendmsg code that could cause corruption
@@ -981,14 +1002,12 @@ setup_rqsts:
 
 	/*
 	 * All the parts of the compound chain belong obtained credits from the
-	 * same session (see the appropriate checks above). In the same time
-	 * there might be reconnects after those checks but before we acquired
-	 * the srv_mutex. We can not use credits obtained from the previous
+	 * same session. We can not use credits obtained from the previous
 	 * session to send this request. Check if there were reconnects after
 	 * we obtained credits and return -EAGAIN in such cases to let callers
 	 * handle it.
 	 */
-	if (first_instance != ses->server->reconnect_instance) {
+	if (instance != ses->server->reconnect_instance) {
 		mutex_unlock(&ses->server->srv_mutex);
 		for (j = 0; j < num_rqst; j++)
 			add_credits(ses->server, &credits[j], optype);
@@ -1057,7 +1076,7 @@ setup_rqsts:
 		smb311_update_preauth_hash(ses, rqst[0].rq_iov,
 					   rqst[0].rq_nvec);
 
-	if (timeout == CIFS_ASYNC_OP)
+	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP)
 		goto out;
 
 	for (i = 0; i < num_rqst; i++) {
@@ -1194,7 +1213,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 int
 SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	    struct smb_hdr *in_buf, struct smb_hdr *out_buf,
-	    int *pbytes_returned, const int timeout)
+	    int *pbytes_returned, const int flags)
 {
 	int rc = 0;
 	struct mid_q_entry *midQ;
@@ -1225,7 +1244,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 		return -EIO;
 	}
 
-	rc = wait_for_free_request(ses->server, timeout, 0, &credits.instance);
+	rc = wait_for_free_request(ses->server, flags, &credits.instance);
 	if (rc)
 		return rc;
 
@@ -1264,7 +1283,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (rc < 0)
 		goto out;
 
-	if (timeout == CIFS_ASYNC_OP)
+	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP)
 		goto out;
 
 	rc = wait_for_response(ses->server, midQ);
@@ -1367,8 +1386,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 		return -EIO;
 	}
 
-	rc = wait_for_free_request(ses->server, CIFS_BLOCKING_OP, 0,
-				   &instance);
+	rc = wait_for_free_request(ses->server, CIFS_BLOCKING_OP, &instance);
 	if (rc)
 		return rc;
 

@@ -640,7 +640,7 @@ static int ufs_hi3670_init(struct ufs_hba *hba)
 	return 0;
 }
 
-static struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
+static const struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 	.name = "hi3660",
 	.init = ufs_hi3660_init,
 	.link_startup_notify = ufs_hisi_link_startup_notify,
@@ -649,7 +649,7 @@ static struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 	.resume = ufs_hisi_resume,
 };
 
-static struct ufs_hba_variant_ops ufs_hba_hi3670_vops = {
+static const struct ufs_hba_variant_ops ufs_hba_hi3670_vops = {
 	.name = "hi3670",
 	.init = ufs_hi3670_init,
 	.link_startup_notify = ufs_hisi_link_startup_notify,
@@ -669,13 +669,10 @@ MODULE_DEVICE_TABLE(of, ufs_hisi_of_match);
 static int ufs_hisi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
-	struct ufs_hba_variant_ops *vops;
-	struct device *dev = &pdev->dev;
 
-	of_id = of_match_node(ufs_hisi_of_match, dev->of_node);
-	vops = (struct ufs_hba_variant_ops *)of_id->data;
+	of_id = of_match_node(ufs_hisi_of_match, pdev->dev.of_node);
 
-	return ufshcd_pltfrm_init(pdev, vops);
+	return ufshcd_pltfrm_init(pdev, of_id->data);
 }
 
 static int ufs_hisi_remove(struct platform_device *pdev)

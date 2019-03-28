@@ -194,11 +194,11 @@ static u16 nvmet_bdev_discard_range(struct nvmet_req *req,
 			le64_to_cpu(range->slba) << (ns->blksize_shift - 9),
 			le32_to_cpu(range->nlb) << (ns->blksize_shift - 9),
 			GFP_KERNEL, 0, bio);
-
-	if (ret)
+	if (ret && ret != -EOPNOTSUPP) {
 		req->error_slba = le64_to_cpu(range->slba);
-
-	return blk_to_nvme_status(req, errno_to_blk_status(ret));
+		return blk_to_nvme_status(req, errno_to_blk_status(ret));
+	}
+	return NVME_SC_SUCCESS;
 }
 
 static void nvmet_bdev_execute_discard(struct nvmet_req *req)

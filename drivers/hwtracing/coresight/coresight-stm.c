@@ -870,7 +870,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pm_runtime_put(&adev->dev);
 
-	dev_info(dev, "%s initialized\n", (char *)id->data);
+	dev_info(dev, "%s initialized\n", (char *)coresight_get_uci_data(id));
 	return 0;
 
 stm_unregister:
@@ -905,16 +905,8 @@ static const struct dev_pm_ops stm_dev_pm_ops = {
 };
 
 static const struct amba_id stm_ids[] = {
-	{
-		.id     = 0x000bb962,
-		.mask   = 0x000fffff,
-		.data	= "STM32",
-	},
-	{
-		.id	= 0x000bb963,
-		.mask	= 0x000fffff,
-		.data	= "STM500",
-	},
+	CS_AMBA_ID_DATA(0x000bb962, "STM32"),
+	CS_AMBA_ID_DATA(0x000bb963, "STM500"),
 	{ 0, 0},
 };
 

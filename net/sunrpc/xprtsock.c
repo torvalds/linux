@@ -453,7 +453,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 			goto out;
 		if (ret != want)
 			goto out;
-	} else
+	} else if (offset < seek_init)
 		offset = seek_init;
 	ret = -EMSGSIZE;
 out:
@@ -495,8 +495,8 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 		int flags, struct rpc_rqst *req)
 {
 	struct xdr_buf *buf = &req->rq_private_buf;
-	size_t want, read;
-	ssize_t ret;
+	size_t want, uninitialized_var(read);
+	ssize_t uninitialized_var(ret);
 
 	xs_read_header(transport, buf);
 

@@ -1191,10 +1191,6 @@ next_pdu:
 			continue;
 		}
 
-		if (server->large_buf)
-			buf = server->bigbuf;
-
-
 		server->lstrp = jiffies;
 
 		for (i = 0; i < num_mids; i++) {

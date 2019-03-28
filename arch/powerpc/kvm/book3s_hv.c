@@ -922,7 +922,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	case H_IPOLL:
 	case H_XIRR_X:
 		if (kvmppc_xics_enabled(vcpu)) {
-			if (xive_enabled()) {
+			if (xics_on_xive()) {
 				ret = H_NOT_AVAILABLE;
 				return RESUME_GUEST;
 			}
@@ -937,6 +937,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		ret = kvmppc_h_set_xdabr(vcpu, kvmppc_get_gpr(vcpu, 4),
 						kvmppc_get_gpr(vcpu, 5));
 		break;
+#ifdef CONFIG_SPAPR_TCE_IOMMU
 	case H_GET_TCE:
 		ret = kvmppc_h_get_tce(vcpu, kvmppc_get_gpr(vcpu, 4),
 						kvmppc_get_gpr(vcpu, 5));
@@ -966,6 +967,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (ret == H_TOO_HARD)
 			return RESUME_HOST;
 		break;
+#endif
 	case H_RANDOM:
 		if (!powernv_get_random_long(&vcpu->arch.regs.gpr[4]))
 			ret = H_HARDWARE;
@@ -1445,7 +1447,7 @@ static int kvmppc_handle_nested_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case BOOK3S_INTERRUPT_HV_RM_HARD:
 		vcpu->arch.trap = 0;
 		r = RESUME_GUEST;
-		if (!xive_enabled())
+		if (!xics_on_xive())
 			kvmppc_xics_rm_complete(vcpu, 0);
 		break;
 	default:
@@ -3648,11 +3650,12 @@ static void kvmppc_wait_for_exec(struct kvmppc_vcore *vc,
 
 static void grow_halt_poll_ns(struct kvmppc_vcore *vc)
 {
-	/* 10us base */
-	if (vc->halt_poll_ns == 0 && halt_poll_ns_grow)
-		vc->halt_poll_ns = 10000;
-	else
-		vc->halt_poll_ns *= halt_poll_ns_grow;
+	if (!halt_poll_ns_grow)
+		return;
+
+	vc->halt_poll_ns *= halt_poll_ns_grow;
+	if (vc->halt_poll_ns < halt_poll_ns_grow_start)
+		vc->halt_poll_ns = halt_poll_ns_grow_start;
 }
 
 static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
@@ -3666,7 +3669,7 @@ static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
 #ifdef CONFIG_KVM_XICS
 static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
 {
-	if (!xive_enabled())
+	if (!xics_on_xive())
 		return false;
 	return vcpu->arch.irq_pending || vcpu->arch.xive_saved_state.pipr <
 		vcpu->arch.xive_saved_state.cppr;
@@ -4226,7 +4229,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
 			srcu_read_unlock(&kvm->srcu, srcu_idx);
 		} else if (r == RESUME_PASSTHROUGH) {
-			if (WARN_ON(xive_enabled()))
+			if (WARN_ON(xics_on_xive()))
 				r = H_SUCCESS;
 			else
 				r = kvmppc_xics_rm_complete(vcpu, 0);
@@ -4750,7 +4753,7 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 		 * If xive is enabled, we route 0x500 interrupts directly
 		 * to the guest.
 		 */
-		if (xive_enabled())
+		if (xics_on_xive())
 			lpcr |= LPCR_LPES;
 	}
 
@@ -4986,7 +4989,7 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	if (i == pimap->n_mapped)
 		pimap->n_mapped++;
 
-	if (xive_enabled())
+	if (xics_on_xive())
 		rc = kvmppc_xive_set_mapped(kvm, guest_gsi, desc);
 	else
 		kvmppc_xics_set_mapped(kvm, guest_gsi, desc->irq_data.hwirq);
@@ -5027,7 +5030,7 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 		return -ENODEV;
 	}
 
-	if (xive_enabled())
+	if (xics_on_xive())
 		rc = kvmppc_xive_clr_mapped(kvm, guest_gsi, pimap->mapped[i].desc);
 	else
 		kvmppc_xics_clr_mapped(kvm, guest_gsi, pimap->mapped[i].r_hwirq);
@@ -5359,13 +5362,11 @@ static int kvm_init_subcore_bitmap(void)
 			continue;
 
 		sibling_subcore_state =
-			kmalloc_node(sizeof(struct sibling_subcore_state),
+			kzalloc_node(sizeof(struct sibling_subcore_state),
 							GFP_KERNEL, node);
 		if (!sibling_subcore_state)
 			return -ENOMEM;
 
-		memset(sibling_subcore_state, 0,
-				sizeof(struct sibling_subcore_state));
 
 		for (j = 0; j < threads_per_core; j++) {
 			int cpu = first_cpu + j;
@@ -5406,7 +5407,7 @@ static int kvmppc_book3s_init_hv(void)
 	 * indirectly, via OPAL.
 	 */
 #ifdef CONFIG_SMP
-	if (!xive_enabled() && !kvmhv_on_pseries() &&
+	if (!xics_on_xive() && !kvmhv_on_pseries() &&
 	    !local_paca->kvm_hstate.xics_phys) {
 		struct device_node *np;
 

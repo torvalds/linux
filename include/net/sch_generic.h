@@ -389,6 +389,7 @@ struct tcf_chain {
 	bool flushing;
 	const struct tcf_proto_ops *tmplt_ops;
 	void *tmplt_priv;
+	struct rcu_head rcu;
 };
 
 struct tcf_block {

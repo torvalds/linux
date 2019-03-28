@@ -20,6 +20,7 @@
 
 enum devx_obj_flags {
 	DEVX_OBJ_FLAGS_INDIRECT_MKEY = 1 << 0,
+	DEVX_OBJ_FLAGS_DCT = 1 << 1,
 };
 
 struct devx_async_data {
@@ -39,7 +40,10 @@ struct devx_obj {
 	u32			dinlen; /* destroy inbox length */
 	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
 	u32			flags;
-	struct mlx5_ib_devx_mr	devx_mr;
+	union {
+		struct mlx5_ib_devx_mr	devx_mr;
+		struct mlx5_core_dct	core_dct;
+	};
 };
 
 struct devx_umem {
@@ -347,7 +351,6 @@ static u64 devx_get_obj_id(const void *in)
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
 					MLX5_GET(arm_rq_in, in, srq_number));
 		break;
-	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_DCT,
 					MLX5_GET(drain_dct_in, in, dctn));
@@ -618,7 +621,6 @@ static bool devx_is_obj_modify_cmd(const void *in)
 	case MLX5_CMD_OP_2RST_QP:
 	case MLX5_CMD_OP_ARM_XRC_SRQ:
 	case MLX5_CMD_OP_ARM_RQ:
-	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 	case MLX5_CMD_OP_ARM_XRQ:
 	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
@@ -1124,7 +1126,11 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
 		devx_cleanup_mkey(obj);
 
-	ret = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
+	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
+		ret = mlx5_core_destroy_dct(obj->mdev, &obj->core_dct);
+	else
+		ret = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out,
+				    sizeof(out));
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
@@ -1185,9 +1191,17 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 		devx_set_umem_valid(cmd_in);
 	}
 
-	err = mlx5_cmd_exec(dev->mdev, cmd_in,
-			    cmd_in_len,
-			    cmd_out, cmd_out_len);
+	if (opcode == MLX5_CMD_OP_CREATE_DCT) {
+		obj->flags |= DEVX_OBJ_FLAGS_DCT;
+		err = mlx5_core_create_dct(dev->mdev, &obj->core_dct,
+					   cmd_in, cmd_in_len,
+					   cmd_out, cmd_out_len);
+	} else {
+		err = mlx5_cmd_exec(dev->mdev, cmd_in,
+				    cmd_in_len,
+				    cmd_out, cmd_out_len);
+	}
+
 	if (err)
 		goto obj_free;
 
@@ -1214,7 +1228,11 @@ err_copy:
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
 		devx_cleanup_mkey(obj);
 obj_destroy:
-	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
+	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
+		mlx5_core_destroy_dct(obj->mdev, &obj->core_dct);
+	else
+		mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out,
+			      sizeof(out));
 obj_free:
 	kfree(obj);
 	return err;

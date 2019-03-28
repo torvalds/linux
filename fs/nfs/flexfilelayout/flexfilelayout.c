@@ -1289,6 +1289,7 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 static int ff_layout_read_done_cb(struct rpc_task *task,
 				struct nfs_pgio_header *hdr)
 {
+	int new_idx = hdr->pgio_mirror_idx;
 	int err;
 
 	trace_nfs4_pnfs_read(hdr, task->tk_status);
@@ -1307,7 +1308,7 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 	case -NFS4ERR_RESET_TO_PNFS:
 		if (ff_layout_choose_best_ds_for_read(hdr->lseg,
 					hdr->pgio_mirror_idx + 1,
-					&hdr->pgio_mirror_idx))
+					&new_idx))
 			goto out_layouterror;
 		set_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 		return task->tk_status;
@@ -1320,7 +1321,9 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 
 	return 0;
 out_layouterror:
+	ff_layout_read_record_layoutstats_done(task, hdr);
 	ff_layout_send_layouterror(hdr->lseg);
+	hdr->pgio_mirror_idx = new_idx;
 out_eagain:
 	rpc_restart_call_prepare(task);
 	return -EAGAIN;
