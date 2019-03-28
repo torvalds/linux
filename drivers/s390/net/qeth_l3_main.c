@@ -2267,11 +2267,17 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	int rc;
 
 	hash_init(card->ip_htable);
+	card->cmd_wq = alloc_ordered_workqueue("%s_cmd", 0,
+					       dev_name(&gdev->dev));
+	if (!card->cmd_wq)
+		return -ENOMEM;
 
 	if (gdev->dev.type == &qeth_generic_devtype) {
 		rc = qeth_l3_create_device_attributes(&gdev->dev);
-		if (rc)
+		if (rc) {
+			destroy_workqueue(card->cmd_wq);
 			return rc;
+		}
 	}
 
 	hash_init(card->ip_mc_htable);
@@ -2295,6 +2301,9 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	cancel_work_sync(&card->close_dev_work);
 	if (qeth_netdev_is_registered(card->dev))
 		unregister_netdev(card->dev);
+
+	flush_workqueue(card->cmd_wq);
+	destroy_workqueue(card->cmd_wq);
 	qeth_l3_clear_ip_htable(card, 0);
 	qeth_l3_clear_ipato_list(card);
 }
@@ -2542,6 +2551,30 @@ static int qeth_l3_handle_ip_event(struct qeth_card *card,
 	}
 }
 
+struct qeth_l3_ip_event_work {
+	struct work_struct work;
+	struct qeth_card *card;
+	struct qeth_ipaddr addr;
+};
+
+#define to_ip_work(w) container_of((w), struct qeth_l3_ip_event_work, work)
+
+static void qeth_l3_add_ip_worker(struct work_struct *work)
+{
+	struct qeth_l3_ip_event_work *ip_work = to_ip_work(work);
+
+	qeth_l3_modify_ip(ip_work->card, &ip_work->addr, true);
+	kfree(work);
+}
+
+static void qeth_l3_delete_ip_worker(struct work_struct *work)
+{
+	struct qeth_l3_ip_event_work *ip_work = to_ip_work(work);
+
+	qeth_l3_modify_ip(ip_work->card, &ip_work->addr, false);
+	kfree(work);
+}
+
 static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
 {
 	if (is_vlan_dev(dev))
@@ -2586,8 +2619,11 @@ static int qeth_l3_ip6_event(struct notifier_block *this,
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct net_device *dev = ifa->idev->dev;
-	struct qeth_ipaddr addr;
+	struct qeth_l3_ip_event_work *ip_work;
 	struct qeth_card *card;
+
+	if (event != NETDEV_UP && event != NETDEV_DOWN)
+		return NOTIFY_DONE;
 
 	card = qeth_l3_get_card_from_dev(dev);
 	if (!card)
@@ -2596,11 +2632,23 @@ static int qeth_l3_ip6_event(struct notifier_block *this,
 	if (!qeth_is_supported(card, IPA_IPV6))
 		return NOTIFY_DONE;
 
-	qeth_l3_init_ipaddr(&addr, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV6);
-	addr.u.a6.addr = ifa->addr;
-	addr.u.a6.pfxlen = ifa->prefix_len;
+	ip_work = kmalloc(sizeof(*ip_work), GFP_ATOMIC);
+	if (!ip_work)
+		return NOTIFY_DONE;
 
-	return qeth_l3_handle_ip_event(card, &addr, event);
+	if (event == NETDEV_UP)
+		INIT_WORK(&ip_work->work, qeth_l3_add_ip_worker);
+	else
+		INIT_WORK(&ip_work->work, qeth_l3_delete_ip_worker);
+
+	ip_work->card = card;
+	qeth_l3_init_ipaddr(&ip_work->addr, QETH_IP_TYPE_NORMAL,
+			    QETH_PROT_IPV6);
+	ip_work->addr.u.a6.addr = ifa->addr;
+	ip_work->addr.u.a6.pfxlen = ifa->prefix_len;
+
+	queue_work(card->cmd_wq, &ip_work->work);
+	return NOTIFY_OK;
 }
 
 static struct notifier_block qeth_l3_ip6_notifier = {

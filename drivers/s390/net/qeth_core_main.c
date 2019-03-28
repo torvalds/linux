@@ -1450,7 +1450,8 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 	CARD_WDEV(card) = gdev->cdev[1];
 	CARD_DDEV(card) = gdev->cdev[2];
 
-	card->event_wq = alloc_ordered_workqueue("%s", 0, dev_name(&gdev->dev));
+	card->event_wq = alloc_ordered_workqueue("%s_event", 0,
+						 dev_name(&gdev->dev));
 	if (!card->event_wq)
 		goto out_wq;
 	if (qeth_setup_channel(&card->read, true))

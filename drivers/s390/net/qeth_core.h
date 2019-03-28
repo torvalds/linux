@@ -774,6 +774,7 @@ struct qeth_card {
 	struct qeth_card_options options;
 
 	struct workqueue_struct *event_wq;
+	struct workqueue_struct *cmd_wq;
 	wait_queue_head_t wait_q;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	DECLARE_HASHTABLE(mac_htable, 4);
