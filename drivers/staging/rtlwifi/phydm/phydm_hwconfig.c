@@ -218,7 +218,7 @@ static u32 phydm_process_rssi_ofdm(struct phy_dm_struct *dm,
 		/* Calculate average RSSI */
 		switch (rx_count) {
 		case 2:
-			rssi_linear = (rssi_linear >> 1);
+			rssi_linear = rssi_linear >> 1;
 			break;
 		case 3:
 			/* rssi_linear/3 ~ rssi_linear*11/32 */
@@ -227,7 +227,7 @@ static u32 phydm_process_rssi_ofdm(struct phy_dm_struct *dm,
 				      5;
 			break;
 		case 4:
-			rssi_linear = (rssi_linear >> 2);
+			rssi_linear = rssi_linear >> 2;
 			break;
 		}
 
@@ -813,8 +813,8 @@ static void odm_rx_phy_status_jaguar_series_parsing(
 		cck_highpwr = dm->is_cck_high_power;
 
 		cck_agc_rpt = phy_sta_rpt->cfosho[0];
-		LNA_idx = ((cck_agc_rpt & 0xE0) >> 5);
-		VGA_idx = (cck_agc_rpt & 0x1F);
+		LNA_idx = (cck_agc_rpt & 0xE0) >> 5;
+		VGA_idx = cck_agc_rpt & 0x1F;
 
 		if (dm->support_ic_type == ODM_RTL8812) {
 			rx_pwr_all =
@@ -1435,7 +1435,7 @@ static void phydm_set_per_path_phy_info(u8 rx_path, s8 rx_pwr, s8 rx_evm,
 
 	if (rx_evm < 0) {
 		/* Calculate EVM in dBm */
-		evm_dbm = ((u8)(0 - rx_evm) >> 1);
+		evm_dbm = (u8)(0 - rx_evm) >> 1;
 
 		/* Calculate EVM in percentage */
 		if (evm_dbm >= 33)
@@ -1509,7 +1509,7 @@ static void phydm_get_rx_phy_status_type0(struct phy_dm_struct *dm,
 	if (!dm->cck_new_agc) {
 		u8 lna_idx, vga_idx;
 
-		lna_idx = ((phy_sta_rpt->lna_h << 3) | phy_sta_rpt->lna_l);
+		lna_idx = (phy_sta_rpt->lna_h << 3) | phy_sta_rpt->lna_l;
 		vga_idx = phy_sta_rpt->vga;
 
 		/* JJ ADD 20161014 */
@@ -1774,7 +1774,7 @@ phydm_process_rssi_for_dm_new_type(struct phy_dm_struct *dm,
 
 		switch (phy_info->rx_count + 1) {
 		case 2:
-			rssi_linear = (rssi_linear >> 1);
+			rssi_linear = rssi_linear >> 1;
 			break;
 		case 3:
 			/* rssi_linear/3 ~ rssi_linear*11/32 */
@@ -1783,7 +1783,7 @@ phydm_process_rssi_for_dm_new_type(struct phy_dm_struct *dm,
 				      5;
 			break;
 		case 4:
-			rssi_linear = (rssi_linear >> 2);
+			rssi_linear = rssi_linear >> 2;
 			break;
 		}
 		rssi_ave = odm_convert_to_db(rssi_linear);
