@@ -183,6 +183,7 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 	bool fbc_support;
 	bool optimize_edp_link_rate;
+	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
 };
 
