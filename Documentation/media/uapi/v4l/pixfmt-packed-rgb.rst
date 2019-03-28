@@ -139,6 +139,144 @@ next to each other in memory.
       - r\ :sub:`1`
       - r\ :sub:`0`
       -
+    * .. _V4L2-PIX-FMT-RGBA444:
+
+      - ``V4L2_PIX_FMT_RGBA444``
+      - 'RA12'
+
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
+      - a\ :sub:`3`
+      - a\ :sub:`2`
+      - a\ :sub:`1`
+      - a\ :sub:`0`
+
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-RGBX444:
+
+      - ``V4L2_PIX_FMT_RGBX444``
+      - 'RX12'
+
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
+      -
+      -
+      -
+      -
+
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-ABGR444:
+
+      - ``V4L2_PIX_FMT_ABGR444``
+      - 'AB12'
+
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+
+      - a\ :sub:`3`
+      - a\ :sub:`2`
+      - a\ :sub:`1`
+      - a\ :sub:`0`
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-XBGR444:
+
+      - ``V4L2_PIX_FMT_XBGR444``
+      - 'XB12'
+
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+
+      -
+      -
+      -
+      -
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-BGRA444:
+
+      - ``V4L2_PIX_FMT_BGRA444``
+      - 'BA12'
+
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+      - a\ :sub:`3`
+      - a\ :sub:`2`
+      - a\ :sub:`1`
+      - a\ :sub:`0`
+
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-BGRX444:
+
+      - ``V4L2_PIX_FMT_BGRX444``
+      - 'BX12'
+
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+      -
+      -
+      -
+      -
+
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+      -
     * .. _V4L2-PIX-FMT-ARGB555:
 
       - ``V4L2_PIX_FMT_ARGB555``
