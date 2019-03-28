@@ -82,4 +82,9 @@ config ROCKCHIP_FIQ_DEBUGGER
 	help
 	  Say y here to enable Rockchip FIQ Debugger platform driver.
 
+config ROCKCHIP_DEBUG
+	tristate "Rockchip DEBUG"
+	help
+	  Print dbgpcsr for every cpu when panic.
+
 endif
