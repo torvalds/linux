@@ -478,7 +478,7 @@ int bnxt_qplib_alloc_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq)
 	    nq->hwq.max_elements > BNXT_QPLIB_NQE_MAX_CNT)
 		nq->hwq.max_elements = BNXT_QPLIB_NQE_MAX_CNT;
 	hwq_type = bnxt_qplib_get_hwq_type(nq->res);
-	if (bnxt_qplib_alloc_init_hwq(nq->pdev, &nq->hwq, NULL, 0,
+	if (bnxt_qplib_alloc_init_hwq(nq->pdev, &nq->hwq, NULL,
 				      &nq->hwq.max_elements,
 				      BNXT_QPLIB_MAX_NQE_ENTRY_SIZE, 0,
 				      PAGE_SIZE, hwq_type))
@@ -542,8 +542,8 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 	int rc, idx;
 
 	srq->hwq.max_elements = srq->max_wqe;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &srq->hwq, srq->sglist,
-				       srq->nmap, &srq->hwq.max_elements,
+	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &srq->hwq, &srq->sg_info,
+				       &srq->hwq.max_elements,
 				       BNXT_QPLIB_MAX_RQE_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_QUEUE);
 	if (rc)
@@ -742,7 +742,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 
 	/* SQ */
 	sq->hwq.max_elements = sq->max_wqe;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &sq->hwq, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &sq->hwq, NULL,
 				       &sq->hwq.max_elements,
 				       BNXT_QPLIB_MAX_SQE_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_QUEUE);
@@ -781,7 +781,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	/* RQ */
 	if (rq->max_wqe) {
 		rq->hwq.max_elements = qp->rq.max_wqe;
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &rq->hwq, NULL, 0,
+		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &rq->hwq, NULL,
 					       &rq->hwq.max_elements,
 					       BNXT_QPLIB_MAX_RQE_ENTRY_SIZE, 0,
 					       PAGE_SIZE, HWQ_TYPE_QUEUE);
@@ -890,8 +890,8 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 			 sizeof(struct sq_psn_search);
 	}
 	sq->hwq.max_elements = sq->max_wqe;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &sq->hwq, sq->sglist,
-				       sq->nmap, &sq->hwq.max_elements,
+	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &sq->hwq, &sq->sg_info,
+				       &sq->hwq.max_elements,
 				       BNXT_QPLIB_MAX_SQE_ENTRY_SIZE,
 				       psn_sz,
 				       PAGE_SIZE, HWQ_TYPE_QUEUE);
@@ -959,8 +959,9 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	/* RQ */
 	if (rq->max_wqe) {
 		rq->hwq.max_elements = rq->max_wqe;
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &rq->hwq, rq->sglist,
-					       rq->nmap, &rq->hwq.max_elements,
+		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &rq->hwq,
+					       &rq->sg_info,
+					       &rq->hwq.max_elements,
 					       BNXT_QPLIB_MAX_RQE_ENTRY_SIZE, 0,
 					       PAGE_SIZE, HWQ_TYPE_QUEUE);
 		if (rc)
@@ -1030,7 +1031,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		req_size = xrrq->max_elements *
 			   BNXT_QPLIB_MAX_ORRQE_ENTRY_SIZE + PAGE_SIZE - 1;
 		req_size &= ~(PAGE_SIZE - 1);
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, xrrq, NULL, 0,
+		rc = bnxt_qplib_alloc_init_hwq(res->pdev, xrrq, NULL,
 					       &xrrq->max_elements,
 					       BNXT_QPLIB_MAX_ORRQE_ENTRY_SIZE,
 					       0, req_size, HWQ_TYPE_CTX);
@@ -1046,7 +1047,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 			   BNXT_QPLIB_MAX_IRRQE_ENTRY_SIZE + PAGE_SIZE - 1;
 		req_size &= ~(PAGE_SIZE - 1);
 
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, xrrq, NULL, 0,
+		rc = bnxt_qplib_alloc_init_hwq(res->pdev, xrrq, NULL,
 					       &xrrq->max_elements,
 					       BNXT_QPLIB_MAX_IRRQE_ENTRY_SIZE,
 					       0, req_size, HWQ_TYPE_CTX);
@@ -1935,8 +1936,8 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	int rc;
 
 	cq->hwq.max_elements = cq->max_wqe;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &cq->hwq, cq->sghead,
-				       cq->nmap, &cq->hwq.max_elements,
+	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &cq->hwq, &cq->sg_info,
+				       &cq->hwq.max_elements,
 				       BNXT_QPLIB_MAX_CQE_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_QUEUE);
 	if (rc)

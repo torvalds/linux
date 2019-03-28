@@ -895,8 +895,9 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		return PTR_ERR(umem);
 
 	qp->sumem = umem;
-	qplib_qp->sq.sglist = umem->sg_head.sgl;
-	qplib_qp->sq.nmap = umem->nmap;
+	qplib_qp->sq.sg_info.sglist = umem->sg_head.sgl;
+	qplib_qp->sq.sg_info.npages = ib_umem_num_pages(umem);
+	qplib_qp->sq.sg_info.nmap = umem->nmap;
 	qplib_qp->qp_handle = ureq.qp_handle;
 
 	if (!qp->qplib_qp.srq) {
@@ -907,8 +908,9 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		if (IS_ERR(umem))
 			goto rqfail;
 		qp->rumem = umem;
-		qplib_qp->rq.sglist = umem->sg_head.sgl;
-		qplib_qp->rq.nmap = umem->nmap;
+		qplib_qp->rq.sg_info.sglist = umem->sg_head.sgl;
+		qplib_qp->rq.sg_info.npages = ib_umem_num_pages(umem);
+		qplib_qp->rq.sg_info.nmap = umem->nmap;
 	}
 
 	qplib_qp->dpi = &cntx->dpi;
@@ -916,8 +918,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 rqfail:
 	ib_umem_release(qp->sumem);
 	qp->sumem = NULL;
-	qplib_qp->sq.sglist = NULL;
-	qplib_qp->sq.nmap = 0;
+	memset(&qplib_qp->sq.sg_info, 0, sizeof(qplib_qp->sq.sg_info));
 
 	return PTR_ERR(umem);
 }
@@ -1374,8 +1375,9 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 		return PTR_ERR(umem);
 
 	srq->umem = umem;
-	qplib_srq->nmap = umem->nmap;
-	qplib_srq->sglist = umem->sg_head.sgl;
+	qplib_srq->sg_info.sglist = umem->sg_head.sgl;
+	qplib_srq->sg_info.npages = ib_umem_num_pages(umem);
+	qplib_srq->sg_info.nmap = umem->nmap;
 	qplib_srq->srq_handle = ureq.srq_handle;
 	qplib_srq->dpi = &cntx->dpi;
 
@@ -2632,8 +2634,9 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 			rc = PTR_ERR(cq->umem);
 			goto fail;
 		}
-		cq->qplib_cq.sghead = cq->umem->sg_head.sgl;
-		cq->qplib_cq.nmap = cq->umem->nmap;
+		cq->qplib_cq.sg_info.sglist = cq->umem->sg_head.sgl;
+		cq->qplib_cq.sg_info.npages = ib_umem_num_pages(cq->umem);
+		cq->qplib_cq.sg_info.nmap = cq->umem->nmap;
 		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
 		cq->max_cql = min_t(u32, entries, MAX_CQL_PER_POLL);
@@ -2645,8 +2648,6 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		}
 
 		cq->qplib_cq.dpi = &rdev->dpi_privileged;
-		cq->qplib_cq.sghead = NULL;
-		cq->qplib_cq.nmap = 0;
 	}
 	/*
 	 * Allocating the NQ in a round robin fashion. nq_alloc_cnt is a

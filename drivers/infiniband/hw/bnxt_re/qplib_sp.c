@@ -684,7 +684,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 		mr->hwq.max_elements = pages;
 		/* Use system PAGE_SIZE */
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL, 0,
+		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL,
 					       &mr->hwq.max_elements,
 					       PAGE_SIZE, 0, PAGE_SIZE,
 					       HWQ_TYPE_CTX);
@@ -754,7 +754,7 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 		return -ENOMEM;
 
 	frpl->hwq.max_elements = pages;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &frpl->hwq, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &frpl->hwq, NULL,
 				       &frpl->hwq.max_elements, PAGE_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_CTX);
 	if (!rc)
