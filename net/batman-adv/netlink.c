@@ -2,18 +2,6 @@
 /* Copyright (C) 2016-2019  B.A.T.M.A.N. contributors:
  *
  * Matthias Schiffer
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "netlink.h"
@@ -157,6 +145,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_HOP_PENALTY]		= { .type = NLA_U8 },
 	[BATADV_ATTR_LOG_LEVEL]			= { .type = NLA_U32 },
 	[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED]	= { .type = NLA_U8 },
+	[BATADV_ATTR_MULTICAST_FANOUT]		= { .type = NLA_U32 },
 	[BATADV_ATTR_NETWORK_CODING_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_ORIG_INTERVAL]		= { .type = NLA_U32 },
 	[BATADV_ATTR_ELP_INTERVAL]		= { .type = NLA_U32 },
@@ -352,6 +341,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	if (nla_put_u8(msg, BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED,
 		       !atomic_read(&bat_priv->multicast_mode)))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, BATADV_ATTR_MULTICAST_FANOUT,
+			atomic_read(&bat_priv->multicast_fanout)))
 		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_MCAST */
 
@@ -591,6 +584,12 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		attr = info->attrs[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED];
 
 		atomic_set(&bat_priv->multicast_mode, !nla_get_u8(attr));
+	}
+
+	if (info->attrs[BATADV_ATTR_MULTICAST_FANOUT]) {
+		attr = info->attrs[BATADV_ATTR_MULTICAST_FANOUT];
+
+		atomic_set(&bat_priv->multicast_fanout, nla_get_u32(attr));
 	}
 #endif /* CONFIG_BATMAN_ADV_MCAST */
 
