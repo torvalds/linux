@@ -155,7 +155,6 @@ static void vmw_bo_dirty_scan_mkwrite(struct vmw_buffer_object *vbo)
 	}
 }
 
-
 /**
  * vmw_bo_dirty_scan - Scan for dirty pages and add them to the dirty
  * tracking structure
@@ -171,6 +170,53 @@ void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo)
 		vmw_bo_dirty_scan_pagetable(vbo);
 	else
 		vmw_bo_dirty_scan_mkwrite(vbo);
+}
+
+/**
+ * vmw_bo_dirty_pre_unmap - write-protect and pick up dirty pages before
+ * an unmap_mapping_range operation.
+ * @vbo: The buffer object,
+ * @start: First page of the range within the buffer object.
+ * @end: Last page of the range within the buffer object + 1.
+ *
+ * If we're using the _PAGETABLE scan method, we may leak dirty pages
+ * when calling unmap_mapping_range(). This function makes sure we pick
+ * up all dirty pages.
+ */
+static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
+				   pgoff_t start, pgoff_t end)
+{
+	struct vmw_bo_dirty *dirty = vbo->dirty;
+	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
+	struct address_space *mapping = vbo->base.bdev->dev_mapping;
+
+	if (dirty->method != VMW_BO_DIRTY_PAGETABLE || start >= end)
+		return;
+
+	wp_shared_mapping_range(mapping, start + offset, end - start);
+	clean_record_shared_mapping_range(mapping, start + offset,
+					  end - start, offset,
+					  &dirty->bitmap[0], &dirty->start,
+					  &dirty->end);
+}
+
+/**
+ * vmw_bo_dirty_unmap - Clear all ptes pointing to a range within a bo
+ * @vbo: The buffer object,
+ * @start: First page of the range within the buffer object.
+ * @end: Last page of the range within the buffer object + 1.
+ *
+ * This is similar to ttm_bo_unmap_virtual_locked() except it takes a subrange.
+ */
+void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
+			pgoff_t start, pgoff_t end)
+{
+	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
+	struct address_space *mapping = vbo->base.bdev->dev_mapping;
+
+	vmw_bo_dirty_pre_unmap(vbo, start, end);
+	unmap_shared_mapping_range(mapping, (offset + start) << PAGE_SHIFT,
+				   (loff_t) (end - start) << PAGE_SHIFT);
 }
 
 /**
@@ -401,21 +447,42 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
+	num_prefault = (vma->vm_flags & VM_RAND_READ) ? 1 :
+		TTM_BO_VM_NUM_PREFAULT;
+
+	if (vbo->dirty) {
+		pgoff_t allowed_prefault;
+		unsigned long page_offset;
+
+		page_offset = vmf->pgoff -
+			drm_vma_node_start(&bo->base.vma_node);
+		if (page_offset >= bo->num_pages ||
+		    vmw_resources_clean(vbo, page_offset,
+					page_offset + PAGE_SIZE,
+					&allowed_prefault)) {
+			ret = VM_FAULT_SIGBUS;
+			goto out_unlock;
+		}
+
+		num_prefault = min(num_prefault, allowed_prefault);
+	}
+
 	/*
-	 * This will cause mkwrite() to be called for each pte on
-	 * write-enable vmas.
+	 * If we don't track dirty using the MKWRITE method, make sure
+	 * sure the page protection is write-enabled so we don't get
+	 * a lot of unnecessary write faults.
 	 */
 	if (vbo->dirty && vbo->dirty->method == VMW_BO_DIRTY_MKWRITE)
 		prot = vma->vm_page_prot;
 	else
 		prot = vm_get_page_prot(vma->vm_flags);
 
-	num_prefault = (vma->vm_flags & VM_RAND_READ) ? 0 :
-		TTM_BO_VM_NUM_PREFAULT;
 	ret = ttm_bo_vm_fault_reserved(vmf, prot, num_prefault);
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
 		return ret;
 
+out_unlock:
 	dma_resv_unlock(bo->base.resv);
+
 	return ret;
 }
