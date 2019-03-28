@@ -1757,6 +1757,16 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
+		clocks = <&cru PLL_GPLL>;
+		nvmem-cells = <&performance>, <&performance_w>;
+		nvmem-cell-names = "performance", "performance-w";
+		rockchip,bin-scaling-sel = <
+			0               55
+			1               59
+			2               61
+			3               61
+		>;
+
 		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 			opp-microvolt = <950000>;
