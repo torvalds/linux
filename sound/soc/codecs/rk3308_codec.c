@@ -2879,6 +2879,9 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 				   RK3308_ADC_MIC_BIAS_BUF_EN,
 				   RK3308_ADC_MIC_BIAS_BUF_EN);
 
+	/* waiting micbias stabled*/
+	mdelay(50);
+
 	rk3308->enable_micbias = true;
 
 	return 0;
