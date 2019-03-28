@@ -77,6 +77,7 @@ struct vmw_user_resource_conv {
  * @dirty_sync:        Upload the dirty mob contents to the resource.
  * @dirty_add_range:   Add a sequential dirty range to the resource
  *                     dirty tracker.
+ * @clean:             Clean the resource.
  */
 struct vmw_res_func {
 	enum vmw_res_type res_type;
@@ -101,6 +102,7 @@ struct vmw_res_func {
 	int (*dirty_sync)(struct vmw_resource *res);
 	void (*dirty_range_add)(struct vmw_resource *res, size_t start,
 				 size_t end);
+	int (*clean)(struct vmw_resource *res);
 };
 
 /**

@@ -395,7 +395,8 @@ out_no_bo:
  * should be retried once resources have been freed up.
  */
 static int vmw_resource_do_validate(struct vmw_resource *res,
-				    struct ttm_validate_buffer *val_buf)
+				    struct ttm_validate_buffer *val_buf,
+				    bool dirtying)
 {
 	int ret = 0;
 	const struct vmw_res_func *func = res->func;
@@ -437,6 +438,15 @@ static int vmw_resource_do_validate(struct vmw_resource *res,
 	 * the resource.
 	 */
 	if (res->dirty) {
+		if (dirtying && !res->res_dirty) {
+			pgoff_t start = res->backup_offset >> PAGE_SHIFT;
+			pgoff_t end = __KERNEL_DIV_ROUND_UP
+				(res->backup_offset + res->backup_size,
+				 PAGE_SIZE);
+
+			vmw_bo_dirty_unmap(res->backup, start, end);
+		}
+
 		vmw_bo_dirty_transfer_to_res(res);
 		return func->dirty_sync(res);
 	}
@@ -681,6 +691,7 @@ out_no_unbind:
  *                         to the device.
  * @res: The resource to make visible to the device.
  * @intr: Perform waits interruptible if possible.
+ * @dirtying: Pending GPU operation will dirty the resource
  *
  * On succesful return, any backup DMA buffer pointed to by @res->backup will
  * be reserved and validated.
@@ -690,7 +701,8 @@ out_no_unbind:
  * Return: Zero on success, -ERESTARTSYS if interrupted, negative error code
  * on failure.
  */
-int vmw_resource_validate(struct vmw_resource *res, bool intr)
+int vmw_resource_validate(struct vmw_resource *res, bool intr,
+			  bool dirtying)
 {
 	int ret;
 	struct vmw_resource *evict_res;
@@ -707,7 +719,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr)
 	if (res->backup)
 		val_buf.bo = &res->backup->base;
 	do {
-		ret = vmw_resource_do_validate(res, &val_buf);
+		ret = vmw_resource_do_validate(res, &val_buf, dirtying);
 		if (likely(ret != -EBUSY))
 			break;
 
@@ -1007,7 +1019,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 			/* Do we really need to pin the MOB as well? */
 			vmw_bo_pin_reserved(vbo, true);
 		}
-		ret = vmw_resource_validate(res, interruptible);
+		ret = vmw_resource_validate(res, interruptible, true);
 		if (vbo)
 			ttm_bo_unreserve(&vbo->base);
 		if (ret)
@@ -1081,4 +1093,87 @@ void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
 	if (res->dirty)
 		res->func->dirty_range_add(res, start << PAGE_SHIFT,
 					   end << PAGE_SHIFT);
+}
+
+/**
+ * vmw_resources_clean - Clean resources intersecting a mob range
+ * @vbo: The mob buffer object
+ * @start: The mob page offset starting the range
+ * @end: The mob page offset ending the range
+ * @num_prefault: Returns how many pages including the first have been
+ * cleaned and are ok to prefault
+ */
+int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
+			pgoff_t end, pgoff_t *num_prefault)
+{
+	struct rb_node *cur = vbo->res_tree.rb_node;
+	struct vmw_resource *found = NULL;
+	unsigned long res_start = start << PAGE_SHIFT;
+	unsigned long res_end = end << PAGE_SHIFT;
+	unsigned long last_cleaned = 0;
+
+	/*
+	 * Find the resource with lowest backup_offset that intersects the
+	 * range.
+	 */
+	while (cur) {
+		struct vmw_resource *cur_res =
+			container_of(cur, struct vmw_resource, mob_node);
+
+		if (cur_res->backup_offset >= res_end) {
+			cur = cur->rb_left;
+		} else if (cur_res->backup_offset + cur_res->backup_size <=
+			   res_start) {
+			cur = cur->rb_right;
+		} else {
+			found = cur_res;
+			cur = cur->rb_left;
+			/* Continue to look for resources with lower offsets */
+		}
+	}
+
+	/*
+	 * In order of increasing backup_offset, clean dirty resorces
+	 * intersecting the range.
+	 */
+	while (found) {
+		if (found->res_dirty) {
+			int ret;
+
+			if (!found->func->clean)
+				return -EINVAL;
+
+			ret = found->func->clean(found);
+			if (ret)
+				return ret;
+
+			found->res_dirty = false;
+		}
+		last_cleaned = found->backup_offset + found->backup_size;
+		cur = rb_next(&found->mob_node);
+		if (!cur)
+			break;
+
+		found = container_of(cur, struct vmw_resource, mob_node);
+		if (found->backup_offset >= res_end)
+			break;
+	}
+
+	/*
+	 * Set number of pages allowed prefaulting and fence the buffer object
+	 */
+	*num_prefault = 1;
+	if (last_cleaned > res_start) {
+		struct ttm_buffer_object *bo = &vbo->base;
+
+		*num_prefault = __KERNEL_DIV_ROUND_UP(last_cleaned - res_start,
+						      PAGE_SIZE);
+		vmw_bo_fence_single(bo, NULL);
+		if (bo->moving)
+			dma_fence_put(bo->moving);
+		bo->moving = dma_fence_get
+			(reservation_object_get_excl(bo->resv));
+	}
+
+	return 0;
 }

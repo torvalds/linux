@@ -641,7 +641,8 @@ int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr)
 		struct vmw_resource *res = val->res;
 		struct vmw_buffer_object *backup = res->backup;
 
-		ret = vmw_resource_validate(res, intr);
+		ret = vmw_resource_validate(res, intr, val->dirty_set &&
+					    val->dirty);
 		if (ret) {
 			if (ret != -ERESTARTSYS)
 				DRM_ERROR("Failed to validate resource.\n");
