@@ -386,13 +386,13 @@ void nfp_devlink_port_type_clear(struct nfp_port *port)
 	devlink_port_type_clear(&port->dl_port);
 }
 
-struct devlink *nfp_devlink_get_devlink(struct net_device *netdev)
+struct devlink_port *nfp_devlink_get_devlink_port(struct net_device *netdev)
 {
-	struct nfp_app *app;
+	struct nfp_port *port;
 
-	app = nfp_app_from_netdev(netdev);
-	if (!app)
+	port = nfp_port_from_netdev(netdev);
+	if (!port)
 		return NULL;
 
-	return priv_to_devlink(app->pf);
+	return &port->dl_port;
 }

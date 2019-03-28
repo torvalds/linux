@@ -5358,6 +5358,24 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 			       struct net_device *netdev)
 {
+	/* If driver registers devlink port, it should set devlink port
+	 * attributes accordingly so the compat functions are called
+	 * and the original ops are not used.
+	 */
+	if (netdev->netdev_ops->ndo_get_phys_port_name) {
+		/* Some drivers use the same set of ndos for netdevs
+		 * that have devlink_port registered and also for
+		 * those who don't. Make sure that ndo_get_phys_port_name
+		 * returns -EOPNOTSUPP here in case it is defined.
+		 * Warn if not.
+		 */
+		const struct net_device_ops *ops = netdev->netdev_ops;
+		char name[IFNAMSIZ];
+		int err;
+
+		err = ops->ndo_get_phys_port_name(netdev, name, sizeof(name));
+		WARN_ON(err != -EOPNOTSUPP);
+	}
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, netdev);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_eth_set);
@@ -5414,8 +5432,8 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
 
-int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
-				    char *name, size_t len)
+static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
+					     char *name, size_t len)
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int n = 0;
@@ -5445,7 +5463,6 @@ int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devlink_port_get_phys_port_name);
 
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
@@ -6457,6 +6474,24 @@ out:
 	dev_put(dev);
 
 	return ret;
+}
+
+int devlink_compat_phys_port_name_get(struct net_device *dev,
+				      char *name, size_t len)
+{
+	struct devlink_port *devlink_port;
+
+	/* RTNL mutex is held here which ensures that devlink_port
+	 * instance cannot disappear in the middle. No need to take
+	 * any devlink lock as only permanent values are accessed.
+	 */
+	ASSERT_RTNL();
+
+	devlink_port = netdev_to_devlink_port(dev);
+	if (!devlink_port)
+		return -EOPNOTSUPP;
+
+	return __devlink_port_phys_port_name_get(devlink_port, name, len);
 }
 
 static int __init devlink_init(void)

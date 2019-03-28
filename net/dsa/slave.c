@@ -736,6 +736,13 @@ static int dsa_slave_get_phys_port_name(struct net_device *dev,
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
+	/* For non-legacy ports, devlink is used and it takes
+	 * care of the name generation. This ndo implementation
+	 * should be removed with legacy support.
+	 */
+	if (dp->ds->devlink)
+		return -EOPNOTSUPP;
+
 	if (snprintf(name, len, "p%d", dp->index) >= len)
 		return -EINVAL;
 
@@ -1096,6 +1103,13 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 	return dsa_port_fdb_del(dp, addr, vid);
 }
 
+static struct devlink_port *dsa_slave_get_devlink_port(struct net_device *dev)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	return dp->ds->devlink ? &dp->devlink_port : NULL;
+}
+
 static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
@@ -1119,6 +1133,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_get_port_parent_id	= dsa_slave_get_port_parent_id,
 	.ndo_vlan_rx_add_vid	= dsa_slave_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= dsa_slave_vlan_rx_kill_vid,
+	.ndo_get_devlink_port	= dsa_slave_get_devlink_port,
 };
 
 static struct device_type dsa_type = {

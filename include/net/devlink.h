@@ -547,10 +547,20 @@ static inline struct devlink *priv_to_devlink(void *priv)
 	return container_of(priv, struct devlink, priv);
 }
 
+static inline struct devlink_port *
+netdev_to_devlink_port(struct net_device *dev)
+{
+	if (dev->netdev_ops->ndo_get_devlink_port)
+		return dev->netdev_ops->ndo_get_devlink_port(dev);
+	return NULL;
+}
+
 static inline struct devlink *netdev_to_devlink(struct net_device *dev)
 {
-	if (dev->netdev_ops->ndo_get_devlink)
-		return dev->netdev_ops->ndo_get_devlink(dev);
+	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
+
+	if (devlink_port)
+		return devlink_port->devlink;
 	return NULL;
 }
 
@@ -573,8 +583,6 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
 			    u32 split_subport_number);
-int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
-				    char *name, size_t len);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
@@ -729,6 +737,8 @@ devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
+int devlink_compat_phys_port_name_get(struct net_device *dev,
+				      char *name, size_t len);
 
 #else
 
@@ -739,6 +749,13 @@ devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 
 static inline int
 devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_compat_phys_port_name_get(struct net_device *dev,
+				  char *name, size_t len)
 {
 	return -EOPNOTSUPP;
 }

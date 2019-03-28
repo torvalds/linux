@@ -1796,16 +1796,18 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_port_type_get);
 
-int mlxsw_core_port_get_phys_port_name(struct mlxsw_core *mlxsw_core,
-				       u8 local_port, char *name, size_t len)
+
+struct devlink_port *
+mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
+				 u8 local_port)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
 	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
 
-	return devlink_port_get_phys_port_name(devlink_port, name, len);
+	return devlink_port;
 }
-EXPORT_SYMBOL(mlxsw_core_port_get_phys_port_name);
+EXPORT_SYMBOL(mlxsw_core_port_devlink_port_get);
 
 static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 				    const char *buf, size_t size)
