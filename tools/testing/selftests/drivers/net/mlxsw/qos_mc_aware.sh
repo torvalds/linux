@@ -67,6 +67,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 NUM_NETIFS=6
 source $lib_dir/lib.sh
+source $lib_dir/devlink_lib.sh
 
 h1_create()
 {
@@ -140,10 +141,28 @@ switch_create()
 	ip link set dev br111 up
 	ip link set dev $swp2.111 master br111
 	ip link set dev $swp3.111 master br111
+
+	# Make sure that ingress quotas are smaller than egress so that there is
+	# room for both streams of traffic to be admitted to shared buffer.
+	devlink_port_pool_th_set $swp1 0 5
+	devlink_tc_bind_pool_th_set $swp1 0 ingress 0 5
+
+	devlink_port_pool_th_set $swp2 0 5
+	devlink_tc_bind_pool_th_set $swp2 1 ingress 0 5
+
+	devlink_port_pool_th_set $swp3 4 12
 }
 
 switch_destroy()
 {
+	devlink_port_pool_th_restore $swp3 4
+
+	devlink_tc_bind_pool_th_restore $swp2 1 ingress
+	devlink_port_pool_th_restore $swp2 0
+
+	devlink_tc_bind_pool_th_restore $swp1 0 ingress
+	devlink_port_pool_th_restore $swp1 0
+
 	ip link del dev br111
 	ip link del dev br1
 
