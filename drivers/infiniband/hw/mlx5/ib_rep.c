@@ -7,45 +7,6 @@
 #include "ib_rep.h"
 #include "srq.h"
 
-static const struct mlx5_ib_profile vf_rep_profile = {
-	STAGE_CREATE(MLX5_IB_STAGE_INIT,
-		     mlx5_ib_stage_init_init,
-		     mlx5_ib_stage_init_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_FLOW_DB,
-		     mlx5_ib_stage_rep_flow_db_init,
-		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
-		     mlx5_ib_stage_caps_init,
-		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
-		     mlx5_ib_stage_rep_non_default_cb,
-		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
-		     mlx5_ib_stage_rep_roce_init,
-		     mlx5_ib_stage_rep_roce_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_SRQ,
-		     mlx5_init_srq_table,
-		     mlx5_cleanup_srq_table),
-	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
-		     mlx5_ib_stage_dev_res_init,
-		     mlx5_ib_stage_dev_res_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
-		     mlx5_ib_stage_counters_init,
-		     mlx5_ib_stage_counters_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_BFREG,
-		     mlx5_ib_stage_bfrag_init,
-		     mlx5_ib_stage_bfrag_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_PRE_IB_REG_UMR,
-		     NULL,
-		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
-		     mlx5_ib_stage_ib_reg_init,
-		     mlx5_ib_stage_ib_reg_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_POST_IB_REG_UMR,
-		     mlx5_ib_stage_post_ib_reg_umr_init,
-		     NULL),
-};
-
 static int
 mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {

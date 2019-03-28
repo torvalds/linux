@@ -5879,7 +5879,7 @@ static struct ib_counters *mlx5_ib_create_counters(struct ib_device *device,
 	return &mcounters->ibcntrs;
 }
 
-void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
 	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
@@ -5888,7 +5888,7 @@ void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 	}
 }
 
-int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int err;
@@ -5957,20 +5957,6 @@ static int mlx5_ib_stage_flow_db_init(struct mlx5_ib_dev *dev)
 		return -ENOMEM;
 
 	mutex_init(&dev->flow_db->lock);
-
-	return 0;
-}
-
-int mlx5_ib_stage_rep_flow_db_init(struct mlx5_ib_dev *dev)
-{
-	struct mlx5_ib_dev *nic_dev;
-
-	nic_dev = mlx5_ib_get_uplink_ibdev(dev->mdev->priv.eswitch);
-
-	if (!nic_dev)
-		return -EINVAL;
-
-	dev->flow_db = nic_dev->flow_db;
 
 	return 0;
 }
@@ -6073,7 +6059,7 @@ static const struct ib_device_ops mlx5_ib_dev_dm_ops = {
 	.reg_dm_mr = mlx5_ib_reg_dm_mr,
 };
 
-int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int err;
@@ -6179,7 +6165,7 @@ static const struct ib_device_ops mlx5_ib_dev_port_rep_ops = {
 	.query_port = mlx5_ib_rep_query_port,
 };
 
-int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev)
 {
 	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_port_rep_ops);
 	return 0;
@@ -6226,7 +6212,7 @@ static void mlx5_ib_stage_common_roce_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_remove_netdev_notifier(dev, port_num);
 }
 
-int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 	enum rdma_link_layer ll;
@@ -6242,7 +6228,7 @@ int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev)
 	return err;
 }
 
-void mlx5_ib_stage_rep_roce_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_rep_roce_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_stage_common_roce_cleanup(dev);
 }
@@ -6289,12 +6275,12 @@ static void mlx5_ib_stage_roce_cleanup(struct mlx5_ib_dev *dev)
 	}
 }
 
-int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev)
 {
 	return create_dev_resources(&dev->devr);
 }
 
-void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev)
 {
 	destroy_dev_resources(&dev->devr);
 }
@@ -6316,7 +6302,7 @@ static const struct ib_device_ops mlx5_ib_dev_hw_stats_ops = {
 	.get_hw_stats = mlx5_ib_get_hw_stats,
 };
 
-int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
 		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_hw_stats_ops);
@@ -6327,7 +6313,7 @@ int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
-void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
 		mlx5_ib_dealloc_counters(dev);
@@ -6357,7 +6343,7 @@ static void mlx5_ib_stage_uar_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_put_uars_page(dev->mdev, dev->mdev->priv.uar);
 }
 
-int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
 {
 	int err;
 
@@ -6372,13 +6358,13 @@ int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
 	return err;
 }
 
-void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
 	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
 }
 
-int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 {
 	const char *name;
 
@@ -6390,17 +6376,17 @@ int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 	return ib_register_device(&dev->ib_dev, name);
 }
 
-void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)
 {
 	destroy_umrc_res(dev);
 }
 
-void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev)
 {
 	ib_unregister_device(&dev->ib_dev);
 }
 
-int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev)
 {
 	return create_umr_res(dev);
 }
