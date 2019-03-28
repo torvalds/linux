@@ -98,20 +98,17 @@ int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 #ifndef __PAGETABLE_PUD_FOLDED
 		if (pgd_none(*pgdp)) {
 			pudp = early_alloc_pgtable(PUD_TABLE_SIZE);
-			BUG_ON(pudp == NULL);
 			pgd_populate(&init_mm, pgdp, pudp);
 		}
 #endif /* !__PAGETABLE_PUD_FOLDED */
 		pudp = pud_offset(pgdp, ea);
 		if (pud_none(*pudp)) {
 			pmdp = early_alloc_pgtable(PMD_TABLE_SIZE);
-			BUG_ON(pmdp == NULL);
 			pud_populate(&init_mm, pudp, pmdp);
 		}
 		pmdp = pmd_offset(pudp, ea);
 		if (!pmd_present(*pmdp)) {
 			ptep = early_alloc_pgtable(PAGE_SIZE);
-			BUG_ON(ptep == NULL);
 			pmd_populate_kernel(&init_mm, pmdp, ptep);
 		}
 		ptep = pte_offset_kernel(pmdp, ea);
