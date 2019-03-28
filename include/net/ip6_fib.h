@@ -447,6 +447,7 @@ static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
 int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		 struct fib6_config *cfg, gfp_t gfp_flags,
 		 struct netlink_ext_ack *extack);
+void fib6_nh_release(struct fib6_nh *fib6_nh);
 
 static inline
 struct lwtunnel_state *fib6_info_nh_lwt(const struct fib6_info *f6i)

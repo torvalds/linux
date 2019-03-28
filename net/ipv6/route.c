@@ -3025,6 +3025,14 @@ out:
 	return err;
 }
 
+void fib6_nh_release(struct fib6_nh *fib6_nh)
+{
+	lwtstate_put(fib6_nh->nh_lwtstate);
+
+	if (fib6_nh->nh_dev)
+		dev_put(fib6_nh->nh_dev);
+}
+
 static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 					      gfp_t gfp_flags,
 					      struct netlink_ext_ack *extack)
