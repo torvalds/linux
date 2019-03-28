@@ -401,6 +401,16 @@ static int mlxsw_sx_port_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static struct devlink_port *
+mlxsw_sx_port_get_devlink_port(struct net_device *dev)
+{
+	struct mlxsw_sx_port *mlxsw_sx_port = netdev_priv(dev);
+	struct mlxsw_sx *mlxsw_sx = mlxsw_sx_port->mlxsw_sx;
+
+	return mlxsw_core_port_devlink_port_get(mlxsw_sx->core,
+						mlxsw_sx_port->local_port);
+}
+
 static const struct net_device_ops mlxsw_sx_port_netdev_ops = {
 	.ndo_open		= mlxsw_sx_port_open,
 	.ndo_stop		= mlxsw_sx_port_stop,
@@ -409,6 +419,7 @@ static const struct net_device_ops mlxsw_sx_port_netdev_ops = {
 	.ndo_get_stats64	= mlxsw_sx_port_get_stats64,
 	.ndo_get_phys_port_name = mlxsw_sx_port_get_phys_port_name,
 	.ndo_get_port_parent_id	= mlxsw_sx_port_get_port_parent_id,
+	.ndo_get_devlink_port	= mlxsw_sx_port_get_devlink_port,
 };
 
 static void mlxsw_sx_port_get_drvinfo(struct net_device *dev,
