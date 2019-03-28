@@ -21,7 +21,6 @@ config SOC_SAMA5D2
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_H32MX
@@ -36,7 +35,6 @@ config SOC_SAMA5D3
 	bool "SAMA5D3 family"
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
@@ -50,7 +48,6 @@ config SOC_SAMA5D4
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
