@@ -268,6 +268,20 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 	return rc;
 }
 
+static void qeth_l3_drain_rx_mode_cache(struct qeth_card *card)
+{
+	struct qeth_ipaddr *addr;
+	struct hlist_node *tmp;
+	int i;
+
+	spin_lock_bh(&card->mclock);
+	hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
+		hash_del(&addr->hnode);
+		kfree(addr);
+	}
+	spin_unlock_bh(&card->mclock);
+}
+
 static void qeth_l3_clear_ip_htable(struct qeth_card *card, int recover)
 {
 	struct qeth_ipaddr *addr;
@@ -288,18 +302,8 @@ static void qeth_l3_clear_ip_htable(struct qeth_card *card, int recover)
 	}
 
 	spin_unlock_bh(&card->ip_lock);
-
-	spin_lock_bh(&card->mclock);
-
-	hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
-		hash_del(&addr->hnode);
-		kfree(addr);
-	}
-
-	spin_unlock_bh(&card->mclock);
-
-
 }
+
 static void qeth_l3_recover_ip(struct qeth_card *card)
 {
 	struct qeth_ipaddr *addr;
@@ -1413,6 +1417,9 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 
 	qeth_set_allowed_threads(card, 0, 1);
 
+	cancel_work_sync(&card->rx_mode_work);
+	qeth_l3_drain_rx_mode_cache(card);
+
 	if (card->options.sniffer &&
 	    (card->info.promisc_mode == SET_PROMISC_MODE_ON))
 		qeth_diags_trace(card, QETH_DIAGS_CMD_TRACE_DISABLE);
@@ -1466,9 +1473,10 @@ qeth_l3_handle_promisc_mode(struct qeth_card *card)
 	}
 }
 
-static void qeth_l3_set_rx_mode(struct net_device *dev)
+static void qeth_l3_rx_mode_work(struct work_struct *work)
 {
-	struct qeth_card *card = dev->ml_priv;
+	struct qeth_card *card = container_of(work, struct qeth_card,
+					      rx_mode_work);
 	struct qeth_ipaddr *addr;
 	struct hlist_node *tmp;
 	int i, rc;
@@ -2101,6 +2109,13 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
+static void qeth_l3_set_rx_mode(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	schedule_work(&card->rx_mode_work);
+}
+
 /*
  * we need NOARP for IPv4 but we want neighbor solicitation for IPv6. Setting
  * NOARP on the netdevice is no option because it also turns off neighbor
@@ -2261,6 +2276,7 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	}
 
 	hash_init(card->ip_mc_htable);
+	INIT_WORK(&card->rx_mode_work, qeth_l3_rx_mode_work);
 	return 0;
 }
 
