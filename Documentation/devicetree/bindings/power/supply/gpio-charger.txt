@@ -20,7 +20,7 @@ Example:
 		compatible = "gpio-charger";
 		charger-type = "usb-sdp";
 		gpios = <&gpf0 2 0 0 0>;
-	}
+	};
 
 	battery {
 		power-supplies = <&usb_charger>;
