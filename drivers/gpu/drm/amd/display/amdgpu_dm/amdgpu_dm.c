@@ -2528,27 +2528,52 @@ static int fill_plane_dcc_attributes(struct amdgpu_device *adev,
 }
 
 static int
-fill_plane_tiling_attributes(struct amdgpu_device *adev,
+fill_plane_buffer_attributes(struct amdgpu_device *adev,
 			     const struct amdgpu_framebuffer *afb,
 			     const struct dc_plane_state *plane_state,
 			     union dc_tiling_info *tiling_info,
+			     union plane_size *plane_size,
 			     struct dc_plane_dcc_param *dcc,
 			     struct dc_plane_address *address,
 			     uint64_t tiling_flags)
 {
+	const struct drm_framebuffer *fb = &afb->base;
 	int ret;
 
 	memset(tiling_info, 0, sizeof(*tiling_info));
+	memset(plane_size, 0, sizeof(*plane_size));
 	memset(dcc, 0, sizeof(*dcc));
 	memset(address, 0, sizeof(*address));
 
 	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+		plane_size->grph.surface_size.x = 0;
+		plane_size->grph.surface_size.y = 0;
+		plane_size->grph.surface_size.width = fb->width;
+		plane_size->grph.surface_size.height = fb->height;
+		plane_size->grph.surface_pitch =
+			fb->pitches[0] / fb->format->cpp[0];
+
 		address->type = PLN_ADDR_TYPE_GRAPHICS;
 		address->grph.addr.low_part = lower_32_bits(afb->address);
 		address->grph.addr.high_part = upper_32_bits(afb->address);
 	} else {
-		const struct drm_framebuffer *fb = &afb->base;
 		uint64_t chroma_addr = afb->address + fb->offsets[1];
+
+		plane_size->video.luma_size.x = 0;
+		plane_size->video.luma_size.y = 0;
+		plane_size->video.luma_size.width = fb->width;
+		plane_size->video.luma_size.height = fb->height;
+		plane_size->video.luma_pitch =
+			fb->pitches[0] / fb->format->cpp[0];
+
+		plane_size->video.chroma_size.x = 0;
+		plane_size->video.chroma_size.y = 0;
+		/* TODO: set these based on surface format */
+		plane_size->video.chroma_size.width = fb->width / 2;
+		plane_size->video.chroma_size.height = fb->height / 2;
+
+		plane_size->video.chroma_pitch =
+			fb->pitches[1] / fb->format->cpp[1];
 
 		address->type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 		address->video_progressive.luma_addr.low_part =
@@ -2670,41 +2695,9 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	memset(&plane_state->address, 0, sizeof(plane_state->address));
-
-	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-		plane_state->plane_size.grph.surface_size.x = 0;
-		plane_state->plane_size.grph.surface_size.y = 0;
-		plane_state->plane_size.grph.surface_size.width = fb->width;
-		plane_state->plane_size.grph.surface_size.height = fb->height;
-		plane_state->plane_size.grph.surface_pitch =
-				fb->pitches[0] / fb->format->cpp[0];
-		/* TODO: unhardcode */
-		plane_state->color_space = COLOR_SPACE_SRGB;
-
-	} else {
-		plane_state->plane_size.video.luma_size.x = 0;
-		plane_state->plane_size.video.luma_size.y = 0;
-		plane_state->plane_size.video.luma_size.width = fb->width;
-		plane_state->plane_size.video.luma_size.height = fb->height;
-		plane_state->plane_size.video.luma_pitch =
-			fb->pitches[0] / fb->format->cpp[0];
-
-		plane_state->plane_size.video.chroma_size.x = 0;
-		plane_state->plane_size.video.chroma_size.y = 0;
-		/* TODO: set these based on surface format */
-		plane_state->plane_size.video.chroma_size.width = fb->width / 2;
-		plane_state->plane_size.video.chroma_size.height = fb->height / 2;
-
-		plane_state->plane_size.video.chroma_pitch =
-			fb->pitches[1] / fb->format->cpp[1];
-
-		/* TODO: unhardcode */
-		plane_state->color_space = COLOR_SPACE_YCBCR709;
-	}
-
-	fill_plane_tiling_attributes(adev, amdgpu_fb, plane_state,
+	fill_plane_buffer_attributes(adev, amdgpu_fb, plane_state,
 				     &plane_state->tiling_info,
+				     &plane_state->plane_size,
 				     &plane_state->dcc,
 				     &plane_state->address,
 				     tiling_flags);
@@ -4001,9 +3994,10 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 			dm_plane_state_old->dc_state != dm_plane_state_new->dc_state) {
 		struct dc_plane_state *plane_state = dm_plane_state_new->dc_state;
 
-		fill_plane_tiling_attributes(
+		fill_plane_buffer_attributes(
 			adev, afb, plane_state, &plane_state->tiling_info,
-			&plane_state->dcc, &plane_state->address, tiling_flags);
+			&plane_state->plane_size, &plane_state->dcc,
+			&plane_state->address, tiling_flags);
 	}
 
 	return 0;
@@ -5174,8 +5168,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		amdgpu_bo_unreserve(abo);
 
-		fill_plane_tiling_attributes(dm->adev, afb, dc_plane,
+		fill_plane_buffer_attributes(dm->adev, afb, dc_plane,
 			&bundle->plane_infos[planes_count].tiling_info,
+			&bundle->plane_infos[planes_count].plane_size,
 			&bundle->plane_infos[planes_count].dcc,
 			&bundle->flip_addrs[planes_count].address,
 			tiling_flags);
