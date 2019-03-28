@@ -1023,7 +1023,7 @@ struct bkey_packed *bch2_bkey_prev_filter(struct btree *b,
 		k = p;
 	}
 
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+	if (btree_keys_expensive_checks(b)) {
 		BUG_ON(ret >= orig_k);
 
 		for (i = ret ? bkey_next(ret) : btree_bkey_first(b, t);
@@ -1644,10 +1644,11 @@ static inline void __bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 void bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 				  struct btree *b)
 {
-#ifdef CONFIG_BCACHEFS_DEBUG
-	bch2_btree_node_iter_verify(iter, b);
-	bch2_btree_node_iter_next_check(iter, b);
-#endif
+	if (btree_keys_expensive_checks(b)) {
+		bch2_btree_node_iter_verify(iter, b);
+		bch2_btree_node_iter_next_check(iter, b);
+	}
+
 	__bch2_btree_node_iter_advance(iter, b);
 }
 
@@ -1710,7 +1711,7 @@ found:
 	iter->data[0].k = __btree_node_key_to_offset(b, prev);
 	iter->data[0].end = end;
 out:
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+	if (btree_keys_expensive_checks(b)) {
 		struct btree_node_iter iter2 = *iter;
 
 		if (prev)

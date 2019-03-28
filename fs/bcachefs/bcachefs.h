@@ -257,6 +257,8 @@ do {									\
 	BCH_DEBUG_PARAM(expensive_debug_checks,				\
 		"Enables various runtime debugging checks that "	\
 		"significantly affect performance")			\
+	BCH_DEBUG_PARAM(debug_check_iterators,				\
+		"Enables extra verification for btree iterators")	\
 	BCH_DEBUG_PARAM(debug_check_bkeys,				\
 		"Run bkey_debugcheck (primarily checking GC/allocation "\
 		"information) when iterating over keys")		\

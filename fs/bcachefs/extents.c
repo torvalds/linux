@@ -788,7 +788,8 @@ static bool bch2_extent_merge_inline(struct bch_fs *,
 				     struct bkey_packed *,
 				     bool);
 
-static void verify_extent_nonoverlapping(struct btree *b,
+static void verify_extent_nonoverlapping(struct bch_fs *c,
+					 struct btree *b,
 					 struct btree_node_iter *_iter,
 					 struct bkey_i *insert)
 {
@@ -796,6 +797,9 @@ static void verify_extent_nonoverlapping(struct btree *b,
 	struct btree_node_iter iter;
 	struct bkey_packed *k;
 	struct bkey uk;
+
+	if (!expensive_debug_checks(c))
+		return;
 
 	iter = *_iter;
 	k = bch2_btree_node_iter_prev_filter(&iter, b, KEY_TYPE_discard);
@@ -847,7 +851,7 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 	BUG_ON(insert->k.u64s > bch_btree_keys_u64s_remaining(c, l->b));
 
 	EBUG_ON(bkey_deleted(&insert->k) || !insert->k.size);
-	verify_extent_nonoverlapping(l->b, &l->iter, insert);
+	verify_extent_nonoverlapping(c, l->b, &l->iter, insert);
 
 	node_iter = l->iter;
 	k = bch2_btree_node_iter_prev_filter(&node_iter, l->b, KEY_TYPE_discard);

@@ -429,6 +429,9 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 	struct btree_node_iter tmp = l->iter;
 	struct bkey_packed *k;
 
+	if (!debug_check_iterators(iter->trans->c))
+		return;
+
 	if (iter->uptodate > BTREE_ITER_NEED_PEEK)
 		return;
 
@@ -474,6 +477,9 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 void bch2_btree_iter_verify(struct btree_iter *iter, struct btree *b)
 {
 	struct btree_iter *linked;
+
+	if (!debug_check_iterators(iter->trans->c))
+		return;
 
 	trans_for_each_iter_with_node(iter->trans, b, linked)
 		__bch2_btree_iter_verify(linked, b);
