@@ -4751,7 +4751,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	if (f6i->fib6_nh.nh_lwtstate)
 		return BPF_FIB_LKUP_RET_UNSUPP_LWT;
 
-	if (f6i->fib6_flags & RTF_GATEWAY)
+	if (f6i->fib6_nh.fib_nh_has_gw)
 		*dst = f6i->fib6_nh.nh_gw;
 
 	dev = f6i->fib6_nh.nh_dev;
