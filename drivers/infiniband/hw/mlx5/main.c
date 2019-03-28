@@ -5904,6 +5904,9 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	for (i = 0; i < dev->num_ports; i++) {
 		spin_lock_init(&dev->port[i].mp.mpi_lock);
 		rwlock_init(&dev->port[i].roce.netdev_lock);
+		dev->port[i].roce.dev = dev;
+		dev->port[i].roce.native_port_num = i + 1;
+		dev->port[i].roce.last_port_state = IB_PORT_DOWN;
 	}
 
 	err = mlx5_ib_init_multiport_master(dev);
@@ -6190,13 +6193,6 @@ static const struct ib_device_ops mlx5_ib_dev_common_roce_ops = {
 static int mlx5_ib_stage_common_roce_init(struct mlx5_ib_dev *dev)
 {
 	u8 port_num;
-	int i;
-
-	for (i = 0; i < dev->num_ports; i++) {
-		dev->port[i].roce.dev = dev;
-		dev->port[i].roce.native_port_num = i + 1;
-		dev->port[i].roce.last_port_state = IB_PORT_DOWN;
-	}
 
 	dev->ib_dev.uverbs_ex_cmd_mask |=
 			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ) |
