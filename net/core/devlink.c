@@ -5358,6 +5358,24 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 			       struct net_device *netdev)
 {
+	/* If driver registers devlink port, it should set devlink port
+	 * attributes accordingly so the compat functions are called
+	 * and the original ops are not used.
+	 */
+	if (netdev->netdev_ops->ndo_get_phys_port_name) {
+		/* Some drivers use the same set of ndos for netdevs
+		 * that have devlink_port registered and also for
+		 * those who don't. Make sure that ndo_get_phys_port_name
+		 * returns -EOPNOTSUPP here in case it is defined.
+		 * Warn if not.
+		 */
+		const struct net_device_ops *ops = netdev->netdev_ops;
+		char name[IFNAMSIZ];
+		int err;
+
+		err = ops->ndo_get_phys_port_name(netdev, name, sizeof(name));
+		WARN_ON(err != -EOPNOTSUPP);
+	}
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, netdev);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_eth_set);
