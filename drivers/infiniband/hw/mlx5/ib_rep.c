@@ -51,6 +51,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_ib_dev *ibdev;
+	int num_ports = 1;
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
 		profile = &uplink_rep_profile;
@@ -61,10 +62,17 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	if (!ibdev)
 		return -ENOMEM;
 
+	ibdev->port = kcalloc(num_ports, sizeof(*ibdev->port),
+			      GFP_KERNEL);
+	if (!ibdev->port) {
+		ib_dealloc_device(&ibdev->ib_dev);
+		return -ENOMEM;
+	}
+
 	ibdev->rep = rep;
 	ibdev->mdev = dev;
-	ibdev->num_ports = max(MLX5_CAP_GEN(dev, num_ports),
-			       MLX5_CAP_GEN(dev, num_vhca_ports));
+	ibdev->num_ports = num_ports;
+
 	if (!__mlx5_ib_add(ibdev, profile))
 		return -EINVAL;
 
