@@ -2471,6 +2471,11 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	if (IS_ERR(sta))
 		sta = NULL;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (local->force_tx_status)
+		info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+#endif
+
 	/* convert Ethernet header to proper 802.11 header (based on
 	 * operation mode) */
 	ethertype = (skb->data[12] << 8) | skb->data[13];
@@ -3472,6 +3477,11 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		      IEEE80211_TX_CTL_DONTFRAG |
 		      (tid_tx ? IEEE80211_TX_CTL_AMPDU : 0);
 	info->control.flags = IEEE80211_TX_CTRL_FAST_XMIT;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (local->force_tx_status)
+		info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+#endif
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
