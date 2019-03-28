@@ -115,7 +115,6 @@ static struct tps_info tps6507x_pmic_regs[] = {
 struct tps6507x_pmic {
 	struct regulator_desc desc[TPS6507X_NUM_REGULATOR];
 	struct tps6507x_dev *mfd;
-	struct regulator_dev *rdev[TPS6507X_NUM_REGULATOR];
 	struct tps_info *info[TPS6507X_NUM_REGULATOR];
 	struct mutex io_lock;
 };
@@ -505,9 +504,6 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 				pdev->name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		tps->rdev[i] = rdev;
 	}
 
 	tps6507x_dev->pmic = tps;
