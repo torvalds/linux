@@ -234,15 +234,6 @@ struct btree_iter {
 	struct bkey		k;
 
 	u64			id;
-
-	/*
-	 * Circular linked list of linked iterators: linked iterators share
-	 * locks (e.g. two linked iterators may have the same node intent
-	 * locked, or read and write locked, at the same time), and insertions
-	 * through one iterator won't invalidate the other linked iterators.
-	 */
-	/* Must come last: */
-	struct btree_iter	*next;
 };
 
 struct deferred_update {

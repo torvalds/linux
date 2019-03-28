@@ -28,11 +28,6 @@ static inline bool btree_trans_has_multiple_iters(const struct btree_trans *tran
 	return hweight64(trans->iters_linked) > 1;
 }
 
-static inline bool btree_iter_linked(const struct btree_iter *iter)
-{
-	return iter->next != iter;
-}
-
 static inline int btree_iter_err(const struct btree_iter *iter)
 {
 	return iter->flags & BTREE_ITER_ERROR ? -EIO : 0;
@@ -164,8 +159,6 @@ struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *);
 
 void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *, struct bpos);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
-
-void bch2_btree_iter_copy(struct btree_iter *, struct btree_iter *);
 
 static inline struct bpos btree_type_successor(enum btree_id id,
 					       struct bpos pos)
