@@ -128,8 +128,8 @@ static int qstat_show(struct seq_file *m, void *v)
 		seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
 			   q->u.in.polling, q->u.in.ack_start,
 			   q->u.in.ack_count);
-		seq_printf(m, "DSCI: %d   IRQs disabled: %u\n",
-			   *(u32 *)q->irq_ptr->dsci,
+		seq_printf(m, "DSCI: %x   IRQs disabled: %u\n",
+			   *(u8 *)q->irq_ptr->dsci,
 			   test_bit(QDIO_QUEUE_IRQS_DISABLED,
 			   &q->u.in.queue_irq_state));
 	}
