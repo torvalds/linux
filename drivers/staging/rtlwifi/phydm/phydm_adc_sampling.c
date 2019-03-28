@@ -67,7 +67,7 @@ static void phydm_la_get_tx_pkt_buf(void *dm_void)
 			"is_round_up = ((%d)), finish_addr=((0x%x)), 0x7c0=((0x%x))\n",
 			is_round_up, finish_addr, value32);
 		/*Byte to 64Byte*/
-		smp_number = ((adc_smp_buf->buffer_size) >> 3);
+		smp_number = (adc_smp_buf->buffer_size) >> 3;
 	} else {
 		addr = adc_smp_buf->start_pos;
 
@@ -103,7 +103,7 @@ static void phydm_la_get_tx_pkt_buf(void *dm_void)
 				/*Reg140=0x780+(addr>>12),
 				 *addr=0x30~0x3F, total 16 pages
 				 */
-				page = (addr >> 12);
+				page = addr >> 12;
 			}
 			odm_set_bb_reg(dm, 0x0140, MASKLWORD, 0x780 + page);
 
