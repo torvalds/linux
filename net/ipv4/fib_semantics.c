@@ -204,16 +204,22 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 	free_percpu(rtp);
 }
 
+void fib_nh_common_release(struct fib_nh_common *nhc)
+{
+	if (nhc->nhc_dev)
+		dev_put(nhc->nhc_dev);
+
+	lwtstate_put(nhc->nhc_lwtstate);
+}
+EXPORT_SYMBOL_GPL(fib_nh_common_release);
+
 void fib_nh_release(struct net *net, struct fib_nh *fib_nh)
 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (fib_nh->nh_tclassid)
 		net->ipv4.fib_num_tclassid_users--;
 #endif
-	if (fib_nh->fib_nh_dev)
-		dev_put(fib_nh->fib_nh_dev);
-
-	lwtstate_put(fib_nh->fib_nh_lws);
+	fib_nh_common_release(&fib_nh->nh_common);
 	free_nh_exceptions(fib_nh);
 	rt_fibinfo_free_cpus(fib_nh->nh_pcpu_rth_output);
 	rt_fibinfo_free(&fib_nh->nh_rth_input);
@@ -462,6 +468,30 @@ static int fib_detect_death(struct fib_info *fi, int order,
 	return 1;
 }
 
+int fib_nh_common_init(struct fib_nh_common *nhc, struct nlattr *encap,
+		       u16 encap_type, void *cfg, gfp_t gfp_flags,
+		       struct netlink_ext_ack *extack)
+{
+	if (encap) {
+		struct lwtunnel_state *lwtstate;
+		int err;
+
+		if (encap_type == LWTUNNEL_ENCAP_NONE) {
+			NL_SET_ERR_MSG(extack, "LWT encap type not specified");
+			return -EINVAL;
+		}
+		err = lwtunnel_build_state(encap_type, encap, nhc->nhc_family,
+					   cfg, &lwtstate, extack);
+		if (err)
+			return err;
+
+		nhc->nhc_lwtstate = lwtstate_get(lwtstate);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fib_nh_common_init);
+
 int fib_nh_init(struct net *net, struct fib_nh *nh,
 		struct fib_config *cfg, int nh_weight,
 		struct netlink_ext_ack *extack)
@@ -474,22 +504,10 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 	if (!nh->nh_pcpu_rth_output)
 		goto err_out;
 
-	if (cfg->fc_encap) {
-		struct lwtunnel_state *lwtstate;
-
-		err = -EINVAL;
-		if (cfg->fc_encap_type == LWTUNNEL_ENCAP_NONE) {
-			NL_SET_ERR_MSG(extack, "LWT encap type not specified");
-			goto lwt_failure;
-		}
-		err = lwtunnel_build_state(cfg->fc_encap_type,
-					   cfg->fc_encap, AF_INET, cfg,
-					   &lwtstate, extack);
-		if (err)
-			goto lwt_failure;
-
-		nh->fib_nh_lws = lwtstate_get(lwtstate);
-	}
+	err = fib_nh_common_init(&nh->nh_common, cfg->fc_encap,
+				 cfg->fc_encap_type, cfg, GFP_KERNEL, extack);
+	if (err)
+		goto init_failure;
 
 	nh->fib_nh_oif = cfg->fc_oif;
 	if (cfg->fc_gw) {
@@ -508,7 +526,7 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 #endif
 	return 0;
 
-lwt_failure:
+init_failure:
 	rt_fibinfo_free_cpus(nh->nh_pcpu_rth_output);
 	nh->nh_pcpu_rth_output = NULL;
 err_out:

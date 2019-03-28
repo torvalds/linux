@@ -2934,18 +2934,6 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		fib6_nh->fib_nh_flags |= RTNH_F_ONLINK;
 	}
 
-	if (cfg->fc_encap) {
-		struct lwtunnel_state *lwtstate;
-
-		err = lwtunnel_build_state(cfg->fc_encap_type,
-					   cfg->fc_encap, AF_INET6, cfg,
-					   &lwtstate, extack);
-		if (err)
-			goto out;
-
-		fib6_nh->fib_nh_lws = lwtstate_get(lwtstate);
-	}
-
 	fib6_nh->fib_nh_weight = 1;
 
 	/* We cannot add true routes via loopback here,
@@ -2999,6 +2987,10 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	    !netif_carrier_ok(dev))
 		fib6_nh->fib_nh_flags |= RTNH_F_LINKDOWN;
 
+	err = fib_nh_common_init(&fib6_nh->nh_common, cfg->fc_encap,
+				 cfg->fc_encap_type, cfg, gfp_flags, extack);
+	if (err)
+		goto out;
 set_dev:
 	fib6_nh->fib_nh_dev = dev;
 	fib6_nh->fib_nh_oif = dev->ifindex;
@@ -3019,10 +3011,7 @@ out:
 
 void fib6_nh_release(struct fib6_nh *fib6_nh)
 {
-	lwtstate_put(fib6_nh->fib_nh_lws);
-
-	if (fib6_nh->fib_nh_dev)
-		dev_put(fib6_nh->fib_nh_dev);
+	fib_nh_common_release(&fib6_nh->nh_common);
 }
 
 static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,

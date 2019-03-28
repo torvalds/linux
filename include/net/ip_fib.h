@@ -441,6 +441,10 @@ int fib_nh_init(struct net *net, struct fib_nh *fib_nh,
 		struct fib_config *cfg, int nh_weight,
 		struct netlink_ext_ack *extack);
 void fib_nh_release(struct net *net, struct fib_nh *fib_nh);
+int fib_nh_common_init(struct fib_nh_common *nhc, struct nlattr *fc_encap,
+		       u16 fc_encap_type, void *cfg, gfp_t gfp_flags,
+		       struct netlink_ext_ack *extack);
+void fib_nh_common_release(struct fib_nh_common *nhc);
 
 /* Exported by fib_trie.c */
 void fib_trie_init(void);
