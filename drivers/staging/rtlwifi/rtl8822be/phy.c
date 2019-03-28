@@ -219,10 +219,8 @@ bool rtl8822be_halmac_cb_init_bb_rf_register(struct rtl_priv *rtlpriv)
 	txpath = RF_MASK_A | RF_MASK_B;
 	rxpath = RF_MASK_A | RF_MASK_B;
 	tx2path = false;
-	ret = rtlpriv->phydm.ops->phydm_trx_mode(rtlpriv, txpath, rxpath,
+	return rtlpriv->phydm.ops->phydm_trx_mode(rtlpriv, txpath, rxpath,
 						 tx2path);
-
-	return ret;
 }
 
 static void _rtl8822be_phy_init_tx_power_by_rate(struct ieee80211_hw *hw)
@@ -1580,11 +1578,9 @@ _rtl8822be_phy_get_txpower_by_rate(struct ieee80211_hw *hw, u8 band, u8 path,
 	else
 		tx_num = RF_1TX;
 
-	tx_pwr_diff = (char)(rtlphy->tx_power_by_rate_offset[band][path][tx_num]
+	return (char)(rtlphy->tx_power_by_rate_offset[band][path][tx_num]
 							    [rate] &
 			     0xff);
-
-	return tx_pwr_diff;
 }
 
 u8 rtl8822be_get_txpower_index(struct ieee80211_hw *hw, u8 path, u8 rate,
@@ -1844,7 +1840,6 @@ static long _rtl8822be_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
 					    u8 txpwridx)
 {
 	long offset;
-	long pwrout_dbm;
 
 	switch (wirelessmode) {
 	case WIRELESS_MODE_B:
@@ -1858,8 +1853,7 @@ static long _rtl8822be_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
 		offset = -8;
 		break;
 	}
-	pwrout_dbm = txpwridx / 2 + offset;
-	return pwrout_dbm;
+	return txpwridx / 2 + offset;
 }
 
 void rtl8822be_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
@@ -2218,6 +2212,5 @@ bool rtl8822be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	if (rfpwr_state == ppsc->rfpwr_state)
 		return bresult;
-	bresult = _rtl8822be_phy_set_rf_power_state(hw, rfpwr_state);
-	return bresult;
+	return _rtl8822be_phy_set_rf_power_state(hw, rfpwr_state);
 }
