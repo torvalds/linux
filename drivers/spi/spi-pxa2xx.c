@@ -925,7 +925,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 	struct spi_message *message = controller->cur_msg;
-	struct chip_data *chip = spi_get_ctldata(message->spi);
+	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 dma_thresh = chip->dma_threshold;
 	u32 dma_burst = chip->dma_burst_size;
 	u32 change_mask = pxa2xx_spi_get_ssrc1_change_mask(drv_data);
@@ -950,7 +950,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		}
 
 		/* warn ... we force this to PIO mode */
-		dev_warn_ratelimited(&message->spi->dev,
+		dev_warn_ratelimited(&spi->dev,
 				     "DMA disabled for transfer length %ld greater than %d\n",
 				     (long)transfer->len, MAX_DMA_LEN);
 	}
@@ -999,15 +999,15 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	 */
 	if (chip->enable_dma) {
 		if (pxa2xx_spi_set_dma_burst_and_threshold(chip,
-						message->spi,
+						spi,
 						bits, &dma_burst,
 						&dma_thresh))
-			dev_warn_ratelimited(&message->spi->dev,
+			dev_warn_ratelimited(&spi->dev,
 					     "DMA burst size reduced to match bits_per_word\n");
 	}
 
 	dma_mapped = controller->can_dma &&
-		     controller->can_dma(controller, message->spi, transfer) &&
+		     controller->can_dma(controller, spi, transfer) &&
 		     controller->cur_msg_mapped;
 	if (dma_mapped) {
 
@@ -1035,12 +1035,12 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	cr0 = pxa2xx_configure_sscr0(drv_data, clk_div, bits);
 	if (!pxa25x_ssp_comp(drv_data))
-		dev_dbg(&message->spi->dev, "%u Hz actual, %s\n",
+		dev_dbg(&spi->dev, "%u Hz actual, %s\n",
 			controller->max_speed_hz
 				/ (1 + ((cr0 & SSCR0_SCR(0xfff)) >> 8)),
 			dma_mapped ? "DMA" : "PIO");
 	else
-		dev_dbg(&message->spi->dev, "%u Hz actual, %s\n",
+		dev_dbg(&spi->dev, "%u Hz actual, %s\n",
 			controller->max_speed_hz / 2
 				/ (1 + ((cr0 & SSCR0_SCR(0x0ff)) >> 8)),
 			dma_mapped ? "DMA" : "PIO");
