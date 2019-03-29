@@ -3862,6 +3862,38 @@ static void dm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
+static bool does_crtc_have_active_plane(struct drm_crtc_state *new_crtc_state)
+{
+	struct drm_atomic_state *state = new_crtc_state->state;
+	struct drm_plane *plane;
+	int num_active = 0;
+
+	drm_for_each_plane_mask(plane, state->dev, new_crtc_state->plane_mask) {
+		struct drm_plane_state *new_plane_state;
+
+		/* Cursor planes are "fake". */
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			continue;
+
+		new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+
+		if (!new_plane_state) {
+			/*
+			 * The plane is enable on the CRTC and hasn't changed
+			 * state. This means that it previously passed
+			 * validation and is therefore enabled.
+			 */
+			num_active += 1;
+			continue;
+		}
+
+		/* We need a framebuffer to be considered enabled. */
+		num_active += (new_plane_state->fb != NULL);
+	}
+
+	return num_active > 0;
+}
+
 static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 				       struct drm_crtc_state *state)
 {
@@ -3879,6 +3911,11 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	/* In some use cases, like reset, no stream is attached */
 	if (!dm_crtc_state->stream)
 		return 0;
+
+	/* We want at least one hardware plane enabled to use the stream. */
+	if (state->enable && state->active &&
+	    !does_crtc_have_active_plane(state))
+		return -EINVAL;
 
 	if (dc_validate_stream(dc, dm_crtc_state->stream) == DC_OK)
 		return 0;
@@ -4849,9 +4886,13 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	x = plane->state->crtc_x;
 	y = plane->state->crtc_y;
-	/* avivo cursor are offset into the total surface */
-	x += crtc->primary->state->src_x >> 16;
-	y += crtc->primary->state->src_y >> 16;
+
+	if (crtc->primary->state) {
+		/* avivo cursor are offset into the total surface */
+		x += crtc->primary->state->src_x >> 16;
+		y += crtc->primary->state->src_y >> 16;
+	}
+
 	if (x < 0) {
 		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
 		x = 0;
@@ -5872,21 +5913,12 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 	struct amdgpu_dm_connector *aconnector = NULL;
 	struct drm_connector_state *drm_new_conn_state = NULL, *drm_old_conn_state = NULL;
 	struct dm_connector_state *dm_new_conn_state = NULL, *dm_old_conn_state = NULL;
-	struct drm_plane_state *new_plane_state = NULL;
 
 	new_stream = NULL;
 
 	dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 	dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 	acrtc = to_amdgpu_crtc(crtc);
-
-	new_plane_state = drm_atomic_get_new_plane_state(state, new_crtc_state->crtc->primary);
-
-	if (new_crtc_state->enable && new_plane_state && !new_plane_state->fb) {
-		ret = -EINVAL;
-		goto fail;
-	}
-
 	aconnector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
 
 	/* TODO This hack should go away */
