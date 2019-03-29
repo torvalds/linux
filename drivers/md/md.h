@@ -463,6 +463,9 @@ struct mddev {
 	 */
 	struct bio *flush_bio;
 	atomic_t flush_pending;
+	ktime_t start_flush, last_flush; /* last_flush is when the last completed
+					  * flush was started.
+					  */
 	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
