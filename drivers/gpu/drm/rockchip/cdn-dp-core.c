@@ -27,6 +27,7 @@
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
+#include <uapi/linux/videodev2.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -730,11 +731,25 @@ static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				       struct drm_crtc_state *crtc_state,
 				       struct drm_connector_state *conn_state)
 {
+	struct cdn_dp_device *dp = encoder_to_dp(encoder);
+	struct drm_display_info *di = &dp->connector.display_info;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+
+	switch (di->bpc) {
+	case 6:
+		s->bus_format = MEDIA_BUS_FMT_RGB666_1X24_CPADHI;
+		break;
+	case 8:
+	default:
+		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	}
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
 	s->tv_state = &conn_state->tv;
+	s->eotf = TRADITIONAL_GAMMA_SDR;
+	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	return 0;
 }
