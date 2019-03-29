@@ -101,18 +101,9 @@ out:
 	return err;
 }
 
-static struct sk_buff *xfrm4_mode_tunnel_gso_segment(struct xfrm_state *x,
-						     struct sk_buff *skb,
-						     netdev_features_t features)
-{
-	__skb_push(skb, skb->mac_len);
-	return skb_mac_gso_segment(skb, features);
-}
-
 static struct xfrm_mode xfrm4_tunnel_mode = {
 	.input2 = xfrm4_mode_tunnel_input,
 	.output2 = xfrm4_mode_tunnel_output,
-	.gso_segment = xfrm4_mode_tunnel_gso_segment,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

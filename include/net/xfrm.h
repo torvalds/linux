@@ -449,11 +449,6 @@ struct xfrm_mode {
 	 */
 	int (*output2)(struct xfrm_state *x,struct sk_buff *skb);
 
-	/*
-	 * Adjust pointers into the packet and do GSO segmentation.
-	 */
-	struct sk_buff *(*gso_segment)(struct xfrm_state *x, struct sk_buff *skb, netdev_features_t features);
-
 	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
 	u8 encap;
