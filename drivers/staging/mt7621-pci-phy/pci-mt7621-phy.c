@@ -78,6 +78,8 @@
 
 #define RG_PE1_FRC_MSTCKDIV			BIT(5)
 
+#define MAX_PHYS	2
+
 /**
  * struct mt7621_pci_phy_instance - Mt7621 Pcie PHY device
  * @phy: pointer to the kernel PHY device
@@ -289,6 +291,20 @@ static const struct phy_ops mt7621_pci_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static struct phy *mt7621_pcie_phy_of_xlate(struct device *dev,
+					    struct of_phandle_args *args)
+{
+	struct mt7621_pci_phy *mt7621_phy = dev_get_drvdata(dev);
+
+	if (args->args_count == 0)
+		return mt7621_phy->phys[0]->phy;
+
+	if (WARN_ON(args->args[0] >= MAX_PHYS))
+		return ERR_PTR(-ENODEV);
+
+	return mt7621_phy->phys[args->args[0]]->phy;
+}
+
 static int mt7621_pci_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -304,7 +320,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
-	phy->nphys = of_get_child_count(np);
+	phy->nphys = MAX_PHYS;
 	phy->phys = devm_kcalloc(dev, phy->nphys,
 				 sizeof(*phy->phys), GFP_KERNEL);
 	if (!phy->phys)
@@ -325,8 +341,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(port_base);
 	}
 
-	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for (port = 0; port < MAX_PHYS; port++) {
 		struct mt7621_pci_phy_instance *instance;
 		struct phy *pphy;
 
@@ -338,7 +353,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 
 		phy->phys[port] = instance;
 
-		pphy = devm_phy_create(dev, child_np, &mt7621_pci_phy_ops);
+		pphy = devm_phy_create(dev, dev->of_node, &mt7621_pci_phy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
 			ret = PTR_ERR(phy);
@@ -349,10 +364,9 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 		instance->phy = pphy;
 		instance->index = port;
 		phy_set_drvdata(pphy, instance);
-		port++;
 	}
 
-	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
+	provider = devm_of_phy_provider_register(dev, mt7621_pcie_phy_of_xlate);
 
 	return PTR_ERR_OR_ZERO(provider);
 
