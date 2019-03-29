@@ -228,7 +228,10 @@ static struct isc_format controller_formats[] = {
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 	},
 	{
-		.fourcc		= V4L2_PIX_FMT_ARGB32,
+		.fourcc		= V4L2_PIX_FMT_ABGR32,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_XBGR32,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_YUV420,
@@ -1100,7 +1103,8 @@ static int isc_try_validate_formats(struct isc_device *isc)
 		break;
 
 	case V4L2_PIX_FMT_RGB565:
-	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_ABGR32:
+	case V4L2_PIX_FMT_XBGR32:
 	case V4L2_PIX_FMT_ARGB444:
 	case V4L2_PIX_FMT_ARGB555:
 		ret = 0;
@@ -1188,7 +1192,8 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
 		break;
-	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_ABGR32:
+	case V4L2_PIX_FMT_XBGR32:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_ARGB32;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
@@ -1234,7 +1239,8 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_ARGB555:
 	case V4L2_PIX_FMT_ARGB444:
-	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_ABGR32:
+	case V4L2_PIX_FMT_XBGR32:
 		/* if sensor format is RAW, we convert inside ISC */
 		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
 			isc->try_config.bits_pipeline = CFA_ENABLE |
