@@ -1002,7 +1002,8 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 
 	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
 		FSCTL_VALIDATE_NEGOTIATE_INFO, true /* is_fsctl */,
-		(char *)pneg_inbuf, inbuflen, (char **)&pneg_rsp, &rsplen);
+		(char *)pneg_inbuf, inbuflen, CIFSMaxBufSize,
+		(char **)&pneg_rsp, &rsplen);
 	if (rc == -EOPNOTSUPP) {
 		/*
 		 * Old Windows versions or Netapp SMB server can return
@@ -2478,7 +2479,8 @@ creat_exit:
 int
 SMB2_ioctl_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 		u64 persistent_fid, u64 volatile_fid, u32 opcode,
-		bool is_fsctl, char *in_data, u32 indatalen)
+		bool is_fsctl, char *in_data, u32 indatalen,
+		__u32 max_response_size)
 {
 	struct smb2_ioctl_req *req;
 	struct kvec *iov = rqst->rq_iov;
@@ -2520,16 +2522,21 @@ SMB2_ioctl_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 	req->OutputCount = 0; /* MBZ */
 
 	/*
-	 * Could increase MaxOutputResponse, but that would require more
-	 * than one credit. Windows typically sets this smaller, but for some
+	 * In most cases max_response_size is set to 16K (CIFSMaxBufSize)
+	 * We Could increase default MaxOutputResponse, but that could require
+	 * more credits. Windows typically sets this smaller, but for some
 	 * ioctls it may be useful to allow server to send more. No point
 	 * limiting what the server can send as long as fits in one credit
-	 * Unfortunately - we can not handle more than CIFS_MAX_MSG_SIZE
-	 * (by default, note that it can be overridden to make max larger)
-	 * in responses (except for read responses which can be bigger.
-	 * We may want to bump this limit up
+	 * We can not handle more than CIFS_MAX_BUF_SIZE yet but may want
+	 * to increase this limit up in the future.
+	 * Note that for snapshot queries that servers like Azure expect that
+	 * the first query be minimal size (and just used to get the number/size
+	 * of previous versions) so response size must be specified as EXACTLY
+	 * sizeof(struct snapshot_array) which is 16 when rounded up to multiple
+	 * of eight bytes.  Currently that is the only case where we set max
+	 * response size smaller.
 	 */
-	req->MaxOutputResponse = cpu_to_le32(CIFSMaxBufSize);
+	req->MaxOutputResponse = cpu_to_le32(max_response_size);
 
 	if (is_fsctl)
 		req->Flags = cpu_to_le32(SMB2_0_IOCTL_IS_FSCTL);
@@ -2550,13 +2557,14 @@ SMB2_ioctl_free(struct smb_rqst *rqst)
 		cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
 }
 
+
 /*
  *	SMB2 IOCTL is used for both IOCTLs and FSCTLs
  */
 int
 SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	   u64 volatile_fid, u32 opcode, bool is_fsctl,
-	   char *in_data, u32 indatalen,
+	   char *in_data, u32 indatalen, u32 max_out_data_len,
 	   char **out_data, u32 *plen /* returned data len */)
 {
 	struct smb_rqst rqst;
@@ -2593,8 +2601,8 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = SMB2_IOCTL_IOV_SIZE;
 
-	rc = SMB2_ioctl_init(tcon, &rqst, persistent_fid, volatile_fid,
-			     opcode, is_fsctl, in_data, indatalen);
+	rc = SMB2_ioctl_init(tcon, &rqst, persistent_fid, volatile_fid, opcode,
+			     is_fsctl, in_data, indatalen, max_out_data_len);
 	if (rc)
 		goto ioctl_exit;
 
@@ -2672,7 +2680,8 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SET_COMPRESSION, true /* is_fsctl */,
 			(char *)&fsctl_input /* data input */,
-			2 /* in data len */, &ret_data /* out data */, NULL);
+			2 /* in data len */, CIFSMaxBufSize /* max out data */,
+			&ret_data /* out data */, NULL);
 
 	cifs_dbg(FYI, "set compression rc %d\n", rc);
 

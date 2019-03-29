@@ -74,7 +74,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY,
 			true /* is_fsctl */,
 			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
-			NULL, NULL /* no return info */);
+			CIFSMaxBufSize, NULL, NULL /* no return info */);
 		if (rc == -EOPNOTSUPP) {
 			cifs_dbg(VFS,
 			     "resiliency not supported by server, disabling\n");
