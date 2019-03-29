@@ -623,7 +623,10 @@ EXPORT_SYMBOL_GPL(xfrm_output);
 
 static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
+	const struct xfrm_state_afinfo *afinfo;
 	struct xfrm_mode *inner_mode;
+	int err = -EAFNOSUPPORT;
+
 	if (x->sel.family == AF_UNSPEC)
 		inner_mode = xfrm_ip2inner_mode(x,
 				xfrm_af2proto(skb_dst(skb)->ops->family));
@@ -632,7 +635,14 @@ static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (inner_mode == NULL)
 		return -EAFNOSUPPORT;
-	return inner_mode->afinfo->extract_output(x, skb);
+
+	rcu_read_lock();
+	afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
+	if (likely(afinfo))
+		err = afinfo->extract_output(x, skb);
+	rcu_read_unlock();
+
+	return err;
 }
 
 void xfrm_local_error(struct sk_buff *skb, int mtu)

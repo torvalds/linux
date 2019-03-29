@@ -72,6 +72,8 @@ int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb)
 static int __xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
+	const struct xfrm_state_afinfo *afinfo;
+	int ret = -EAFNOSUPPORT;
 
 #ifdef CONFIG_NETFILTER
 	if (!x) {
@@ -80,7 +82,15 @@ static int __xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 #endif
 
-	return x->outer_mode->afinfo->output_finish(sk, skb);
+	rcu_read_lock();
+	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode->family);
+	if (likely(afinfo))
+		ret = afinfo->output_finish(sk, skb);
+	else
+		kfree_skb(skb);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 int xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)

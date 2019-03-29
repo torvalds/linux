@@ -2545,6 +2545,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 					    const struct flowi *fl,
 					    struct dst_entry *dst)
 {
+	const struct xfrm_state_afinfo *afinfo;
 	struct net *net = xp_net(policy);
 	unsigned long now = jiffies;
 	struct net_device *dev;
@@ -2622,7 +2623,14 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst1->lastuse = now;
 
 		dst1->input = dst_discard;
-		dst1->output = inner_mode->afinfo->output;
+
+		rcu_read_lock();
+		afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
+		if (likely(afinfo))
+			dst1->output = afinfo->output;
+		else
+			dst1->output = dst_discard_out;
+		rcu_read_unlock();
 
 		xdst_prev = xdst;
 

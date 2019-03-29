@@ -354,7 +354,6 @@ int xfrm_register_mode(struct xfrm_mode *mode)
 	if (!try_module_get(afinfo->owner))
 		goto out;
 
-	mode->afinfo = afinfo;
 	modemap[mode->encap] = mode;
 	err = 0;
 
@@ -378,7 +377,7 @@ void xfrm_unregister_mode(struct xfrm_mode *mode)
 	spin_lock_bh(&xfrm_mode_lock);
 	if (likely(modemap[mode->encap] == mode)) {
 		modemap[mode->encap] = NULL;
-		module_put(mode->afinfo->owner);
+		module_put(afinfo->owner);
 	}
 
 	spin_unlock_bh(&xfrm_mode_lock);
@@ -2188,6 +2187,7 @@ struct xfrm_state_afinfo *xfrm_state_afinfo_get_rcu(unsigned int family)
 
 	return rcu_dereference(xfrm_state_afinfo[family]);
 }
+EXPORT_SYMBOL_GPL(xfrm_state_afinfo_get_rcu);
 
 struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family)
 {

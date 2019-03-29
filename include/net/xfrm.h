@@ -423,7 +423,6 @@ int xfrm_register_type_offload(const struct xfrm_type_offload *type, unsigned sh
 int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 
 struct xfrm_mode {
-	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
 	u8 encap;
 	u8 family;

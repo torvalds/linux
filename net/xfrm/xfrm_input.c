@@ -352,19 +352,35 @@ xfrm_inner_mode_encap_remove(struct xfrm_state *x,
 static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct xfrm_mode *inner_mode = x->inner_mode;
-	int err;
+	const struct xfrm_state_afinfo *afinfo;
+	int err = -EAFNOSUPPORT;
 
-	err = x->outer_mode->afinfo->extract_input(x, skb);
-	if (err)
+	rcu_read_lock();
+	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode->family);
+	if (likely(afinfo))
+		err = afinfo->extract_input(x, skb);
+
+	if (err) {
+		rcu_read_unlock();
 		return err;
+	}
 
 	if (x->sel.family == AF_UNSPEC) {
 		inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);
-		if (inner_mode == NULL)
+		if (!inner_mode) {
+			rcu_read_unlock();
 			return -EAFNOSUPPORT;
+		}
 	}
 
-	skb->protocol = inner_mode->afinfo->eth_proto;
+	afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
+	if (unlikely(!afinfo)) {
+		rcu_read_unlock();
+		return -EAFNOSUPPORT;
+	}
+
+	skb->protocol = afinfo->eth_proto;
+	rcu_read_unlock();
 	return xfrm_inner_mode_encap_remove(x, inner_mode, skb);
 }
 
@@ -440,6 +456,7 @@ static int xfrm_inner_mode_input(struct xfrm_state *x,
 
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 {
+	const struct xfrm_state_afinfo *afinfo;
 	struct net *net = dev_net(skb->dev);
 	int err;
 	__be32 seq;
@@ -705,7 +722,12 @@ resume:
 		if (xo)
 			xfrm_gro = xo->flags & XFRM_GRO;
 
-		err = x->inner_mode->afinfo->transport_finish(skb, xfrm_gro || async);
+		err = -EAFNOSUPPORT;
+		rcu_read_lock();
+		afinfo = xfrm_state_afinfo_get_rcu(x->inner_mode->family);
+		if (likely(afinfo))
+			err = afinfo->transport_finish(skb, xfrm_gro || async);
+		rcu_read_unlock();
 		if (xfrm_gro) {
 			sp = skb_sec_path(skb);
 			if (sp)

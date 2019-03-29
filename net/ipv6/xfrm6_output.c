@@ -122,11 +122,28 @@ int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 	return xfrm_output(sk, skb);
 }
 
+static int __xfrm6_output_state_finish(struct xfrm_state *x, struct sock *sk,
+				       struct sk_buff *skb)
+{
+	const struct xfrm_state_afinfo *afinfo;
+	int ret = -EAFNOSUPPORT;
+
+	rcu_read_lock();
+	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode->family);
+	if (likely(afinfo))
+		ret = afinfo->output_finish(sk, skb);
+	else
+		kfree_skb(skb);
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
 
-	return x->outer_mode->afinfo->output_finish(sk, skb);
+	return __xfrm6_output_state_finish(x, sk, skb);
 }
 
 static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
@@ -168,7 +185,7 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 				    __xfrm6_output_finish);
 
 skip_frag:
-	return x->outer_mode->afinfo->output_finish(sk, skb);
+	return __xfrm6_output_state_finish(x, sk, skb);
 }
 
 int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
