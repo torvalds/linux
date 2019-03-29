@@ -1395,16 +1395,16 @@ ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t
 	}
 
 	num = sscanf(tmp, "%x %x", module, module+1);
-	if (1 == num) {
-		if (0 == module[0])
+	if (num == 1) {
+		if (module[0] == 0)
 			memset(module, 0, sizeof(module));
 		else
 			memset(module, 0xFF, sizeof(module));
-	} else if (2 != num) {
+	} else if (num != 2) {
 		DBG_871X(FUNC_ADPT_FMT ": input(\"%s\") format incorrect!\n",
 			FUNC_ADPT_ARG(padapter), tmp);
 
-		if (0 == num)
+		if (num == 0)
 			return -EFAULT;
 	}
 
