@@ -2066,7 +2066,7 @@ F:	drivers/i2c/busses/i2c-qup.c
 F:	drivers/i2c/busses/i2c-qcom-geni.c
 F:	drivers/mfd/ssbi.c
 F:	drivers/mmc/host/mmci_qcom*
-F:	drivers/mmc/host/sdhci_msm.c
+F:	drivers/mmc/host/sdhci-msm.c
 F:	drivers/pci/controller/dwc/pcie-qcom.c
 F:	drivers/phy/qualcomm/
 F:	drivers/power/*/msm*
