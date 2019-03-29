@@ -432,9 +432,6 @@ int bch2_fs_read_write_early(struct bch_fs *c)
 {
 	lockdep_assert_held(&c->state_lock);
 
-	if (c->opts.read_only)
-		return -EROFS;
-
 	return __bch2_fs_read_write(c, true);
 }
 
