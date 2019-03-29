@@ -233,7 +233,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 {
 	int last_prio;
 
-	if (!intel_engine_has_preemption(engine))
+	if (!engine->preempt_context)
 		return false;
 
 	if (i915_request_completed(rq))
@@ -2035,7 +2035,7 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 {
 	u32 *cs;
 
-	cs = intel_ring_begin(rq, 6);
+	cs = intel_ring_begin(rq, 4);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -2046,19 +2046,37 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 	 * particular all the gen that do not need the w/a at all!), if we
 	 * took care to make sure that on every switch into this context
 	 * (both ordinary and for preemption) that arbitrartion was enabled
-	 * we would be fine. However, there doesn't seem to be a downside to
-	 * being paranoid and making sure it is set before each batch and
-	 * every context-switch.
-	 *
-	 * Note that if we fail to enable arbitration before the request
-	 * is complete, then we do not see the context-switch interrupt and
-	 * the engine hangs (with RING_HEAD == RING_TAIL).
-	 *
-	 * That satisfies both the GPGPU w/a and our heavy-handed paranoia.
+	 * we would be fine.  However, for gen8 there is another w/a that
+	 * requires us to not preempt inside GPGPU execution, so we keep
+	 * arbitration disabled for gen8 batches. Arbitration will be
+	 * re-enabled before we close the request
+	 * (engine->emit_fini_breadcrumb).
 	 */
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+
+	/* FIXME(BDW+): Address space and security selectors. */
+	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
+		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
+	*cs++ = lower_32_bits(offset);
+	*cs++ = upper_32_bits(offset);
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int gen9_emit_bb_start(struct i915_request *rq,
+			      u64 offset, u32 len,
+			      const unsigned int flags)
+{
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 6);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 
-	/* FIXME(BDW): Address space and security selectors. */
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
 		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
 	*cs++ = lower_32_bits(offset);
@@ -2316,7 +2334,8 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
 	if (!intel_vgpu_active(engine->i915))
 		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
-	if (engine->preempt_context)
+	if (engine->preempt_context &&
+	    HAS_LOGICAL_RING_PREEMPTION(engine->i915))
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 }
 
@@ -2350,7 +2369,10 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		 * until a more refined solution exists.
 		 */
 	}
-	engine->emit_bb_start = gen8_emit_bb_start;
+	if (IS_GEN(engine->i915, 8))
+		engine->emit_bb_start = gen8_emit_bb_start;
+	else
+		engine->emit_bb_start = gen9_emit_bb_start;
 }
 
 static inline void

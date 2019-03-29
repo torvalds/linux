@@ -76,6 +76,185 @@ err_unlock:
 	return err;
 }
 
+static int live_busywait_preempt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx_hi, *ctx_lo;
+	struct intel_engine_cs *engine;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = -ENOMEM;
+	u32 *map;
+
+	/*
+	 * Verify that even without HAS_LOGICAL_RING_PREEMPTION, we can
+	 * preempt the busywaits used to synchronise between rings.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
+	ctx_hi = kernel_context(i915);
+	if (!ctx_hi)
+		goto err_unlock;
+	ctx_hi->sched.priority = INT_MAX;
+
+	ctx_lo = kernel_context(i915);
+	if (!ctx_lo)
+		goto err_ctx_hi;
+	ctx_lo->sched.priority = INT_MIN;
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto err_ctx_lo;
+	}
+
+	map = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(map)) {
+		err = PTR_ERR(map);
+		goto err_obj;
+	}
+
+	vma = i915_vma_instance(obj, &i915->ggtt.vm, 0);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_map;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+	if (err)
+		goto err_map;
+
+	for_each_engine(engine, i915, id) {
+		struct i915_request *lo, *hi;
+		struct igt_live_test t;
+		u32 *cs;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		if (igt_live_test_begin(&t, i915, __func__, engine->name)) {
+			err = -EIO;
+			goto err_vma;
+		}
+
+		/*
+		 * We create two requests. The low priority request
+		 * busywaits on a semaphore (inside the ringbuffer where
+		 * is should be preemptible) and the high priority requests
+		 * uses a MI_STORE_DWORD_IMM to update the semaphore value
+		 * allowing the first request to complete. If preemption
+		 * fails, we hang instead.
+		 */
+
+		lo = i915_request_alloc(engine, ctx_lo);
+		if (IS_ERR(lo)) {
+			err = PTR_ERR(lo);
+			goto err_vma;
+		}
+
+		cs = intel_ring_begin(lo, 8);
+		if (IS_ERR(cs)) {
+			err = PTR_ERR(cs);
+			i915_request_add(lo);
+			goto err_vma;
+		}
+
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+		*cs++ = i915_ggtt_offset(vma);
+		*cs++ = 0;
+		*cs++ = 1;
+
+		/* XXX Do we need a flush + invalidate here? */
+
+		*cs++ = MI_SEMAPHORE_WAIT |
+			MI_SEMAPHORE_GLOBAL_GTT |
+			MI_SEMAPHORE_POLL |
+			MI_SEMAPHORE_SAD_EQ_SDD;
+		*cs++ = 0;
+		*cs++ = i915_ggtt_offset(vma);
+		*cs++ = 0;
+
+		intel_ring_advance(lo, cs);
+		i915_request_add(lo);
+
+		if (wait_for(READ_ONCE(*map), 10)) {
+			err = -ETIMEDOUT;
+			goto err_vma;
+		}
+
+		/* Low priority request should be busywaiting now */
+		if (i915_request_wait(lo, I915_WAIT_LOCKED, 1) != -ETIME) {
+			pr_err("%s: Busywaiting request did not!\n",
+			       engine->name);
+			err = -EIO;
+			goto err_vma;
+		}
+
+		hi = i915_request_alloc(engine, ctx_hi);
+		if (IS_ERR(hi)) {
+			err = PTR_ERR(hi);
+			goto err_vma;
+		}
+
+		cs = intel_ring_begin(hi, 4);
+		if (IS_ERR(cs)) {
+			err = PTR_ERR(cs);
+			i915_request_add(hi);
+			goto err_vma;
+		}
+
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+		*cs++ = i915_ggtt_offset(vma);
+		*cs++ = 0;
+		*cs++ = 0;
+
+		intel_ring_advance(hi, cs);
+		i915_request_add(hi);
+
+		if (i915_request_wait(lo, I915_WAIT_LOCKED, HZ / 5) < 0) {
+			struct drm_printer p = drm_info_printer(i915->drm.dev);
+
+			pr_err("%s: Failed to preempt semaphore busywait!\n",
+			       engine->name);
+
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
+			GEM_TRACE_DUMP();
+
+			i915_gem_set_wedged(i915);
+			err = -EIO;
+			goto err_vma;
+		}
+		GEM_BUG_ON(READ_ONCE(*map));
+
+		if (igt_live_test_end(&t)) {
+			err = -EIO;
+			goto err_vma;
+		}
+	}
+
+	err = 0;
+err_vma:
+	i915_vma_unpin(vma);
+err_map:
+	i915_gem_object_unpin_map(obj);
+err_obj:
+	i915_gem_object_put(obj);
+err_ctx_lo:
+	kernel_context_close(ctx_lo);
+err_ctx_hi:
+	kernel_context_close(ctx_hi);
+err_unlock:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	intel_runtime_pm_put(i915, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 static int live_preempt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -1127,6 +1306,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_sanitycheck),
+		SUBTEST(live_busywait_preempt),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
 		SUBTEST(live_suppress_self_preempt),

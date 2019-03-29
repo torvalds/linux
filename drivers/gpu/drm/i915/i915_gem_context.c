@@ -562,7 +562,7 @@ static void init_contexts(struct drm_i915_private *i915)
 
 static bool needs_preempt_context(struct drm_i915_private *i915)
 {
-	return HAS_LOGICAL_RING_PREEMPTION(i915);
+	return HAS_EXECLISTS(i915);
 }
 
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
