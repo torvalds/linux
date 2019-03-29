@@ -763,7 +763,7 @@
 			};
 
 			sdma1: sdma@30bd0000 {
-				compatible = "fsl, imx8mq-sdma","fsl,imx7d-sdma";
+				compatible = "fsl,imx8mq-sdma","fsl,imx7d-sdma";
 				reg = <0x30bd0000 0x10000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_SDMA1_ROOT>,
