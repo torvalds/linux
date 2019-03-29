@@ -665,6 +665,27 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
 	return true;
 }
 
+/*
+ * Check if the @page can be added to the current segment(@bv), and make
+ * sure to call it only if page_is_mergeable(@bv, @page) is true
+ */
+static bool can_add_page_to_seg(struct request_queue *q,
+		struct bio_vec *bv, struct page *page, unsigned len,
+		unsigned offset)
+{
+	unsigned long mask = queue_segment_boundary(q);
+	phys_addr_t addr1 = page_to_phys(bv->bv_page) + bv->bv_offset;
+	phys_addr_t addr2 = page_to_phys(page) + offset + len - 1;
+
+	if ((addr1 | mask) != (addr2 | mask))
+		return false;
+
+	if (bv->bv_len + len > queue_max_segment_size(q))
+		return false;
+
+	return true;
+}
+
 /**
  *	__bio_add_pc_page	- attempt to add page to passthrough bio
  *	@q: the target queue
@@ -685,7 +706,6 @@ int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
 		bool put_same_page)
 {
-	int retried_segments = 0;
 	struct bio_vec *bvec;
 
 	/*
@@ -709,6 +729,7 @@ int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 		    offset == bvec->bv_offset + bvec->bv_len) {
 			if (put_same_page)
 				put_page(page);
+ bvec_merge:
 			bvec->bv_len += len;
 			bio->bi_iter.bi_size += len;
 			goto done;
@@ -720,9 +741,16 @@ int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 		 */
 		if (bvec_gap_to_prev(q, bvec, offset))
 			return 0;
+
+		if (page_is_mergeable(bvec, page, len, offset, false) &&
+				can_add_page_to_seg(q, bvec, page, len, offset))
+			goto bvec_merge;
 	}
 
 	if (bio_full(bio))
+		return 0;
+
+	if (bio->bi_phys_segments >= queue_max_segments(q))
 		return 0;
 
 	/*
@@ -734,38 +762,12 @@ int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	bvec->bv_len = len;
 	bvec->bv_offset = offset;
 	bio->bi_vcnt++;
-	bio->bi_phys_segments++;
 	bio->bi_iter.bi_size += len;
 
-	/*
-	 * Perform a recount if the number of segments is greater
-	 * than queue_max_segments(q).
-	 */
-
-	while (bio->bi_phys_segments > queue_max_segments(q)) {
-
-		if (retried_segments)
-			goto failed;
-
-		retried_segments = 1;
-		blk_recount_segments(q, bio);
-	}
-
-	/* If we may be able to merge these biovecs, force a recount */
-	if (bio->bi_vcnt > 1 && biovec_phys_mergeable(q, bvec - 1, bvec))
-		bio_clear_flag(bio, BIO_SEG_VALID);
-
  done:
+	bio->bi_phys_segments = bio->bi_vcnt;
+	bio_set_flag(bio, BIO_SEG_VALID);
 	return len;
-
- failed:
-	bvec->bv_page = NULL;
-	bvec->bv_len = 0;
-	bvec->bv_offset = 0;
-	bio->bi_vcnt--;
-	bio->bi_iter.bi_size -= len;
-	blk_recount_segments(q, bio);
-	return 0;
 }
 EXPORT_SYMBOL(__bio_add_pc_page);
 
