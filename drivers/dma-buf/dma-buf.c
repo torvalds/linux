@@ -90,6 +90,10 @@ static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 
 	dmabuf = file->private_data;
 
+	/* check if buffer supports mmap */
+	if (!dmabuf->ops->mmap)
+		return -EINVAL;
+
 	/* check for overflowing the buffer's size */
 	if (vma->vm_pgoff + vma_pages(vma) >
 	    dmabuf->size >> PAGE_SHIFT)
@@ -404,8 +408,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 			  || !exp_info->ops
 			  || !exp_info->ops->map_dma_buf
 			  || !exp_info->ops->unmap_dma_buf
-			  || !exp_info->ops->release
-			  || !exp_info->ops->mmap)) {
+			  || !exp_info->ops->release)) {
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -904,6 +907,10 @@ int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 	int ret;
 
 	if (WARN_ON(!dmabuf || !vma))
+		return -EINVAL;
+
+	/* check if buffer supports mmap */
+	if (!dmabuf->ops->mmap)
 		return -EINVAL;
 
 	/* check for offset overflow */
