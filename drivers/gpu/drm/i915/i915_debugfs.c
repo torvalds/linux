@@ -4787,7 +4787,10 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
 				       &ctx);
 		if (ret) {
-			ret = -EINTR;
+			if (ret == -EDEADLK && !drm_modeset_backoff(&ctx)) {
+				try_again = true;
+				continue;
+			}
 			break;
 		}
 		crtc = connector->state->crtc;
