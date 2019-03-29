@@ -630,7 +630,9 @@ static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 	    time_before(j, rcu_state.gp_req_activity + gpssdelay) ||
 	    time_before(j, rcu_state.gp_activity + gpssdelay) ||
 	    atomic_xchg(&warned, 1)) {
-		raw_spin_unlock_rcu_node(rnp_root); /* irqs remain disabled. */
+		if (rnp_root != rnp)
+			/* irqs remain disabled. */
+			raw_spin_unlock_rcu_node(rnp_root);
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
