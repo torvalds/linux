@@ -195,7 +195,7 @@ static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = dev_queue_xmit(skb);
 	nfp_repr_inc_tx_stats(netdev, len, ret);
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 static int nfp_repr_stop(struct net_device *netdev)
@@ -383,7 +383,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
 	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
 
-	netdev->priv_flags |= IFF_NO_QUEUE;
+	netdev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
 	netdev->features |= NETIF_F_LLTX;
 
 	if (nfp_app_has_tc(app)) {
