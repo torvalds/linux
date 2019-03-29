@@ -183,7 +183,7 @@
 		IOVDD-supply = <&reg_3p3v>;
 		DVDD-supply = <&reg_3p3v>;
 		ai3x-ocmv = <0>;
-		gpio-reset = <&gpio5 5 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
 	};
 };
 
