@@ -1,0 +1,15 @@
+MT8183 with MT6358, DA7219 and MAX98357 CODECS
+
+Required properties:
+- compatible : "mediatek,mt8183_da7219_max98357"
+- mediatek,headset-codec: the phandles of da7219 codecs
+- mediatek,platform: the phandle of MT8183 ASoC platform
+
+Example:
+
+	sound {
+		compatible = "mediatek,mt8183_da7219_max98357";
+		mediatek,headset-codec = <&da7219>;
+		mediatek,platform = <&afe>;
+	};
+
