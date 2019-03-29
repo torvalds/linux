@@ -199,7 +199,7 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 static bool pcie_retrain_link(struct pcie_link_state *link)
 {
 	struct pci_dev *parent = link->pdev;
-	unsigned long start_jiffies;
+	unsigned long end_jiffies;
 	u16 reg16;
 
 	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &reg16);
@@ -216,15 +216,13 @@ static bool pcie_retrain_link(struct pcie_link_state *link)
 	}
 
 	/* Wait for link training end. Break out after waiting for timeout */
-	start_jiffies = jiffies;
-	for (;;) {
+	end_jiffies = jiffies + LINK_RETRAIN_TIMEOUT;
+	do {
 		pcie_capability_read_word(parent, PCI_EXP_LNKSTA, &reg16);
 		if (!(reg16 & PCI_EXP_LNKSTA_LT))
 			break;
-		if (time_after(jiffies, start_jiffies + LINK_RETRAIN_TIMEOUT))
-			break;
 		msleep(1);
-	}
+	} while (time_before(jiffies, end_jiffies));
 	return !(reg16 & PCI_EXP_LNKSTA_LT);
 }
 
