@@ -129,7 +129,7 @@ static int __xfrm6_output_state_finish(struct xfrm_state *x, struct sock *sk,
 	int ret = -EAFNOSUPPORT;
 
 	rcu_read_lock();
-	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode->family);
+	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode.family);
 	if (likely(afinfo))
 		ret = afinfo->output_finish(sk, skb);
 	else

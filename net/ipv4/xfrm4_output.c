@@ -83,7 +83,7 @@ static int __xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 #endif
 
 	rcu_read_lock();
-	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode->family);
+	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode.family);
 	if (likely(afinfo))
 		ret = afinfo->output_finish(sk, skb);
 	else

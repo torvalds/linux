@@ -53,20 +53,20 @@ static void __xfrm_mode_tunnel_prep(struct xfrm_state *x, struct sk_buff *skb,
 /* Adjust pointers into the packet when IPsec is done at layer2 */
 static void xfrm_outer_mode_prep(struct xfrm_state *x, struct sk_buff *skb)
 {
-	switch (x->outer_mode->encap) {
+	switch (x->outer_mode.encap) {
 	case XFRM_MODE_TUNNEL:
-		if (x->outer_mode->family == AF_INET)
+		if (x->outer_mode.family == AF_INET)
 			return __xfrm_mode_tunnel_prep(x, skb,
 						       sizeof(struct iphdr));
-		if (x->outer_mode->family == AF_INET6)
+		if (x->outer_mode.family == AF_INET6)
 			return __xfrm_mode_tunnel_prep(x, skb,
 						       sizeof(struct ipv6hdr));
 		break;
 	case XFRM_MODE_TRANSPORT:
-		if (x->outer_mode->family == AF_INET)
+		if (x->outer_mode.family == AF_INET)
 			return __xfrm_transport_prep(x, skb,
 						     sizeof(struct iphdr));
-		if (x->outer_mode->family == AF_INET6)
+		if (x->outer_mode.family == AF_INET6)
 			return __xfrm_transport_prep(x, skb,
 						     sizeof(struct ipv6hdr));
 		break;

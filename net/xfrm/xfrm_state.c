@@ -551,8 +551,6 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 		x->lft.hard_packet_limit = XFRM_INF;
 		x->replay_maxage = 0;
 		x->replay_maxdiff = 0;
-		x->inner_mode = NULL;
-		x->inner_mode_iaf = NULL;
 		spin_lock_init(&x->lock);
 	}
 	return x;
@@ -2204,8 +2202,9 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 
 int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 {
-	const struct xfrm_mode *inner_mode;
 	const struct xfrm_state_afinfo *afinfo;
+	const struct xfrm_mode *inner_mode;
+	const struct xfrm_mode *outer_mode;
 	int family = x->props.family;
 	int err;
 
@@ -2234,7 +2233,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 		    family != x->sel.family)
 			goto error;
 
-		x->inner_mode = inner_mode;
+		x->inner_mode = *inner_mode;
 	} else {
 		const struct xfrm_mode *inner_mode_iaf;
 		int iafamily = AF_INET;
@@ -2246,7 +2245,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL))
 			goto error;
 
-		x->inner_mode = inner_mode;
+		x->inner_mode = *inner_mode;
 
 		if (x->props.family == AF_INET)
 			iafamily = AF_INET6;
@@ -2254,7 +2253,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 		inner_mode_iaf = xfrm_get_mode(x->props.mode, iafamily);
 		if (inner_mode_iaf) {
 			if (inner_mode_iaf->flags & XFRM_MODE_FLAG_TUNNEL)
-				x->inner_mode_iaf = inner_mode_iaf;
+				x->inner_mode_iaf = *inner_mode_iaf;
 		}
 	}
 
@@ -2268,12 +2267,13 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 	if (err)
 		goto error;
 
-	x->outer_mode = xfrm_get_mode(x->props.mode, family);
-	if (x->outer_mode == NULL) {
+	outer_mode = xfrm_get_mode(x->props.mode, family);
+	if (!outer_mode) {
 		err = -EPROTONOSUPPORT;
 		goto error;
 	}
 
+	x->outer_mode = *outer_mode;
 	if (init_replay) {
 		err = xfrm_init_replay(x);
 		if (err)
