@@ -510,7 +510,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens1 3>;
+			thermal-sensors = <&tsens0 13>;
 		};
 	};
 
