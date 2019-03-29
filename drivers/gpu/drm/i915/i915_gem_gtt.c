@@ -1937,6 +1937,8 @@ int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
 	int err;
 
+	GEM_BUG_ON(ppgtt->base.vm.closed);
+
 	/*
 	 * Workaround the limited maximum vma->pin_count and the aliasing_ppgtt
 	 * which will be pinned into every active context.
@@ -1972,6 +1974,17 @@ void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base)
 	if (--ppgtt->pin_count)
 		return;
 
+	i915_vma_unpin(ppgtt->vma);
+}
+
+void gen6_ppgtt_unpin_all(struct i915_hw_ppgtt *base)
+{
+	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
+
+	if (!ppgtt->pin_count)
+		return;
+
+	ppgtt->pin_count = 0;
 	i915_vma_unpin(ppgtt->vma);
 }
 
@@ -2069,8 +2082,7 @@ __hw_ppgtt_create(struct drm_i915_private *i915)
 }
 
 struct i915_hw_ppgtt *
-i915_ppgtt_create(struct drm_i915_private *i915,
-		  struct drm_i915_file_private *fpriv)
+i915_ppgtt_create(struct drm_i915_private *i915)
 {
 	struct i915_hw_ppgtt *ppgtt;
 
@@ -2078,17 +2090,9 @@ i915_ppgtt_create(struct drm_i915_private *i915,
 	if (IS_ERR(ppgtt))
 		return ppgtt;
 
-	ppgtt->vm.file = fpriv;
-
 	trace_i915_ppgtt_create(&ppgtt->vm);
 
 	return ppgtt;
-}
-
-void i915_ppgtt_close(struct i915_address_space *vm)
-{
-	GEM_BUG_ON(vm->closed);
-	vm->closed = true;
 }
 
 static void ppgtt_destroy_vma(struct i915_address_space *vm)
@@ -2657,7 +2661,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 	struct i915_hw_ppgtt *ppgtt;
 	int err;
 
-	ppgtt = i915_ppgtt_create(i915, ERR_PTR(-EPERM));
+	ppgtt = i915_ppgtt_create(i915);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 

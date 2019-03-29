@@ -92,8 +92,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20190320"
-#define DRIVER_TIMESTAMP	1553069028
+#define DRIVER_DATE		"20190328"
+#define DRIVER_TIMESTAMP	1553776914
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -216,7 +216,12 @@ struct drm_i915_file_private {
  */
 #define DRM_I915_THROTTLE_JIFFIES msecs_to_jiffies(20)
 	} mm;
+
 	struct idr context_idr;
+	struct mutex context_idr_lock; /* guards context_idr */
+
+	struct idr vm_idr;
+	struct mutex vm_idr_lock; /* guards vm_idr */
 
 	unsigned int bsd_engine;
 
@@ -952,6 +957,7 @@ struct ddi_vbt_port_info {
 #define HDMI_LEVEL_SHIFT_UNKNOWN	0xff
 	u8 hdmi_level_shift;
 
+	u8 present:1;
 	u8 supports_dvi:1;
 	u8 supports_hdmi:1;
 	u8 supports_dp:1;
@@ -1505,8 +1511,6 @@ struct drm_i915_private {
 	 */
 	resource_size_t stolen_usable_size;	/* Total size minus reserved ranges */
 
-	void __iomem *regs;
-
 	struct intel_uncore uncore;
 
 	struct i915_virtual_gpu vgpu;
@@ -2039,6 +2043,14 @@ struct drm_i915_private {
 		struct i915_vma *scratch;
 	} gt;
 
+	/* For i945gm vblank irq vs. C3 workaround */
+	struct {
+		struct work_struct work;
+		struct pm_qos_request pm_qos;
+		u8 c3_disable_latency;
+		u8 enabled;
+	} i945gm_vblank;
+
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
 
@@ -2100,6 +2112,11 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
 {
 	return container_of(huc, struct drm_i915_private, huc);
+}
+
+static inline struct drm_i915_private *uncore_to_i915(struct intel_uncore *uncore)
+{
+	return container_of(uncore, struct drm_i915_private, uncore);
 }
 
 /* Simple iterator over all initialised engines */
@@ -2315,6 +2332,7 @@ static inline unsigned int i915_sg_segment_size(void)
 #define IS_COFFEELAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_COFFEELAKE)
 #define IS_CANNONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_CANNONLAKE)
 #define IS_ICELAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ICELAKE)
+#define IS_ELKHARTLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ELKHARTLAKE)
 #define IS_MOBILE(dev_priv)	(INTEL_INFO(dev_priv)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
@@ -2353,7 +2371,8 @@ static inline unsigned int i915_sg_segment_size(void)
 				 INTEL_DEVID(dev_priv) == 0x5915 || \
 				 INTEL_DEVID(dev_priv) == 0x591E)
 #define IS_AML_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x591C || \
-				 INTEL_DEVID(dev_priv) == 0x87C0)
+				 INTEL_DEVID(dev_priv) == 0x87C0 || \
+				 INTEL_DEVID(dev_priv) == 0x87CA)
 #define IS_SKL_GT2(dev_priv)	(IS_SKYLAKE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 2)
 #define IS_SKL_GT3(dev_priv)	(IS_SKYLAKE(dev_priv) && \
@@ -2434,6 +2453,17 @@ static inline unsigned int i915_sg_segment_size(void)
 
 #define ALL_ENGINES	(~0u)
 #define HAS_ENGINE(dev_priv, id) (INTEL_INFO(dev_priv)->engine_mask & BIT(id))
+
+#define ENGINE_INSTANCES_MASK(dev_priv, first, count) ({		\
+	unsigned int first__ = (first);					\
+	unsigned int count__ = (count);					\
+	(INTEL_INFO(dev_priv)->engine_mask &				\
+	 GENMASK(first__ + count__ - 1, first__)) >> first__;		\
+})
+#define VDBOX_MASK(dev_priv) \
+	ENGINE_INSTANCES_MASK(dev_priv, VCS0, I915_MAX_VCS)
+#define VEBOX_MASK(dev_priv) \
+	ENGINE_INSTANCES_MASK(dev_priv, VECS0, I915_MAX_VECS)
 
 #define HAS_LLC(dev_priv)	(INTEL_INFO(dev_priv)->has_llc)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
@@ -2960,6 +2990,14 @@ i915_coherent_map_type(struct drm_i915_private *i915)
 void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 					   enum i915_map_type type);
 
+void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
+				 unsigned long offset,
+				 unsigned long size);
+static inline void i915_gem_object_flush_map(struct drm_i915_gem_object *obj)
+{
+	__i915_gem_object_flush_map(obj, 0, obj->base.size);
+}
+
 /**
  * i915_gem_object_unpin_map - releases an earlier mapping
  * @obj: the object to unmap
@@ -3438,18 +3476,21 @@ static inline u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 	return DIV_ROUND_UP_ULL(intel_rc6_residency_ns(dev_priv, reg), 1000);
 }
 
-#define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
-#define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)
+#define __I915_REG_OP(op__, dev_priv__, ...) \
+	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)
 
-#define I915_READ16(reg)	dev_priv->uncore.funcs.mmio_readw(dev_priv, (reg), true)
-#define I915_WRITE16(reg, val)	dev_priv->uncore.funcs.mmio_writew(dev_priv, (reg), (val), true)
-#define I915_READ16_NOTRACE(reg)	dev_priv->uncore.funcs.mmio_readw(dev_priv, (reg), false)
-#define I915_WRITE16_NOTRACE(reg, val)	dev_priv->uncore.funcs.mmio_writew(dev_priv, (reg), (val), false)
+#define I915_READ8(reg__)	  __I915_REG_OP(read8, dev_priv, (reg__))
+#define I915_WRITE8(reg__, val__) __I915_REG_OP(write8, dev_priv, (reg__), (val__))
 
-#define I915_READ(reg)		dev_priv->uncore.funcs.mmio_readl(dev_priv, (reg), true)
-#define I915_WRITE(reg, val)	dev_priv->uncore.funcs.mmio_writel(dev_priv, (reg), (val), true)
-#define I915_READ_NOTRACE(reg)		dev_priv->uncore.funcs.mmio_readl(dev_priv, (reg), false)
-#define I915_WRITE_NOTRACE(reg, val)	dev_priv->uncore.funcs.mmio_writel(dev_priv, (reg), (val), false)
+#define I915_READ16(reg__)	   __I915_REG_OP(read16, dev_priv, (reg__))
+#define I915_WRITE16(reg__, val__) __I915_REG_OP(write16, dev_priv, (reg__), (val__))
+#define I915_READ16_NOTRACE(reg__)	   __I915_REG_OP(read16_notrace, dev_priv, (reg__))
+#define I915_WRITE16_NOTRACE(reg__, val__) __I915_REG_OP(write16_notrace, dev_priv, (reg__), (val__))
+
+#define I915_READ(reg__)	 __I915_REG_OP(read, dev_priv, (reg__))
+#define I915_WRITE(reg__, val__) __I915_REG_OP(write, dev_priv, (reg__), (val__))
+#define I915_READ_NOTRACE(reg__)	 __I915_REG_OP(read_notrace, dev_priv, (reg__))
+#define I915_WRITE_NOTRACE(reg__, val__) __I915_REG_OP(write_notrace, dev_priv, (reg__), (val__))
 
 /* Be very careful with read/write 64-bit values. On 32-bit machines, they
  * will be implemented using 2 32-bit writes in an arbitrary order with
@@ -3465,46 +3506,12 @@ static inline u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
  *
  * You have been warned.
  */
-#define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
+#define I915_READ64(reg__)	__I915_REG_OP(read64, dev_priv, (reg__))
+#define I915_READ64_2x32(lower_reg__, upper_reg__) \
+	__I915_REG_OP(read64_2x32, dev_priv, (lower_reg__), (upper_reg__))
 
-#define I915_READ64_2x32(lower_reg, upper_reg) ({			\
-	u32 upper, lower, old_upper, loop = 0;				\
-	upper = I915_READ(upper_reg);					\
-	do {								\
-		old_upper = upper;					\
-		lower = I915_READ(lower_reg);				\
-		upper = I915_READ(upper_reg);				\
-	} while (upper != old_upper && loop++ < 2);			\
-	(u64)upper << 32 | lower; })
-
-#define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
-#define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
-
-#define __raw_read(x, s) \
-static inline uint##x##_t __raw_i915_read##x(const struct drm_i915_private *dev_priv, \
-					     i915_reg_t reg) \
-{ \
-	return read##s(dev_priv->regs + i915_mmio_reg_offset(reg)); \
-}
-
-#define __raw_write(x, s) \
-static inline void __raw_i915_write##x(const struct drm_i915_private *dev_priv, \
-				       i915_reg_t reg, uint##x##_t val) \
-{ \
-	write##s(val, dev_priv->regs + i915_mmio_reg_offset(reg)); \
-}
-__raw_read(8, b)
-__raw_read(16, w)
-__raw_read(32, l)
-__raw_read(64, q)
-
-__raw_write(8, b)
-__raw_write(16, w)
-__raw_write(32, l)
-__raw_write(64, q)
-
-#undef __raw_read
-#undef __raw_write
+#define POSTING_READ(reg__)	__I915_REG_OP(posting_read, dev_priv, (reg__))
+#define POSTING_READ16(reg__)	__I915_REG_OP(posting_read16, dev_priv, (reg__))
 
 /* These are untraced mmio-accessors that are only valid to be used inside
  * critical sections, such as inside IRQ handlers, where forcewake is explicitly
@@ -3532,10 +3539,10 @@ __raw_write(64, q)
  * therefore generally be serialised, by either the dev_priv->uncore.lock or
  * a more localised lock guarding all access to that bank of registers.
  */
-#define I915_READ_FW(reg__) __raw_i915_read32(dev_priv, (reg__))
-#define I915_WRITE_FW(reg__, val__) __raw_i915_write32(dev_priv, (reg__), (val__))
-#define I915_WRITE64_FW(reg__, val__) __raw_i915_write64(dev_priv, (reg__), (val__))
-#define POSTING_READ_FW(reg__) (void)I915_READ_FW(reg__)
+#define I915_READ_FW(reg__) __I915_REG_OP(read_fw, dev_priv, (reg__))
+#define I915_WRITE_FW(reg__, val__) __I915_REG_OP(write_fw, dev_priv, (reg__), (val__))
+#define I915_WRITE64_FW(reg__, val__) __I915_REG_OP(write64_fw, dev_priv, (reg__), (val__))
+#define POSTING_READ_FW(reg__) __I915_REG_OP(posting_read_fw, dev_priv, (reg__))
 
 /* "Broadcast RGB" property */
 #define INTEL_BROADCAST_RGB_AUTO 0

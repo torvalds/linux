@@ -255,21 +255,17 @@ static void __sprint_engine_name(char *name, const struct engine_info *info)
 
 void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	i915_reg_t hwstam;
-
 	/*
 	 * Though they added more rings on g4x/ilk, they did not add
 	 * per-engine HWSTAM until gen6.
 	 */
-	if (INTEL_GEN(dev_priv) < 6 && engine->class != RENDER_CLASS)
+	if (INTEL_GEN(engine->i915) < 6 && engine->class != RENDER_CLASS)
 		return;
 
-	hwstam = RING_HWSTAM(engine->mmio_base);
-	if (INTEL_GEN(dev_priv) >= 3)
-		I915_WRITE(hwstam, mask);
+	if (INTEL_GEN(engine->i915) >= 3)
+		ENGINE_WRITE(engine, RING_HWSTAM, mask);
 	else
-		I915_WRITE16(hwstam, mask);
+		ENGINE_WRITE16(engine, RING_HWSTAM, mask);
 }
 
 static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
@@ -309,6 +305,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->id = id;
 	engine->mask = BIT(id);
 	engine->i915 = dev_priv;
+	engine->uncore = &dev_priv->uncore;
 	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(dev_priv, info->mmio_bases);
@@ -528,9 +525,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		return PTR_ERR(obj);
 	}
 
-	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-	if (ret)
-		goto err;
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 
 	vma = i915_vma_instance(obj, &engine->i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
@@ -581,7 +576,6 @@ int intel_engine_setup_common(struct intel_engine_cs *engine)
 
 	err = i915_timeline_init(engine->i915,
 				 &engine->timeline,
-				 engine->name,
 				 engine->status_page.vma);
 	if (err)
 		goto err_hwsp;
@@ -660,7 +654,7 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 		return -ENOMEM;
 
 	if (i915_timeline_init(engine->i915,
-			       &frame->timeline, "measure",
+			       &frame->timeline,
 			       engine->status_page.vma))
 		goto out_frame;
 
@@ -790,50 +784,48 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
+
 	u64 acthd;
 
-	if (INTEL_GEN(dev_priv) >= 8)
-		acthd = I915_READ64_2x32(RING_ACTHD(engine->mmio_base),
-					 RING_ACTHD_UDW(engine->mmio_base));
-	else if (INTEL_GEN(dev_priv) >= 4)
-		acthd = I915_READ(RING_ACTHD(engine->mmio_base));
+	if (INTEL_GEN(i915) >= 8)
+		acthd = ENGINE_READ64(engine, RING_ACTHD, RING_ACTHD_UDW);
+	else if (INTEL_GEN(i915) >= 4)
+		acthd = ENGINE_READ(engine, RING_ACTHD);
 	else
-		acthd = I915_READ(ACTHD);
+		acthd = ENGINE_READ(engine, ACTHD);
 
 	return acthd;
 }
 
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	u64 bbaddr;
 
-	if (INTEL_GEN(dev_priv) >= 8)
-		bbaddr = I915_READ64_2x32(RING_BBADDR(engine->mmio_base),
-					  RING_BBADDR_UDW(engine->mmio_base));
+	if (INTEL_GEN(engine->i915) >= 8)
+		bbaddr = ENGINE_READ64(engine, RING_BBADDR, RING_BBADDR_UDW);
 	else
-		bbaddr = I915_READ(RING_BBADDR(engine->mmio_base));
+		bbaddr = ENGINE_READ(engine, RING_BBADDR);
 
 	return bbaddr;
 }
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 	const u32 base = engine->mmio_base;
 	const i915_reg_t mode = RING_MI_MODE(base);
 	int err;
 
-	if (INTEL_GEN(dev_priv) < 3)
+	if (INTEL_GEN(engine->i915) < 3)
 		return -ENODEV;
 
 	GEM_TRACE("%s\n", engine->name);
 
-	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
+	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
 
 	err = 0;
-	if (__intel_wait_for_register_fw(dev_priv,
+	if (__intel_wait_for_register_fw(uncore,
 					 mode, MODE_IDLE, MODE_IDLE,
 					 1000, 0,
 					 NULL)) {
@@ -842,19 +834,16 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	}
 
 	/* A final mmio read to let GPU writes be hopefully flushed to memory */
-	POSTING_READ_FW(mode);
+	intel_uncore_posting_read_fw(uncore, mode);
 
 	return err;
 }
 
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
 	GEM_TRACE("%s\n", engine->name);
 
-	I915_WRITE_FW(RING_MI_MODE(engine->mmio_base),
-		      _MASKED_BIT_DISABLE(STOP_RING));
+	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 }
 
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
@@ -891,6 +880,7 @@ static inline u32
 read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 		  int subslice, i915_reg_t reg)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mcr_slice_subslice_mask;
 	u32 mcr_slice_subslice_select;
 	u32 default_mcr_s_ss_select;
@@ -912,33 +902,33 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 
 	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(dev_priv);
 
-	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg,
+	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
 						    FW_REG_READ);
-	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+	fw_domains |= intel_uncore_forcewake_for_reg(uncore,
 						     GEN8_MCR_SELECTOR,
 						     FW_REG_READ | FW_REG_WRITE);
 
-	spin_lock_irq(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
+	spin_lock_irq(&uncore->lock);
+	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
-	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
+	mcr = intel_uncore_read_fw(uncore, GEN8_MCR_SELECTOR);
 
 	WARN_ON_ONCE((mcr & mcr_slice_subslice_mask) !=
 		     default_mcr_s_ss_select);
 
 	mcr &= ~mcr_slice_subslice_mask;
 	mcr |= mcr_slice_subslice_select;
-	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
-	ret = I915_READ_FW(reg);
+	ret = intel_uncore_read_fw(uncore, reg);
 
 	mcr &= ~mcr_slice_subslice_mask;
 	mcr |= default_mcr_s_ss_select;
 
-	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
-	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_put__locked(uncore, fw_domains);
+	spin_unlock_irq(&uncore->lock);
 
 	return ret;
 }
@@ -948,6 +938,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
 	int subslice;
@@ -956,12 +947,14 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 	switch (INTEL_GEN(dev_priv)) {
 	default:
-		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+		instdone->instdone =
+			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
 
 		if (engine->id != RCS0)
 			break;
 
-		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
+		instdone->slice_common =
+			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
 		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
 			instdone->sampler[slice][subslice] =
 				read_subslice_reg(dev_priv, slice, subslice,
@@ -972,28 +965,33 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 		}
 		break;
 	case 7:
-		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+		instdone->instdone =
+			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
 
 		if (engine->id != RCS0)
 			break;
 
-		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
-		instdone->sampler[0][0] = I915_READ(GEN7_SAMPLER_INSTDONE);
-		instdone->row[0][0] = I915_READ(GEN7_ROW_INSTDONE);
+		instdone->slice_common =
+			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
+		instdone->sampler[0][0] =
+			intel_uncore_read(uncore, GEN7_SAMPLER_INSTDONE);
+		instdone->row[0][0] =
+			intel_uncore_read(uncore, GEN7_ROW_INSTDONE);
 
 		break;
 	case 6:
 	case 5:
 	case 4:
-		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
-
+		instdone->instdone =
+			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
 		if (engine->id == RCS0)
 			/* HACK: Using the wrong struct member */
-			instdone->slice_common = I915_READ(GEN4_INSTDONE1);
+			instdone->slice_common =
+				intel_uncore_read(uncore, GEN4_INSTDONE1);
 		break;
 	case 3:
 	case 2:
-		instdone->instdone = I915_READ(GEN2_INSTDONE);
+		instdone->instdone = intel_uncore_read(uncore, GEN2_INSTDONE);
 		break;
 	}
 }
@@ -1013,12 +1011,13 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* First check that no commands are left in the ring */
-	if ((I915_READ_HEAD(engine) & HEAD_ADDR) !=
-	    (I915_READ_TAIL(engine) & TAIL_ADDR))
+	if ((ENGINE_READ(engine, RING_HEAD) & HEAD_ADDR) !=
+	    (ENGINE_READ(engine, RING_TAIL) & TAIL_ADDR))
 		idle = false;
 
 	/* No bit for gen2, so assume the CS parser is idle */
-	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
+	if (INTEL_GEN(dev_priv) > 2 &&
+	    !(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE))
 		idle = false;
 
 	intel_runtime_pm_put(dev_priv, wakeref);
@@ -1334,24 +1333,25 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 	u64 addr;
 
 	if (engine->id == RCS0 && IS_GEN_RANGE(dev_priv, 4, 7))
-		drm_printf(m, "\tCCID: 0x%08x\n", I915_READ(CCID));
+		drm_printf(m, "\tCCID: 0x%08x\n", ENGINE_READ(engine, CCID));
 	drm_printf(m, "\tRING_START: 0x%08x\n",
-		   I915_READ(RING_START(engine->mmio_base)));
+		   ENGINE_READ(engine, RING_START));
 	drm_printf(m, "\tRING_HEAD:  0x%08x\n",
-		   I915_READ(RING_HEAD(engine->mmio_base)) & HEAD_ADDR);
+		   ENGINE_READ(engine, RING_HEAD) & HEAD_ADDR);
 	drm_printf(m, "\tRING_TAIL:  0x%08x\n",
-		   I915_READ(RING_TAIL(engine->mmio_base)) & TAIL_ADDR);
+		   ENGINE_READ(engine, RING_TAIL) & TAIL_ADDR);
 	drm_printf(m, "\tRING_CTL:   0x%08x%s\n",
-		   I915_READ(RING_CTL(engine->mmio_base)),
-		   I915_READ(RING_CTL(engine->mmio_base)) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? " [waiting]" : "");
+		   ENGINE_READ(engine, RING_CTL),
+		   ENGINE_READ(engine, RING_CTL) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? " [waiting]" : "");
 	if (INTEL_GEN(engine->i915) > 2) {
 		drm_printf(m, "\tRING_MODE:  0x%08x%s\n",
-			   I915_READ(RING_MI_MODE(engine->mmio_base)),
-			   I915_READ(RING_MI_MODE(engine->mmio_base)) & (MODE_IDLE) ? " [idle]" : "");
+			   ENGINE_READ(engine, RING_MI_MODE),
+			   ENGINE_READ(engine, RING_MI_MODE) & (MODE_IDLE) ? " [idle]" : "");
 	}
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		drm_printf(m, "\tRING_IMR: %08x\n", I915_READ_IMR(engine));
+		drm_printf(m, "\tRING_IMR: %08x\n",
+			   ENGINE_READ(engine, RING_IMR));
 	}
 
 	addr = intel_engine_get_active_head(engine);
@@ -1361,22 +1361,21 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 	drm_printf(m, "\tBBADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
 	if (INTEL_GEN(dev_priv) >= 8)
-		addr = I915_READ64_2x32(RING_DMA_FADD(engine->mmio_base),
-					RING_DMA_FADD_UDW(engine->mmio_base));
+		addr = ENGINE_READ64(engine, RING_DMA_FADD, RING_DMA_FADD_UDW);
 	else if (INTEL_GEN(dev_priv) >= 4)
-		addr = I915_READ(RING_DMA_FADD(engine->mmio_base));
+		addr = ENGINE_READ(engine, RING_DMA_FADD);
 	else
-		addr = I915_READ(DMA_FADD_I8XX);
+		addr = ENGINE_READ(engine, DMA_FADD_I8XX);
 	drm_printf(m, "\tDMA_FADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
 	if (INTEL_GEN(dev_priv) >= 4) {
 		drm_printf(m, "\tIPEIR: 0x%08x\n",
-			   I915_READ(RING_IPEIR(engine->mmio_base)));
+			   ENGINE_READ(engine, RING_IPEIR));
 		drm_printf(m, "\tIPEHR: 0x%08x\n",
-			   I915_READ(RING_IPEHR(engine->mmio_base)));
+			   ENGINE_READ(engine, RING_IPEHR));
 	} else {
-		drm_printf(m, "\tIPEIR: 0x%08x\n", I915_READ(IPEIR));
-		drm_printf(m, "\tIPEHR: 0x%08x\n", I915_READ(IPEHR));
+		drm_printf(m, "\tIPEIR: 0x%08x\n", ENGINE_READ(engine, IPEIR));
+		drm_printf(m, "\tIPEHR: 0x%08x\n", ENGINE_READ(engine, IPEHR));
 	}
 
 	if (HAS_EXECLISTS(dev_priv)) {
@@ -1386,15 +1385,15 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 		u8 read, write;
 
 		drm_printf(m, "\tExeclist status: 0x%08x %08x\n",
-			   I915_READ(RING_EXECLIST_STATUS_LO(engine)),
-			   I915_READ(RING_EXECLIST_STATUS_HI(engine)));
+			   ENGINE_READ(engine, RING_EXECLIST_STATUS_LO),
+			   ENGINE_READ(engine, RING_EXECLIST_STATUS_HI));
 
 		read = execlists->csb_head;
 		write = READ_ONCE(*execlists->csb_write);
 
 		drm_printf(m, "\tExeclist CSB read %d, write %d [mmio:%d], tasklet queued? %s (%s)\n",
 			   read, write,
-			   GEN8_CSB_WRITE_PTR(I915_READ(RING_CONTEXT_STATUS_PTR(engine))),
+			   GEN8_CSB_WRITE_PTR(ENGINE_READ(engine, RING_CONTEXT_STATUS_PTR)),
 			   yesno(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)));
@@ -1409,9 +1408,13 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 			drm_printf(m, "\tExeclist CSB[%d]: 0x%08x [mmio:0x%08x], context: %d [mmio:%d]\n",
 				   idx,
 				   hws[idx * 2],
-				   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
+				   ENGINE_READ_IDX(engine,
+						   RING_CONTEXT_STATUS_BUF_LO,
+						   idx),
 				   hws[idx * 2 + 1],
-				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)));
+				   ENGINE_READ_IDX(engine,
+						   RING_CONTEXT_STATUS_BUF_HI,
+						   idx));
 		}
 
 		rcu_read_lock();
@@ -1438,11 +1441,11 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 		rcu_read_unlock();
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
-			   I915_READ(RING_PP_DIR_BASE(engine)));
+			   ENGINE_READ(engine, RING_PP_DIR_BASE));
 		drm_printf(m, "\tPP_DIR_BASE_READ: 0x%08x\n",
-			   I915_READ(RING_PP_DIR_BASE_READ(engine)));
+			   ENGINE_READ(engine, RING_PP_DIR_BASE_READ));
 		drm_printf(m, "\tPP_DIR_DCLV: 0x%08x\n",
-			   I915_READ(RING_PP_DIR_DCLV(engine)));
+			   ENGINE_READ(engine, RING_PP_DIR_DCLV));
 	}
 }
 
@@ -1689,8 +1692,7 @@ void intel_disable_engine_stats(struct intel_engine_cs *engine)
 
 static bool match_ring(struct i915_request *rq)
 {
-	struct drm_i915_private *dev_priv = rq->i915;
-	u32 ring = I915_READ(RING_START(rq->engine->mmio_base));
+	u32 ring = ENGINE_READ(rq->engine, RING_START);
 
 	return ring == i915_ggtt_offset(rq->ring->vma);
 }

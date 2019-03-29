@@ -41,6 +41,8 @@ struct i915_gem_context {
 	/** file_priv: owning file descriptor */
 	struct drm_i915_file_private *file_priv;
 
+	struct i915_timeline *timeline;
+
 	/**
 	 * @ppgtt: unique address space (GTT)
 	 *
@@ -128,15 +130,6 @@ struct i915_gem_context {
 
 	struct list_head active_engines;
 	struct mutex mutex;
-
-	/**
-	 * @user_handle: userspace identifier
-	 *
-	 * A unique per-file identifier is generated from
-	 * &drm_i915_file_private.contexts.
-	 */
-	u32 user_handle;
-#define DEFAULT_CONTEXT_HANDLE 0
 
 	struct i915_sched_attr sched;
 

@@ -575,19 +575,19 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 static void flush_cs_tlb(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	i915_reg_t instpm = RING_INSTPM(engine->mmio_base);
 
 	if (!IS_GEN_RANGE(dev_priv, 6, 7))
 		return;
 
 	/* ring should be idle before issuing a sync flush*/
-	WARN_ON((I915_READ_MODE(engine) & MODE_IDLE) == 0);
+	WARN_ON((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
 
-	I915_WRITE(instpm,
-		   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
-				      INSTPM_SYNC_FLUSH));
-	if (intel_wait_for_register(dev_priv,
-				    instpm, INSTPM_SYNC_FLUSH, 0,
+	ENGINE_WRITE(engine, RING_INSTPM,
+		     _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
+					INSTPM_SYNC_FLUSH));
+	if (intel_wait_for_register(engine->uncore,
+				    RING_INSTPM(engine->mmio_base),
+				    INSTPM_SYNC_FLUSH, 0,
 				    1000))
 		DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
 			  engine->name);
@@ -606,32 +606,36 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	if (INTEL_GEN(dev_priv) > 2) {
-		I915_WRITE_MODE(engine, _MASKED_BIT_ENABLE(STOP_RING));
-		if (intel_wait_for_register(dev_priv,
+		ENGINE_WRITE(engine,
+			     RING_MI_MODE, _MASKED_BIT_ENABLE(STOP_RING));
+		if (intel_wait_for_register(engine->uncore,
 					    RING_MI_MODE(engine->mmio_base),
 					    MODE_IDLE,
 					    MODE_IDLE,
 					    1000)) {
 			DRM_ERROR("%s : timed out trying to stop ring\n",
 				  engine->name);
-			/* Sometimes we observe that the idle flag is not
+
+			/*
+			 * Sometimes we observe that the idle flag is not
 			 * set even though the ring is empty. So double
 			 * check before giving up.
 			 */
-			if (I915_READ_HEAD(engine) != I915_READ_TAIL(engine))
+			if (ENGINE_READ(engine, RING_HEAD) !=
+			    ENGINE_READ(engine, RING_TAIL))
 				return false;
 		}
 	}
 
-	I915_WRITE_HEAD(engine, I915_READ_TAIL(engine));
+	ENGINE_WRITE(engine, RING_HEAD, ENGINE_READ(engine, RING_TAIL));
 
-	I915_WRITE_HEAD(engine, 0);
-	I915_WRITE_TAIL(engine, 0);
+	ENGINE_WRITE(engine, RING_HEAD, 0);
+	ENGINE_WRITE(engine, RING_TAIL, 0);
 
 	/* The ring must be empty before it is disabled */
-	I915_WRITE_CTL(engine, 0);
+	ENGINE_WRITE(engine, RING_CTL, 0);
 
-	return (I915_READ_HEAD(engine) & HEAD_ADDR) == 0;
+	return (ENGINE_READ(engine, RING_HEAD) & HEAD_ADDR) == 0;
 }
 
 static int init_ring_common(struct intel_engine_cs *engine)
@@ -640,26 +644,26 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	struct intel_ring *ring = engine->buffer;
 	int ret = 0;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
 		DRM_DEBUG_DRIVER("%s head not reset to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				engine->name,
-				I915_READ_CTL(engine),
-				I915_READ_HEAD(engine),
-				I915_READ_TAIL(engine),
-				I915_READ_START(engine));
+				ENGINE_READ(engine, RING_CTL),
+				ENGINE_READ(engine, RING_HEAD),
+				ENGINE_READ(engine, RING_TAIL),
+				ENGINE_READ(engine, RING_START));
 
 		if (!stop_ring(engine)) {
 			DRM_ERROR("failed to set %s head to zero "
 				  "ctl %08x head %08x tail %08x start %08x\n",
 				  engine->name,
-				  I915_READ_CTL(engine),
-				  I915_READ_HEAD(engine),
-				  I915_READ_TAIL(engine),
-				  I915_READ_START(engine));
+				  ENGINE_READ(engine, RING_CTL),
+				  ENGINE_READ(engine, RING_HEAD),
+				  ENGINE_READ(engine, RING_TAIL),
+				  ENGINE_READ(engine, RING_START));
 			ret = -EIO;
 			goto out;
 		}
@@ -673,18 +677,18 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	intel_engine_reset_breadcrumbs(engine);
 
 	/* Enforce ordering by reading HEAD register back */
-	I915_READ_HEAD(engine);
+	ENGINE_READ(engine, RING_HEAD);
 
 	/* Initialize the ring. This must happen _after_ we've cleared the ring
 	 * registers with the above sequence (the readback of the HEAD registers
 	 * also enforces ordering), otherwise the hw might lose the new ring
 	 * register values. */
-	I915_WRITE_START(engine, i915_ggtt_offset(ring->vma));
+	ENGINE_WRITE(engine, RING_START, i915_ggtt_offset(ring->vma));
 
 	/* WaClearRingBufHeadRegAtInit:ctg,elk */
-	if (I915_READ_HEAD(engine))
+	if (ENGINE_READ(engine, RING_HEAD))
 		DRM_DEBUG_DRIVER("%s initialization failed [head=%08x], fudging\n",
-				 engine->name, I915_READ_HEAD(engine));
+				 engine->name, ENGINE_READ(engine, RING_HEAD));
 
 	/* Check that the ring offsets point within the ring! */
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
@@ -692,42 +696,44 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	intel_ring_update_space(ring);
 
 	/* First wake the ring up to an empty/idle ring */
-	I915_WRITE_HEAD(engine, ring->head);
-	I915_WRITE_TAIL(engine, ring->head);
-	(void)I915_READ_TAIL(engine);
+	ENGINE_WRITE(engine, RING_HEAD, ring->head);
+	ENGINE_WRITE(engine, RING_TAIL, ring->head);
+	ENGINE_POSTING_READ(engine, RING_TAIL);
 
-	I915_WRITE_CTL(engine, RING_CTL_SIZE(ring->size) | RING_VALID);
+	ENGINE_WRITE(engine, RING_CTL, RING_CTL_SIZE(ring->size) | RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
-	if (intel_wait_for_register(dev_priv, RING_CTL(engine->mmio_base),
+	if (intel_wait_for_register(engine->uncore,
+				    RING_CTL(engine->mmio_base),
 				    RING_VALID, RING_VALID,
 				    50)) {
 		DRM_ERROR("%s initialization failed "
 			  "ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
 			  engine->name,
-			  I915_READ_CTL(engine),
-			  I915_READ_CTL(engine) & RING_VALID,
-			  I915_READ_HEAD(engine), ring->head,
-			  I915_READ_TAIL(engine), ring->tail,
-			  I915_READ_START(engine),
+			  ENGINE_READ(engine, RING_CTL),
+			  ENGINE_READ(engine, RING_CTL) & RING_VALID,
+			  ENGINE_READ(engine, RING_HEAD), ring->head,
+			  ENGINE_READ(engine, RING_TAIL), ring->tail,
+			  ENGINE_READ(engine, RING_START),
 			  i915_ggtt_offset(ring->vma));
 		ret = -EIO;
 		goto out;
 	}
 
 	if (INTEL_GEN(dev_priv) > 2)
-		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
+		ENGINE_WRITE(engine,
+			     RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 
 	/* Now awake, let it get started */
 	if (ring->tail != ring->head) {
-		I915_WRITE_TAIL(engine, ring->tail);
-		(void)I915_READ_TAIL(engine);
+		ENGINE_WRITE(engine, RING_TAIL, ring->tail);
+		ENGINE_POSTING_READ(engine, RING_TAIL);
 	}
 
 	/* Papering over lost _interrupts_ immediately following the restart */
 	intel_engine_queue_breadcrumbs(engine);
 out:
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -868,7 +874,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	if (INTEL_GEN(dev_priv) >= 6)
-		I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
+		ENGINE_WRITE(engine, RING_IMR, ~engine->irq_keep_mask);
 
 	return 0;
 }
@@ -895,12 +901,10 @@ static void cancel_requests(struct intel_engine_cs *engine)
 
 static void i9xx_submit_request(struct i915_request *request)
 {
-	struct drm_i915_private *dev_priv = request->i915;
-
 	i915_request_submit(request);
 
-	I915_WRITE_TAIL(request->engine,
-			intel_ring_set_tail(request->ring, request->tail));
+	ENGINE_WRITE(request->engine, RING_TAIL,
+		     intel_ring_set_tail(request->ring, request->tail));
 }
 
 static u32 *i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
@@ -972,20 +976,20 @@ gen5_irq_disable(struct intel_engine_cs *engine)
 static void
 i9xx_irq_enable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	GEM_BUG_ON(engine->id != RCS0);
 
-	dev_priv->irq_mask &= ~engine->irq_enable_mask;
-	I915_WRITE(IMR, dev_priv->irq_mask);
-	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+	engine->i915->irq_mask &= ~engine->irq_enable_mask;
+	ENGINE_WRITE(engine, RING_IMR, engine->i915->irq_mask);
+	ENGINE_POSTING_READ(engine, RING_IMR);
 }
 
 static void
 i9xx_irq_disable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	GEM_BUG_ON(engine->id != RCS0);
 
-	dev_priv->irq_mask |= engine->irq_enable_mask;
-	I915_WRITE(IMR, dev_priv->irq_mask);
+	engine->i915->irq_mask |= engine->irq_enable_mask;
+	ENGINE_WRITE(engine, RING_IMR, engine->i915->irq_mask);
 }
 
 static void
@@ -1025,47 +1029,38 @@ bsd_ring_flush(struct i915_request *rq, u32 mode)
 static void
 gen6_irq_enable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	I915_WRITE_IMR(engine,
-		       ~(engine->irq_enable_mask |
-			 engine->irq_keep_mask));
+	ENGINE_WRITE(engine, RING_IMR,
+		     ~(engine->irq_enable_mask | engine->irq_keep_mask));
 
 	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
-	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+	ENGINE_POSTING_READ(engine, RING_IMR);
 
-	gen5_enable_gt_irq(dev_priv, engine->irq_enable_mask);
+	gen5_enable_gt_irq(engine->i915, engine->irq_enable_mask);
 }
 
 static void
 gen6_irq_disable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
-	gen5_disable_gt_irq(dev_priv, engine->irq_enable_mask);
+	ENGINE_WRITE(engine, RING_IMR, ~engine->irq_keep_mask);
+	gen5_disable_gt_irq(engine->i915, engine->irq_enable_mask);
 }
 
 static void
 hsw_vebox_irq_enable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
+	ENGINE_WRITE(engine, RING_IMR, ~engine->irq_enable_mask);
 
 	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
-	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+	ENGINE_POSTING_READ(engine, RING_IMR);
 
-	gen6_unmask_pm_irq(dev_priv, engine->irq_enable_mask);
+	gen6_unmask_pm_irq(engine->i915, engine->irq_enable_mask);
 }
 
 static void
 hsw_vebox_irq_disable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	I915_WRITE_IMR(engine, ~0);
-	gen6_mask_pm_irq(dev_priv, engine->irq_enable_mask);
+	ENGINE_WRITE(engine, RING_IMR, ~0);
+	gen6_mask_pm_irq(engine->i915, engine->irq_enable_mask);
 }
 
 static int
@@ -1194,15 +1189,6 @@ int intel_ring_pin(struct intel_ring *ring)
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;
-
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		if (flags & PIN_MAPPABLE || map == I915_MAP_WC)
-			ret = i915_gem_object_set_to_gtt_domain(vma->obj, true);
-		else
-			ret = i915_gem_object_set_to_cpu_domain(vma->obj, true);
-		if (unlikely(ret))
-			goto unpin_timeline;
-	}
 
 	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (unlikely(ret))
@@ -1392,17 +1378,6 @@ static int __context_pin(struct intel_context *ce)
 	if (!vma)
 		return 0;
 
-	/*
-	 * Clear this page out of any CPU caches for coherent swap-in/out.
-	 * We only want to do this on the first bind so that we do not stall
-	 * on an active context (which by nature is already on the GPU).
-	 */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
-		if (err)
-			return err;
-	}
-
 	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
 		return err;
@@ -1412,6 +1387,7 @@ static int __context_pin(struct intel_context *ce)
 	 * it cannot reclaim the object until we release it.
 	 */
 	vma->obj->pin_global++;
+	vma->obj->mm.dirty = true;
 
 	return 0;
 }
@@ -1446,6 +1422,24 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
+	/*
+	 * Try to make the context utilize L3 as well as LLC.
+	 *
+	 * On VLV we don't have L3 controls in the PTEs so we
+	 * shouldn't touch the cache level, especially as that
+	 * would make the object snooped which might have a
+	 * negative performance impact.
+	 *
+	 * Snooping is required on non-llc platforms in execlist
+	 * mode, but since all GGTT accesses use PAT entry 0 we
+	 * get snooping anyway regardless of cache_level.
+	 *
+	 * This is only applicable for Ivy Bridge devices since
+	 * later platforms don't have L3 control bits in the PTE.
+	 */
+	if (IS_IVYBRIDGE(i915))
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_L3_LLC);
+
 	if (engine->default_state) {
 		void *defaults, *vaddr;
 
@@ -1463,29 +1457,10 @@ alloc_context_vma(struct intel_engine_cs *engine)
 		}
 
 		memcpy(vaddr, defaults, engine->context_size);
-
 		i915_gem_object_unpin_map(engine->default_state);
-		i915_gem_object_unpin_map(obj);
-	}
 
-	/*
-	 * Try to make the context utilize L3 as well as LLC.
-	 *
-	 * On VLV we don't have L3 controls in the PTEs so we
-	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
-	 * negative performance impact.
-	 *
-	 * Snooping is required on non-llc platforms in execlist
-	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
-	 *
-	 * This is only applicable for Ivy Bridge devices since
-	 * later platforms don't have L3 control bits in the PTE.
-	 */
-	if (IS_IVYBRIDGE(i915)) {
-		/* Ignore any error, regard it as a simple optimisation */
-		i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
+		i915_gem_object_flush_map(obj);
+		i915_gem_object_unpin_map(obj);
 	}
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
@@ -1553,9 +1528,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (err)
 		return err;
 
-	timeline = i915_timeline_create(engine->i915,
-					engine->name,
-					engine->status_page.vma);
+	timeline = i915_timeline_create(engine->i915, engine->status_page.vma);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;
@@ -1598,7 +1571,7 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	WARN_ON(INTEL_GEN(dev_priv) > 2 &&
-		(I915_READ_MODE(engine) & MODE_IDLE) == 0);
+		(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
 
 	intel_ring_unpin(engine->buffer);
 	intel_ring_put(engine->buffer);
@@ -1633,11 +1606,11 @@ static int load_pd_dir(struct i915_request *rq,
 		return PTR_ERR(cs);
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine));
+	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
 	*cs++ = PP_DIR_DCLV_2G;
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
+	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
 	*cs++ = ppgtt->pd.base.ggtt_offset << 10;
 
 	intel_ring_advance(rq, cs);
@@ -1656,7 +1629,7 @@ static int flush_pd_dir(struct i915_request *rq)
 
 	/* Stall until the page table load is complete */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
+	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
 	*cs++ = i915_scratch_offset(rq->i915);
 	*cs++ = MI_NOOP;
 
@@ -2073,23 +2046,23 @@ int intel_ring_cacheline_align(struct i915_request *rq)
 
 static void gen6_bsd_submit_request(struct i915_request *request)
 {
-	struct drm_i915_private *dev_priv = request->i915;
+	struct intel_uncore *uncore = request->engine->uncore;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
        /* Every tail move must follow the sequence below */
 
 	/* Disable notification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
-	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
-		      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
+			      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 
 	/* Clear the context id. Here be magic! */
-	I915_WRITE64_FW(GEN6_BSD_RNCID, 0x0);
+	intel_uncore_write64_fw(uncore, GEN6_BSD_RNCID, 0x0);
 
 	/* Wait for the ring not to be idle, i.e. for it to wake up. */
-	if (__intel_wait_for_register_fw(dev_priv,
+	if (__intel_wait_for_register_fw(uncore,
 					 GEN6_BSD_SLEEP_PSMI_CONTROL,
 					 GEN6_BSD_SLEEP_INDICATOR,
 					 0,
@@ -2102,10 +2075,10 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Let the ring send IDLE messages to the GT again,
 	 * and so let it sleep to conserve power when idle.
 	 */
-	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
-		      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
+			      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 }
 
 static int mi_flush_dw(struct i915_request *rq, u32 flags)

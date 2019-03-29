@@ -63,6 +63,28 @@ extern "C" {
 #define I915_RESET_UEVENT		"RESET"
 
 /*
+ * i915_user_extension: Base class for defining a chain of extensions
+ *
+ * Many interfaces need to grow over time. In most cases we can simply
+ * extend the struct and have userspace pass in more data. Another option,
+ * as demonstrated by Vulkan's approach to providing extensions for forward
+ * and backward compatibility, is to use a list of optional structs to
+ * provide those extra details.
+ *
+ * The key advantage to using an extension chain is that it allows us to
+ * redefine the interface more easily than an ever growing struct of
+ * increasing complexity, and for large parts of that interface to be
+ * entirely optional. The downside is more pointer chasing; chasing across
+ * the __user boundary with pointers encapsulated inside u64.
+ */
+struct i915_user_extension {
+	__u64 next_extension;
+	__u32 name;
+	__u32 flags; /* All undefined bits must be zero. */
+	__u32 rsvd[4]; /* Reserved for future use; must be zero. */
+};
+
+/*
  * MOCS indexes used for GPU surfaces, defining the cacheability of the
  * surface data and the coherency for this data wrt. CPU vs. GPU accesses.
  */
@@ -370,6 +392,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
 #define DRM_IOCTL_I915_GEM_WAIT		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_WAIT, struct drm_i915_gem_wait)
 #define DRM_IOCTL_I915_GEM_CONTEXT_CREATE	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_CREATE, struct drm_i915_gem_context_create)
+#define DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_CREATE, struct drm_i915_gem_context_create_ext)
 #define DRM_IOCTL_I915_GEM_CONTEXT_DESTROY	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_DESTROY, struct drm_i915_gem_context_destroy)
 #define DRM_IOCTL_I915_REG_READ			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_REG_READ, struct drm_i915_reg_read)
 #define DRM_IOCTL_I915_GET_RESET_STATS		DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GET_RESET_STATS, struct drm_i915_reset_stats)
@@ -1421,65 +1444,17 @@ struct drm_i915_gem_wait {
 };
 
 struct drm_i915_gem_context_create {
-	/*  output: id of new context*/
-	__u32 ctx_id;
+	__u32 ctx_id; /* output: id of new context*/
 	__u32 pad;
 };
 
-struct drm_i915_gem_context_destroy {
-	__u32 ctx_id;
-	__u32 pad;
-};
-
-struct drm_i915_reg_read {
-	/*
-	 * Register offset.
-	 * For 64bit wide registers where the upper 32bits don't immediately
-	 * follow the lower 32bits, the offset of the lower 32bits must
-	 * be specified
-	 */
-	__u64 offset;
-#define I915_REG_READ_8B_WA (1ul << 0)
-
-	__u64 val; /* Return value */
-};
-/* Known registers:
- *
- * Render engine timestamp - 0x2358 + 64bit - gen7+
- * - Note this register returns an invalid value if using the default
- *   single instruction 8byte read, in order to workaround that pass
- *   flag I915_REG_READ_8B_WA in offset field.
- *
- */
-
-struct drm_i915_reset_stats {
-	__u32 ctx_id;
+struct drm_i915_gem_context_create_ext {
+	__u32 ctx_id; /* output: id of new context*/
 	__u32 flags;
-
-	/* All resets since boot/module reload, for all contexts */
-	__u32 reset_count;
-
-	/* Number of batches lost when active in GPU, for this context */
-	__u32 batch_active;
-
-	/* Number of batches lost pending for execution, for this context */
-	__u32 batch_pending;
-
-	__u32 pad;
-};
-
-struct drm_i915_gem_userptr {
-	__u64 user_ptr;
-	__u64 user_size;
-	__u32 flags;
-#define I915_USERPTR_READ_ONLY 0x1
-#define I915_USERPTR_UNSYNCHRONIZED 0x80000000
-	/**
-	 * Returned handle for the object.
-	 *
-	 * Object handles are nonzero.
-	 */
-	__u32 handle;
+#define I915_CONTEXT_CREATE_FLAGS_USE_EXTENSIONS	(1u << 0)
+#define I915_CONTEXT_CREATE_FLAGS_UNKNOWN \
+	(-(I915_CONTEXT_CREATE_FLAGS_USE_EXTENSIONS << 1))
+	__u64 extensions;
 };
 
 struct drm_i915_gem_context_param {
@@ -1521,6 +1496,7 @@ struct drm_i915_gem_context_param {
  */
 #define I915_CONTEXT_PARAM_RECOVERABLE	0x8
 /* Must be kept compact -- no holes and well documented */
+
 	__u64 value;
 };
 
@@ -1581,6 +1557,96 @@ struct drm_i915_gem_context_param_sseu {
 	 * Unused for now. Must be cleared to zero.
 	 */
 	__u32 rsvd;
+};
+
+struct drm_i915_gem_context_create_ext_setparam {
+#define I915_CONTEXT_CREATE_EXT_SETPARAM 0
+	struct i915_user_extension base;
+	struct drm_i915_gem_context_param param;
+};
+
+struct drm_i915_gem_context_destroy {
+	__u32 ctx_id;
+	__u32 pad;
+};
+
+/*
+ * DRM_I915_GEM_VM_CREATE -
+ *
+ * Create a new virtual memory address space (ppGTT) for use within a context
+ * on the same file. Extensions can be provided to configure exactly how the
+ * address space is setup upon creation.
+ *
+ * The id of new VM (bound to the fd) for use with I915_CONTEXT_PARAM_VM is
+ * returned in the outparam @id.
+ *
+ * No flags are defined, with all bits reserved and must be zero.
+ *
+ * An extension chain maybe provided, starting with @extensions, and terminated
+ * by the @next_extension being 0. Currently, no extensions are defined.
+ *
+ * DRM_I915_GEM_VM_DESTROY -
+ *
+ * Destroys a previously created VM id, specified in @id.
+ *
+ * No extensions or flags are allowed currently, and so must be zero.
+ */
+struct drm_i915_gem_vm_control {
+	__u64 extensions;
+	__u32 flags;
+	__u32 vm_id;
+};
+
+struct drm_i915_reg_read {
+	/*
+	 * Register offset.
+	 * For 64bit wide registers where the upper 32bits don't immediately
+	 * follow the lower 32bits, the offset of the lower 32bits must
+	 * be specified
+	 */
+	__u64 offset;
+#define I915_REG_READ_8B_WA (1ul << 0)
+
+	__u64 val; /* Return value */
+};
+
+/* Known registers:
+ *
+ * Render engine timestamp - 0x2358 + 64bit - gen7+
+ * - Note this register returns an invalid value if using the default
+ *   single instruction 8byte read, in order to workaround that pass
+ *   flag I915_REG_READ_8B_WA in offset field.
+ *
+ */
+
+struct drm_i915_reset_stats {
+	__u32 ctx_id;
+	__u32 flags;
+
+	/* All resets since boot/module reload, for all contexts */
+	__u32 reset_count;
+
+	/* Number of batches lost when active in GPU, for this context */
+	__u32 batch_active;
+
+	/* Number of batches lost pending for execution, for this context */
+	__u32 batch_pending;
+
+	__u32 pad;
+};
+
+struct drm_i915_gem_userptr {
+	__u64 user_ptr;
+	__u64 user_size;
+	__u32 flags;
+#define I915_USERPTR_READ_ONLY 0x1
+#define I915_USERPTR_UNSYNCHRONIZED 0x80000000
+	/**
+	 * Returned handle for the object.
+	 *
+	 * Object handles are nonzero.
+	 */
+	__u32 handle;
 };
 
 enum drm_i915_oa_format {

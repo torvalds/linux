@@ -311,7 +311,8 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) | PANEL_POWER_ON);
 	POSTING_READ(lvds_encoder->reg);
 
-	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, PP_ON, 5000))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    PP_STATUS(0), PP_ON, PP_ON, 5000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
 	intel_panel_enable_backlight(pipe_config, conn_state);
@@ -325,7 +326,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) & ~PANEL_POWER_ON);
-	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, 0, 1000))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    PP_STATUS(0), PP_ON, 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
@@ -810,7 +812,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
@@ -949,30 +950,14 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_connector->edid = edid;
 
-	list_for_each_entry(scan, &connector->probed_modes, head) {
-		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
-			DRM_DEBUG_KMS("using preferred mode from EDID: ");
-			drm_mode_debug_printmodeline(scan);
-
-			fixed_mode = drm_mode_duplicate(dev, scan);
-			if (fixed_mode)
-				goto out;
-		}
-	}
+	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+	if (fixed_mode)
+		goto out;
 
 	/* Failed to get EDID, what about VBT? */
-	if (dev_priv->vbt.lfp_lvds_vbt_mode) {
-		DRM_DEBUG_KMS("using mode from VBT: ");
-		drm_mode_debug_printmodeline(dev_priv->vbt.lfp_lvds_vbt_mode);
-
-		fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode) {
-			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-			connector->display_info.width_mm = fixed_mode->width_mm;
-			connector->display_info.height_mm = fixed_mode->height_mm;
-			goto out;
-		}
-	}
+	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	if (fixed_mode)
+		goto out;
 
 	/*
 	 * If we didn't get EDID, try checking if the panel is already turned

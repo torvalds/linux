@@ -164,7 +164,7 @@ static int render_state_setup(struct intel_render_state *so,
 		drm_clflush_virt_range(d, i * sizeof(u32));
 	kunmap_atomic(d);
 
-	ret = i915_gem_object_set_to_gtt_domain(so->obj, false);
+	ret = 0;
 out:
 	i915_gem_obj_finish_shmem_access(so->obj);
 	return ret;

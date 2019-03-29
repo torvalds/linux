@@ -1364,7 +1364,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 
 	free_oa_buffer(dev_priv);
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(dev_priv, stream->wakeref);
 
 	if (stream->ctx)
@@ -1509,9 +1509,7 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 		goto unlock;
 	}
 
-	ret = i915_gem_object_set_cache_level(bo, I915_CACHE_LLC);
-	if (ret)
-		goto err_unref;
+	i915_gem_object_set_cache_coherency(bo, I915_CACHE_LLC);
 
 	/* PreHSW required 512K alignment, HSW requires 16M */
 	vma = i915_gem_object_ggtt_pin(bo, NULL, 0, SZ_16M, 0);
@@ -1922,10 +1920,10 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 
 static void gen7_oa_disable(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_uncore *uncore = &stream->dev_priv->uncore;
 
-	I915_WRITE(GEN7_OACONTROL, 0);
-	if (intel_wait_for_register(dev_priv,
+	intel_uncore_write(uncore, GEN7_OACONTROL, 0);
+	if (intel_wait_for_register(uncore,
 				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
 				    50))
 		DRM_ERROR("wait for OA to be disabled timed out\n");
@@ -1933,10 +1931,10 @@ static void gen7_oa_disable(struct i915_perf_stream *stream)
 
 static void gen8_oa_disable(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_uncore *uncore = &stream->dev_priv->uncore;
 
-	I915_WRITE(GEN8_OACONTROL, 0);
-	if (intel_wait_for_register(dev_priv,
+	intel_uncore_write(uncore, GEN8_OACONTROL, 0);
+	if (intel_wait_for_register(uncore,
 				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
 				    50))
 		DRM_ERROR("wait for OA to be disabled timed out\n");
@@ -2093,7 +2091,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   references will effectively disable RC6.
 	 */
 	stream->wakeref = intel_runtime_pm_get(dev_priv);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(dev_priv);
 	if (ret)
@@ -2127,7 +2125,7 @@ err_lock:
 err_oa_buf_alloc:
 	put_oa_config(dev_priv, stream->oa_config);
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(dev_priv, stream->wakeref);
 
 err_config:

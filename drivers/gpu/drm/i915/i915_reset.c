@@ -245,10 +245,12 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 			     unsigned int engine_mask,
 			     unsigned int retry)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	int ret;
 
-	I915_WRITE_FW(ILK_GDSR, ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
-	ret = __intel_wait_for_register_fw(dev_priv, ILK_GDSR,
+	intel_uncore_write_fw(uncore, ILK_GDSR,
+			      ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
+	ret = __intel_wait_for_register_fw(uncore, ILK_GDSR,
 					   ILK_GRDOM_RESET_ENABLE, 0,
 					   5000, 0,
 					   NULL);
@@ -257,8 +259,9 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 		goto out;
 	}
 
-	I915_WRITE_FW(ILK_GDSR, ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
-	ret = __intel_wait_for_register_fw(dev_priv, ILK_GDSR,
+	intel_uncore_write_fw(uncore, ILK_GDSR,
+			      ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
+	ret = __intel_wait_for_register_fw(uncore, ILK_GDSR,
 					   ILK_GRDOM_RESET_ENABLE, 0,
 					   5000, 0,
 					   NULL);
@@ -268,8 +271,8 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 	}
 
 out:
-	I915_WRITE_FW(ILK_GDSR, 0);
-	POSTING_READ_FW(ILK_GDSR);
+	intel_uncore_write_fw(uncore, ILK_GDSR, 0);
+	intel_uncore_posting_read_fw(uncore, ILK_GDSR);
 	return ret;
 }
 
@@ -277,6 +280,7 @@ out:
 static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 				u32 hw_domain_mask)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	int err;
 
 	/*
@@ -284,10 +288,10 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
-	I915_WRITE_FW(GEN6_GDRST, hw_domain_mask);
+	intel_uncore_write_fw(uncore, GEN6_GDRST, hw_domain_mask);
 
 	/* Wait for the device to ack the reset requests */
-	err = __intel_wait_for_register_fw(dev_priv,
+	err = __intel_wait_for_register_fw(uncore,
 					   GEN6_GDRST, hw_domain_mask, 0,
 					   500, 0,
 					   NULL);
@@ -330,6 +334,7 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 			  struct intel_engine_cs *engine)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
 	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
@@ -377,10 +382,9 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 	 * ends up being locked to the engine we want to reset, we have to reset
 	 * it as well (we will unlock it once the reset sequence is completed).
 	 */
-	I915_WRITE_FW(sfc_forced_lock,
-		      I915_READ_FW(sfc_forced_lock) | sfc_forced_lock_bit);
+	intel_uncore_rmw_or_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
 
-	if (__intel_wait_for_register_fw(dev_priv,
+	if (__intel_wait_for_register_fw(uncore,
 					 sfc_forced_lock_ack,
 					 sfc_forced_lock_ack_bit,
 					 sfc_forced_lock_ack_bit,
@@ -389,7 +393,7 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (I915_READ_FW(sfc_usage) & sfc_usage_bit)
+	if (intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit)
 		return sfc_reset_bit;
 
 	return 0;
@@ -465,13 +469,13 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 
 static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_uncore *uncore = &engine->i915->uncore;
 	int ret;
 
-	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
-		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
+	intel_uncore_write_fw(uncore, RING_RESET_CTL(engine->mmio_base),
+			      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
-	ret = __intel_wait_for_register_fw(dev_priv,
+	ret = __intel_wait_for_register_fw(uncore,
 					   RING_RESET_CTL(engine->mmio_base),
 					   RESET_CTL_READY_TO_RESET,
 					   RESET_CTL_READY_TO_RESET,
@@ -569,7 +573,7 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 	 * If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
 	 */
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 	for (retry = 0; ret == -ETIMEDOUT && retry < retries; retry++) {
 		/*
 		 * We stop engines, otherwise we might get failed reset and a
@@ -593,7 +597,7 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 		ret = reset(i915, engine_mask, retry);
 		preempt_enable();
 	}
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -622,9 +626,9 @@ int intel_reset_guc(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(!HAS_GUC(i915));
 
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(i915, guc_domain);
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -642,7 +646,7 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	 * written to the powercontext is undefined and so we may lose
 	 * GPU state upon resume, i.e. fail to restart after a reset.
 	 */
-	intel_uncore_forcewake_get(engine->i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&engine->i915->uncore, FORCEWAKE_ALL);
 	engine->reset.prepare(engine);
 }
 
@@ -713,7 +717,7 @@ static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 static void reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-	intel_uncore_forcewake_put(engine->i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&engine->i915->uncore, FORCEWAKE_ALL);
 }
 
 struct i915_gpu_restart {
@@ -1169,19 +1173,24 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
 }
 
+static void clear_register(struct drm_i915_private *dev_priv, i915_reg_t reg)
+{
+	I915_WRITE(reg, I915_READ(reg));
+}
+
 void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
 	u32 eir;
 
 	if (!IS_GEN(dev_priv, 2))
-		I915_WRITE(PGTBL_ER, I915_READ(PGTBL_ER));
+		clear_register(dev_priv, PGTBL_ER);
 
 	if (INTEL_GEN(dev_priv) < 4)
-		I915_WRITE(IPEIR, I915_READ(IPEIR));
+		clear_register(dev_priv, IPEIR(RENDER_RING_BASE));
 	else
-		I915_WRITE(IPEIR_I965, I915_READ(IPEIR_I965));
+		clear_register(dev_priv, IPEIR_I965);
 
-	I915_WRITE(EIR, I915_READ(EIR));
+	clear_register(dev_priv, EIR);
 	eir = I915_READ(EIR);
 	if (eir) {
 		/*

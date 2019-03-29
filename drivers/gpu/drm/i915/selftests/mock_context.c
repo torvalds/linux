@@ -54,13 +54,17 @@ mock_context(struct drm_i915_private *i915,
 		goto err_handles;
 
 	if (name) {
+		struct i915_hw_ppgtt *ppgtt;
+
 		ctx->name = kstrdup(name, GFP_KERNEL);
 		if (!ctx->name)
 			goto err_put;
 
-		ctx->ppgtt = mock_ppgtt(i915, name);
-		if (!ctx->ppgtt)
+		ppgtt = mock_ppgtt(i915, name);
+		if (!ppgtt)
 			goto err_put;
+
+		__set_ppgtt(ctx, ppgtt);
 	}
 
 	return ctx;
@@ -88,9 +92,24 @@ void mock_init_contexts(struct drm_i915_private *i915)
 struct i915_gem_context *
 live_context(struct drm_i915_private *i915, struct drm_file *file)
 {
+	struct i915_gem_context *ctx;
+	int err;
+
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	return i915_gem_create_context(i915, file->driver_priv);
+	ctx = i915_gem_create_context(i915, 0);
+	if (IS_ERR(ctx))
+		return ctx;
+
+	err = gem_context_register(ctx, file->driver_priv);
+	if (err < 0)
+		goto err_ctx;
+
+	return ctx;
+
+err_ctx:
+	context_close(ctx);
+	return ERR_PTR(err);
 }
 
 struct i915_gem_context *

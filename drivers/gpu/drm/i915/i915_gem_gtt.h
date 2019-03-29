@@ -396,6 +396,8 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory_pointer pdp;	/* GEN8+ */
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
+
+	u32 user_handle;
 };
 
 struct gen6_hw_ppgtt {
@@ -603,15 +605,16 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv);
+
+struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
 void i915_ppgtt_release(struct kref *kref);
-struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
-					struct drm_i915_file_private *fpriv);
-void i915_ppgtt_close(struct i915_address_space *vm);
-static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
+
+static inline struct i915_hw_ppgtt *i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
-	if (ppgtt)
-		kref_get(&ppgtt->ref);
+	kref_get(&ppgtt->ref);
+	return ppgtt;
 }
+
 static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)
@@ -620,6 +623,7 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 
 int gen6_ppgtt_pin(struct i915_hw_ppgtt *base);
 void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base);
+void gen6_ppgtt_unpin_all(struct i915_hw_ppgtt *base);
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv);

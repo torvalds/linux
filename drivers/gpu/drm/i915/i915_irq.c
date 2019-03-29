@@ -30,6 +30,7 @@
 
 #include <linux/sysrq.h>
 #include <linux/slab.h>
+#include <linux/cpuidle.h>
 #include <linux/circ_buf.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_drv.h>
@@ -268,7 +269,7 @@ static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
 				const unsigned int bank,
 				const unsigned int bit)
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 dw;
 
 	lockdep_assert_held(&i915->irq_lock);
@@ -748,13 +749,21 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 	POSTING_READ(reg);
 }
 
+static bool i915_has_asle(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->opregion.asle)
+		return false;
+
+	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+}
+
 /**
  * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
  * @dev_priv: i915 device private
  */
 static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->opregion.asle || !IS_MOBILE(dev_priv))
+	if (!i915_has_asle(dev_priv))
 		return;
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -1471,7 +1480,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 			    u32 master_ctl, u32 gt_iir[4])
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 
 #define GEN8_GT_IRQS (GEN8_GT_RCS_IRQ | \
 		      GEN8_GT_BCS_IRQ | \
@@ -2868,7 +2877,7 @@ static inline void gen8_master_intr_enable(void __iomem * const regs)
 static irqreturn_t gen8_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = to_i915(arg);
-	void __iomem * const regs = dev_priv->regs;
+	void __iomem * const regs = dev_priv->uncore.regs;
 	u32 master_ctl;
 	u32 gt_iir[4];
 
@@ -2902,7 +2911,7 @@ static u32
 gen11_gt_engine_identity(struct drm_i915_private * const i915,
 			 const unsigned int bank, const unsigned int bit)
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 timeout_ts;
 	u32 ident;
 
@@ -2986,7 +2995,7 @@ static void
 gen11_gt_bank_handler(struct drm_i915_private * const i915,
 		      const unsigned int bank)
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	unsigned long intr_dw;
 	unsigned int bit;
 
@@ -3029,7 +3038,7 @@ gen11_gt_irq_handler(struct drm_i915_private * const i915,
 static u32
 gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl)
 {
-	void __iomem * const regs = dev_priv->regs;
+	void __iomem * const regs = dev_priv->uncore.regs;
 	u32 iir;
 
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
@@ -3070,7 +3079,7 @@ static inline void gen11_master_intr_enable(void __iomem * const regs)
 static irqreturn_t gen11_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private * const i915 = to_i915(arg);
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 master_ctl;
 	u32 gu_misc_iir;
 
@@ -3121,6 +3130,16 @@ static int i8xx_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
+}
+
+static int i945gm_enable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	if (dev_priv->i945gm_vblank.enabled++ == 0)
+		schedule_work(&dev_priv->i945gm_vblank.work);
+
+	return i8xx_enable_vblank(dev, pipe);
 }
 
 static int i965_enable_vblank(struct drm_device *dev, unsigned int pipe)
@@ -3187,6 +3206,16 @@ static void i8xx_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
+static void i945gm_disable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	i8xx_disable_vblank(dev, pipe);
+
+	if (--dev_priv->i945gm_vblank.enabled == 0)
+		schedule_work(&dev_priv->i945gm_vblank.work);
+}
+
 static void i965_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3218,6 +3247,60 @@ static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+static void i945gm_vblank_work_func(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private, i945gm_vblank.work);
+
+	/*
+	 * Vblank interrupts fail to wake up the device from C3,
+	 * hence we want to prevent C3 usage while vblank interrupts
+	 * are enabled.
+	 */
+	pm_qos_update_request(&dev_priv->i945gm_vblank.pm_qos,
+			      READ_ONCE(dev_priv->i945gm_vblank.enabled) ?
+			      dev_priv->i945gm_vblank.c3_disable_latency :
+			      PM_QOS_DEFAULT_VALUE);
+}
+
+static int cstate_disable_latency(const char *name)
+{
+	const struct cpuidle_driver *drv;
+	int i;
+
+	drv = cpuidle_get_driver();
+	if (!drv)
+		return 0;
+
+	for (i = 0; i < drv->state_count; i++) {
+		const struct cpuidle_state *state = &drv->states[i];
+
+		if (!strcmp(state->name, name))
+			return state->exit_latency ?
+				state->exit_latency - 1 : 0;
+	}
+
+	return 0;
+}
+
+static void i945gm_vblank_work_init(struct drm_i915_private *dev_priv)
+{
+	INIT_WORK(&dev_priv->i945gm_vblank.work,
+		  i945gm_vblank_work_func);
+
+	dev_priv->i945gm_vblank.c3_disable_latency =
+		cstate_disable_latency("C3");
+	pm_qos_add_request(&dev_priv->i945gm_vblank.pm_qos,
+			   PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
+}
+
+static void i945gm_vblank_work_fini(struct drm_i915_private *dev_priv)
+{
+	cancel_work_sync(&dev_priv->i945gm_vblank.work);
+	pm_qos_remove_request(&dev_priv->i945gm_vblank.pm_qos);
 }
 
 static void ibx_irq_reset(struct drm_i915_private *dev_priv)
@@ -3351,7 +3434,7 @@ static void gen8_irq_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int pipe;
 
-	gen8_master_intr_disable(dev_priv->regs);
+	gen8_master_intr_disable(dev_priv->uncore.regs);
 
 	gen8_gt_irq_reset(dev_priv);
 
@@ -3393,7 +3476,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	gen11_master_intr_disable(dev_priv->regs);
+	gen11_master_intr_disable(dev_priv->uncore.regs);
 
 	gen11_gt_irq_reset(dev_priv);
 
@@ -3998,7 +4081,7 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_postinstall(dev);
 
-	gen8_master_intr_enable(dev_priv->regs);
+	gen8_master_intr_enable(dev_priv->uncore.regs);
 
 	return 0;
 }
@@ -4060,7 +4143,7 @@ static int gen11_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
-	gen11_master_intr_enable(dev_priv->regs);
+	gen11_master_intr_enable(dev_priv->uncore.regs);
 	POSTING_READ(GEN11_GFX_MSTR_IRQ);
 
 	return 0;
@@ -4517,6 +4600,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int i;
 
+	if (IS_I945GM(dev_priv))
+		i945gm_vblank_work_init(dev_priv);
+
 	intel_hpd_init_work(dev_priv);
 
 	INIT_WORK(&rps->work, gen6_pm_rps_work);
@@ -4556,13 +4642,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	else if (INTEL_GEN(dev_priv) >= 3)
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
 
-	/*
-	 * Opt out of the vblank disable timer on everything except gen2.
-	 * Gen2 doesn't have a hardware frame counter and so depends on
-	 * vblank interrupts to produce sane vblank seuquence numbers.
-	 */
-	if (!IS_GEN(dev_priv, 2))
-		dev->vblank_disable_immediate = true;
+	dev->vblank_disable_immediate = true;
 
 	/* Most platforms treat the display irq block as an always-on
 	 * power domain. vlv/chv can disable it at runtime and need
@@ -4639,6 +4719,13 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev->driver->irq_uninstall = i8xx_irq_reset;
 			dev->driver->enable_vblank = i8xx_enable_vblank;
 			dev->driver->disable_vblank = i8xx_disable_vblank;
+		} else if (IS_I945GM(dev_priv)) {
+			dev->driver->irq_preinstall = i915_irq_reset;
+			dev->driver->irq_postinstall = i915_irq_postinstall;
+			dev->driver->irq_uninstall = i915_irq_reset;
+			dev->driver->irq_handler = i915_irq_handler;
+			dev->driver->enable_vblank = i945gm_enable_vblank;
+			dev->driver->disable_vblank = i945gm_disable_vblank;
 		} else if (IS_GEN(dev_priv, 3)) {
 			dev->driver->irq_preinstall = i915_irq_reset;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
@@ -4668,6 +4755,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 void intel_irq_fini(struct drm_i915_private *i915)
 {
 	int i;
+
+	if (IS_I945GM(i915))
+		i945gm_vblank_work_fini(i915);
 
 	for (i = 0; i < MAX_L3_SLICES; ++i)
 		kfree(i915->l3_parity.remap_info[i]);

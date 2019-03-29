@@ -730,6 +730,14 @@ static const struct intel_device_info intel_icelake_11_info = {
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 };
 
+static const struct intel_device_info intel_elkhartlake_info = {
+	GEN11_FEATURES,
+	PLATFORM(INTEL_ELKHARTLAKE),
+	.is_alpha_support = 1,
+	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0),
+	.ppgtt_size = 36,
+};
+
 #undef GEN
 #undef PLATFORM
 
@@ -799,6 +807,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CML_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CNL_IDS(&intel_cannonlake_info),
 	INTEL_ICL_11_IDS(&intel_icelake_11_info),
+	INTEL_EHL_IDS(&intel_elkhartlake_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

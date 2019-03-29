@@ -327,6 +327,7 @@ out:
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	enum forcewake_domains fw;
 	i915_reg_t reg;
@@ -351,21 +352,21 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	 * otherwise device can go to RC6 state and interrupt invalidation
 	 * process
 	 */
-	fw = intel_uncore_forcewake_for_reg(dev_priv, reg,
+	fw = intel_uncore_forcewake_for_reg(uncore, reg,
 					    FW_REG_READ | FW_REG_WRITE);
 	if (ring_id == RCS0 && INTEL_GEN(dev_priv) >= 9)
 		fw |= FORCEWAKE_RENDER;
 
-	intel_uncore_forcewake_get(dev_priv, fw);
+	intel_uncore_forcewake_get(uncore, fw);
 
-	I915_WRITE_FW(reg, 0x1);
+	intel_uncore_write_fw(uncore, reg, 0x1);
 
-	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
+	if (wait_for_atomic((intel_uncore_read_fw(uncore, reg) == 0), 50))
 		gvt_vgpu_err("timeout in invalidate ring (%d) tlb\n", ring_id);
 	else
 		vgpu_vreg_t(vgpu, reg) = 0;
 
-	intel_uncore_forcewake_put(dev_priv, fw);
+	intel_uncore_forcewake_put(uncore, fw);
 
 	gvt_dbg_core("invalidate TLB for ring %d\n", ring_id);
 }
@@ -552,9 +553,9 @@ void intel_gvt_switch_mmio(struct intel_vgpu *pre,
 	 * performace for batch mmio read/write, so we need
 	 * handle forcewake mannually.
 	 */
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 	switch_mmio(pre, next, ring_id);
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 }
 
 /**

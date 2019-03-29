@@ -532,24 +532,6 @@ void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
 	msleep(msec);
 }
 
-int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
-{
-	struct intel_connector *connector = intel_dsi->attached_connector;
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_display_mode *mode;
-
-	mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
-	if (!mode)
-		return 0;
-
-	mode->type |= DRM_MODE_TYPE_PREFERRED;
-
-	drm_mode_probed_add(&connector->base, mode);
-
-	return 1;
-}
-
 #define ICL_PREPARE_CNT_MAX	0x7
 #define ICL_CLK_ZERO_CNT_MAX	0xf
 #define ICL_TRAIL_CNT_MAX	0x7

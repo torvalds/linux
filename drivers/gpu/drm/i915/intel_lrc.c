@@ -1248,6 +1248,30 @@ static void execlists_context_destroy(struct kref *kref)
 	intel_context_free(ce);
 }
 
+static int __context_pin(struct i915_vma *vma)
+{
+	unsigned int flags;
+	int err;
+
+	flags = PIN_GLOBAL | PIN_HIGH;
+	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+
+	err = i915_vma_pin(vma, 0, 0, flags);
+	if (err)
+		return err;
+
+	vma->obj->pin_global++;
+	vma->obj->mm.dirty = true;
+
+	return 0;
+}
+
+static void __context_unpin(struct i915_vma *vma)
+{
+	vma->obj->pin_global--;
+	__i915_vma_unpin(vma);
+}
+
 static void execlists_context_unpin(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine;
@@ -1276,31 +1300,8 @@ static void execlists_context_unpin(struct intel_context *ce)
 
 	intel_ring_unpin(ce->ring);
 
-	ce->state->obj->pin_global--;
 	i915_gem_object_unpin_map(ce->state->obj);
-	i915_vma_unpin(ce->state);
-}
-
-static int __context_pin(struct i915_vma *vma)
-{
-	unsigned int flags;
-	int err;
-
-	/*
-	 * Clear this page out of any CPU caches for coherent swap-in/out.
-	 * We only want to do this on the first bind so that we do not stall
-	 * on an active context (which by nature is already on the GPU).
-	 */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		err = i915_gem_object_set_to_wc_domain(vma->obj, true);
-		if (err)
-			return err;
-	}
-
-	flags = PIN_GLOBAL | PIN_HIGH;
-	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
-
-	return i915_vma_pin(vma, 0, 0, flags);
+	__context_unpin(ce->state);
 }
 
 static void
@@ -1361,7 +1362,6 @@ __execlists_context_pin(struct intel_context *ce,
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	__execlists_update_reg_state(ce, engine);
 
-	ce->state->obj->pin_global++;
 	return 0;
 
 unpin_ring:
@@ -1369,7 +1369,7 @@ unpin_ring:
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
 unpin_vma:
-	__i915_vma_unpin(ce->state);
+	__context_unpin(ce->state);
 err:
 	return ret;
 }
@@ -2074,16 +2074,14 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 
 static void gen8_logical_ring_enable_irq(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	I915_WRITE_IMR(engine,
-		       ~(engine->irq_enable_mask | engine->irq_keep_mask));
-	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+	ENGINE_WRITE(engine, RING_IMR,
+		     ~(engine->irq_enable_mask | engine->irq_keep_mask));
+	ENGINE_POSTING_READ(engine, RING_IMR);
 }
 
 static void gen8_logical_ring_disable_irq(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
+	ENGINE_WRITE(engine, RING_IMR, ~engine->irq_keep_mask);
 }
 
 static int gen8_emit_flush(struct i915_request *request, u32 mode)
@@ -2288,7 +2286,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	dev_priv = engine->i915;
 
 	if (engine->buffer) {
-		WARN_ON((I915_READ_MODE(engine) & MODE_IDLE) == 0);
+		WARN_ON((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
 	}
 
 	if (engine->cleanup)
@@ -2315,8 +2313,9 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->park = NULL;
 	engine->unpark = NULL;
 
-	engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
+	if (!intel_vgpu_active(engine->i915))
+		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 	if (engine->preempt_context)
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 }
@@ -2400,6 +2399,7 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
+	u32 base = engine->mmio_base;
 	int ret;
 
 	ret = intel_engine_init_common(engine);
@@ -2409,13 +2409,13 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	intel_engine_init_workarounds(engine);
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
-		execlists->submit_reg = i915->regs +
-			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
-		execlists->ctrl_reg = i915->regs +
-			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(engine));
+		execlists->submit_reg = i915->uncore.regs +
+			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(base));
+		execlists->ctrl_reg = i915->uncore.regs +
+			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(base));
 	} else {
-		execlists->submit_reg = i915->regs +
-			i915_mmio_reg_offset(RING_ELSP(engine));
+		execlists->submit_reg = i915->uncore.regs +
+			i915_mmio_reg_offset(RING_ELSP(base));
 	}
 
 	execlists->preempt_complete_status = ~0u;
@@ -2658,7 +2658,7 @@ static void execlists_init_reg_state(u32 *regs,
 	regs[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
 				 MI_LRI_FORCE_POSTED;
 
-	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(engine),
+	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(base),
 		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
 		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH));
 	if (INTEL_GEN(engine->i915) < 11) {
@@ -2751,19 +2751,12 @@ populate_lr_context(struct intel_context *ce,
 	u32 *regs;
 	int ret;
 
-	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Could not set to CPU domain\n");
-		return ret;
-	}
-
 	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
 		return ret;
 	}
-	ctx_obj->mm.dirty = true;
 
 	if (engine->default_state) {
 		/*
@@ -2798,14 +2791,21 @@ populate_lr_context(struct intel_context *ce,
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
 
+	ret = 0;
 err_unpin_ctx:
+	__i915_gem_object_flush_map(ctx_obj,
+				    LRC_HEADER_PAGES * PAGE_SIZE,
+				    engine->context_size);
 	i915_gem_object_unpin_map(ctx_obj);
 	return ret;
 }
 
 static struct i915_timeline *get_timeline(struct i915_gem_context *ctx)
 {
-	return i915_timeline_create(ctx->i915, ctx->name, NULL);
+	if (ctx->timeline)
+		return i915_timeline_get(ctx->timeline);
+	else
+		return i915_timeline_create(ctx->i915, NULL);
 }
 
 static int execlists_context_deferred_alloc(struct intel_context *ce,

@@ -960,7 +960,7 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(regs[id].ctl,
 		   I915_READ(regs[id].ctl) | LCPLL_PLL_ENABLE);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DPLL_STATUS,
 				    DPLL_LOCK(id),
 				    DPLL_LOCK(id),
@@ -1977,7 +1977,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 2. Wait for DPLL power state enabled in DPLL_ENABLE. */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    CNL_DPLL_ENABLE(id),
 				    PLL_POWER_STATE,
 				    PLL_POWER_STATE,
@@ -2018,7 +2018,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 7. Wait for PLL lock status in DPLL_ENABLE. */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    CNL_DPLL_ENABLE(id),
 				    PLL_LOCK,
 				    PLL_LOCK,
@@ -2066,7 +2066,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 4. Wait for PLL not locked status in DPLL_ENABLE. */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    CNL_DPLL_ENABLE(id),
 				    PLL_LOCK,
 				    0,
@@ -2088,7 +2088,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 7. Wait for DPLL power state disabled in DPLL_ENABLE. */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    CNL_DPLL_ENABLE(id),
 				    PLL_POWER_STATE,
 				    0,
@@ -3050,8 +3050,8 @@ static void icl_pll_power_enable(struct drm_i915_private *dev_priv,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_wait_for_register(dev_priv, enable_reg, PLL_POWER_STATE,
-				    PLL_POWER_STATE, 1))
+	if (intel_wait_for_register(&dev_priv->uncore, enable_reg,
+				    PLL_POWER_STATE, PLL_POWER_STATE, 1))
 		DRM_ERROR("PLL %d Power not enabled\n", pll->info->id);
 }
 
@@ -3066,8 +3066,8 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(enable_reg, val);
 
 	/* Timeout is actually 600us. */
-	if (intel_wait_for_register(dev_priv, enable_reg, PLL_LOCK, PLL_LOCK,
-				    1))
+	if (intel_wait_for_register(&dev_priv->uncore, enable_reg,
+				    PLL_LOCK, PLL_LOCK, 1))
 		DRM_ERROR("PLL %d not locked\n", pll->info->id);
 }
 
@@ -3149,7 +3149,8 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(enable_reg, val);
 
 	/* Timeout is actually 1us. */
-	if (intel_wait_for_register(dev_priv, enable_reg, PLL_LOCK, 0, 1))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    enable_reg, PLL_LOCK, 0, 1))
 		DRM_ERROR("PLL %d locked\n", pll->info->id);
 
 	/* DVFS post sequence would be here. See the comment above. */
@@ -3162,8 +3163,8 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_wait_for_register(dev_priv, enable_reg, PLL_POWER_STATE, 0,
-				    1))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    enable_reg, PLL_POWER_STATE, 0, 1))
 		DRM_ERROR("PLL %d Power not disabled\n", pll->info->id);
 }
 
@@ -3245,6 +3246,18 @@ static const struct intel_dpll_mgr icl_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct dpll_info ehl_plls[] = {
+	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
+	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr ehl_pll_mgr = {
+	.dpll_info = ehl_plls,
+	.get_dpll = icl_get_dpll,
+	.dump_hw_state = icl_dump_hw_state,
+};
+
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
  * @dev: drm device
@@ -3258,7 +3271,9 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (IS_ELKHARTLAKE(dev_priv))
+		dpll_mgr = &ehl_pll_mgr;
+	else if (INTEL_GEN(dev_priv) >= 11)
 		dpll_mgr = &icl_pll_mgr;
 	else if (IS_CANNONLAKE(dev_priv))
 		dpll_mgr = &cnl_pll_mgr;

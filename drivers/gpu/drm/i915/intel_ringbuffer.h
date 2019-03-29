@@ -29,23 +29,44 @@ struct drm_printer;
 #define CACHELINE_BYTES 64
 #define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(u32))
 
-#define I915_READ_TAIL(engine) I915_READ(RING_TAIL((engine)->mmio_base))
-#define I915_WRITE_TAIL(engine, val) I915_WRITE(RING_TAIL((engine)->mmio_base), val)
+/*
+ * The register defines to be used with the following macros need to accept a
+ * base param, e.g:
+ *
+ * REG_FOO(base) _MMIO((base) + <relative offset>)
+ * ENGINE_READ(engine, REG_FOO);
+ *
+ * register arrays are to be defined and accessed as follows:
+ *
+ * REG_BAR(base, i) _MMIO((base) + <relative offset> + (i) * <shift>)
+ * ENGINE_READ_IDX(engine, REG_BAR, i)
+ */
 
-#define I915_READ_START(engine) I915_READ(RING_START((engine)->mmio_base))
-#define I915_WRITE_START(engine, val) I915_WRITE(RING_START((engine)->mmio_base), val)
+#define __ENGINE_REG_OP(op__, engine__, ...) \
+	intel_uncore_##op__((engine__)->uncore, __VA_ARGS__)
 
-#define I915_READ_HEAD(engine)  I915_READ(RING_HEAD((engine)->mmio_base))
-#define I915_WRITE_HEAD(engine, val) I915_WRITE(RING_HEAD((engine)->mmio_base), val)
+#define __ENGINE_READ_OP(op__, engine__, reg__) \
+	__ENGINE_REG_OP(op__, (engine__), reg__((engine__)->mmio_base))
 
-#define I915_READ_CTL(engine) I915_READ(RING_CTL((engine)->mmio_base))
-#define I915_WRITE_CTL(engine, val) I915_WRITE(RING_CTL((engine)->mmio_base), val)
+#define ENGINE_READ16(...)	__ENGINE_READ_OP(read16, __VA_ARGS__)
+#define ENGINE_READ(...)	__ENGINE_READ_OP(read, __VA_ARGS__)
+#define ENGINE_READ_FW(...)	__ENGINE_READ_OP(read_fw, __VA_ARGS__)
+#define ENGINE_POSTING_READ(...) __ENGINE_READ_OP(posting_read, __VA_ARGS__)
 
-#define I915_READ_IMR(engine) I915_READ(RING_IMR((engine)->mmio_base))
-#define I915_WRITE_IMR(engine, val) I915_WRITE(RING_IMR((engine)->mmio_base), val)
+#define ENGINE_READ64(engine__, lower_reg__, upper_reg__) \
+	__ENGINE_REG_OP(read64_2x32, (engine__), \
+			lower_reg__((engine__)->mmio_base), \
+			upper_reg__((engine__)->mmio_base))
 
-#define I915_READ_MODE(engine) I915_READ(RING_MI_MODE((engine)->mmio_base))
-#define I915_WRITE_MODE(engine, val) I915_WRITE(RING_MI_MODE((engine)->mmio_base), val)
+#define ENGINE_READ_IDX(engine__, reg__, idx__) \
+	__ENGINE_REG_OP(read, (engine__), reg__((engine__)->mmio_base, (idx__)))
+
+#define __ENGINE_WRITE_OP(op__, engine__, reg__, val__) \
+	__ENGINE_REG_OP(op__, (engine__), reg__((engine__)->mmio_base), (val__))
+
+#define ENGINE_WRITE16(...)	__ENGINE_WRITE_OP(write16, __VA_ARGS__)
+#define ENGINE_WRITE(...)	__ENGINE_WRITE_OP(write, __VA_ARGS__)
+#define ENGINE_WRITE_FW(...)	__ENGINE_WRITE_OP(write_fw, __VA_ARGS__)
 
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.

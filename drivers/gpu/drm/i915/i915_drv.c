@@ -935,46 +935,6 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_engines_cleanup(dev_priv);
 }
 
-static int i915_mmio_setup(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	int mmio_bar;
-	int mmio_size;
-
-	mmio_bar = IS_GEN(dev_priv, 2) ? 1 : 0;
-	/*
-	 * Before gen4, the registers and the GTT are behind different BARs.
-	 * However, from gen4 onwards, the registers and the GTT are shared
-	 * in the same BAR, so we want to restrict this ioremap from
-	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
-	 * the register BAR remains the same size for all the earlier
-	 * generations up to Ironlake.
-	 */
-	if (INTEL_GEN(dev_priv) < 5)
-		mmio_size = 512 * 1024;
-	else
-		mmio_size = 2 * 1024 * 1024;
-	dev_priv->regs = pci_iomap(pdev, mmio_bar, mmio_size);
-	if (dev_priv->regs == NULL) {
-		DRM_ERROR("failed to map registers\n");
-
-		return -EIO;
-	}
-
-	/* Try to make sure MCHBAR is enabled before poking at it */
-	intel_setup_mchbar(dev_priv);
-
-	return 0;
-}
-
-static void i915_mmio_cleanup(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-
-	intel_teardown_mchbar(dev_priv);
-	pci_iounmap(pdev, dev_priv->regs);
-}
-
 /**
  * i915_driver_init_mmio - setup device MMIO
  * @dev_priv: device private
@@ -994,15 +954,16 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	if (i915_get_bridge_dev(dev_priv))
 		return -EIO;
 
-	ret = i915_mmio_setup(dev_priv);
+	ret = intel_uncore_init(&dev_priv->uncore);
 	if (ret < 0)
 		goto err_bridge;
 
-	intel_uncore_init(dev_priv);
+	/* Try to make sure MCHBAR is enabled before poking at it */
+	intel_setup_mchbar(dev_priv);
 
 	intel_device_info_init_mmio(dev_priv);
 
-	intel_uncore_prune(dev_priv);
+	intel_uncore_prune(&dev_priv->uncore);
 
 	intel_uc_init_mmio(dev_priv);
 
@@ -1015,8 +976,8 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_uncore:
-	intel_uncore_fini(dev_priv);
-	i915_mmio_cleanup(dev_priv);
+	intel_teardown_mchbar(dev_priv);
+	intel_uncore_fini(&dev_priv->uncore);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
@@ -1029,8 +990,8 @@ err_bridge:
  */
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
-	intel_uncore_fini(dev_priv);
-	i915_mmio_cleanup(dev_priv);
+	intel_teardown_mchbar(dev_priv);
+	intel_uncore_fini(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
 }
 
@@ -2091,7 +2052,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	i915_gem_suspend_late(dev_priv);
 
-	intel_uncore_suspend(dev_priv);
+	intel_uncore_suspend(&dev_priv->uncore);
 
 	intel_power_domains_suspend(dev_priv,
 				    get_suspend_mode(dev_priv, hibernation));
@@ -2287,7 +2248,9 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_resume_early(dev_priv);
+	intel_uncore_resume_early(&dev_priv->uncore);
+
+	i915_check_and_clear_faults(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
 		gen9_sanitize_dc_state(dev_priv);
@@ -2691,7 +2654,7 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 	if (!force_on)
 		return 0;
 
-	err = intel_wait_for_register(dev_priv,
+	err = intel_wait_for_register(&dev_priv->uncore,
 				      VLV_GTLC_SURVIVABILITY_REG,
 				      VLV_GFX_CLK_STATUS_BIT,
 				      VLV_GFX_CLK_STATUS_BIT,
@@ -2857,7 +2820,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
-	intel_uncore_suspend(dev_priv);
+	intel_uncore_suspend(&dev_priv->uncore);
 
 	ret = 0;
 	if (INTEL_GEN(dev_priv) >= 11) {
@@ -2874,7 +2837,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
-		intel_uncore_runtime_resume(dev_priv);
+		intel_uncore_runtime_resume(&dev_priv->uncore);
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -2891,7 +2854,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	enable_rpm_wakeref_asserts(dev_priv);
 	intel_runtime_pm_cleanup(dev_priv);
 
-	if (intel_uncore_arm_unclaimed_mmio_detection(dev_priv))
+	if (intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
 
 	dev_priv->runtime_pm.suspended = true;
@@ -2919,7 +2882,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		intel_opregion_notify_adapter(dev_priv, PCI_D1);
 	}
 
-	assert_forcewakes_inactive(dev_priv);
+	assert_forcewakes_inactive(&dev_priv->uncore);
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_init(dev_priv);
@@ -2945,7 +2908,7 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 	dev_priv->runtime_pm.suspended = false;
-	if (intel_uncore_unclaimed_mmio(dev_priv))
+	if (intel_uncore_unclaimed_mmio(&dev_priv->uncore))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
 	if (INTEL_GEN(dev_priv) >= 11) {
@@ -2971,7 +2934,7 @@ static int intel_runtime_resume(struct device *kdev)
 		ret = vlv_resume_prepare(dev_priv, true);
 	}
 
-	intel_uncore_runtime_resume(dev_priv);
+	intel_uncore_runtime_resume(&dev_priv->uncore);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -3115,7 +3078,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_SET_SPRITE_COLORKEY, intel_sprite_set_colorkey_ioctl, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_GET_SPRITE_COLORKEY, drm_noop, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_GEM_WAIT, i915_gem_wait_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_CREATE, i915_gem_context_create_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_CREATE_EXT, i915_gem_context_create_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_DESTROY, i915_gem_context_destroy_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_REG_READ, i915_reg_read_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GET_RESET_STATS, i915_gem_context_reset_stats_ioctl, DRM_RENDER_ALLOW),

@@ -182,7 +182,7 @@ struct drm_i915_private *mock_gem_device(void)
 		I915_GTT_PAGE_SIZE_64K |
 		I915_GTT_PAGE_SIZE_2M;
 
-	mock_uncore_init(i915);
+	mock_uncore_init(&i915->uncore);
 	i915_gem_init__mm(i915);
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);

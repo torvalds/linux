@@ -908,10 +908,6 @@ gpu_write_dw(struct i915_vma *vma, u64 offset, u32 val)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	err = i915_gem_object_set_to_wc_domain(obj, true);
-	if (err)
-		goto err;
-
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
@@ -1584,6 +1580,7 @@ static int igt_tmpfs_fallback(void *arg)
 	}
 	*vaddr = 0xdeadbeaf;
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
 	vma = i915_vma_instance(obj, vm, NULL);
@@ -1713,7 +1710,7 @@ int i915_gem_huge_page_mock_selftests(void)
 	mkwrite_device_info(dev_priv)->ppgtt_size = 48;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ppgtt = i915_ppgtt_create(dev_priv, ERR_PTR(-ENODEV));
+	ppgtt = i915_ppgtt_create(dev_priv);
 	if (IS_ERR(ppgtt)) {
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
@@ -1735,7 +1732,6 @@ int i915_gem_huge_page_mock_selftests(void)
 	err = i915_subtests(tests, ppgtt);
 
 out_close:
-	i915_ppgtt_close(&ppgtt->vm);
 	i915_ppgtt_put(ppgtt);
 
 out_unlock:

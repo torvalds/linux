@@ -118,11 +118,11 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 * and break the hang. This should work on
 	 * all but the second generation chipsets.
 	 */
-	tmp = I915_READ_CTL(engine);
+	tmp = ENGINE_READ(engine, RING_CTL);
 	if (tmp & RING_WAIT) {
 		i915_handle_error(dev_priv, engine->mask, 0,
 				  "stuck wait on %s", engine->name);
-		I915_WRITE_CTL(engine, tmp);
+		ENGINE_WRITE(engine, RING_CTL, tmp);
 		return ENGINE_WAIT_KICK;
 	}
 
@@ -270,7 +270,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 * periodically arm the mmio checker to see if we are triggering
 	 * any invalid access.
 	 */
-	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+	intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
 
 	for_each_engine(engine, dev_priv, id) {
 		struct hangcheck hc;

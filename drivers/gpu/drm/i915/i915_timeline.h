@@ -32,7 +32,6 @@
 
 int i915_timeline_init(struct drm_i915_private *i915,
 		       struct i915_timeline *tl,
-		       const char *name,
 		       struct i915_vma *hwsp);
 void i915_timeline_fini(struct i915_timeline *tl);
 
@@ -57,7 +56,6 @@ i915_timeline_set_subclass(struct i915_timeline *timeline,
 
 struct i915_timeline *
 i915_timeline_create(struct drm_i915_private *i915,
-		     const char *name,
 		     struct i915_vma *global_hwsp);
 
 static inline struct i915_timeline *

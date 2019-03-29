@@ -1659,7 +1659,7 @@ int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
 int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			enum intel_dpll_id pll_id);
+			struct intel_dpll_hw_state *state);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int color_plane, unsigned int height);
@@ -1909,6 +1909,16 @@ void intel_csr_ucode_suspend(struct drm_i915_private *);
 void intel_csr_ucode_resume(struct drm_i915_private *);
 
 /* intel_dp.c */
+struct link_config_limits {
+	int min_clock, max_clock;
+	int min_lane_count, max_lane_count;
+	int min_bpp, max_bpp;
+};
+void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
+				       struct intel_crtc_state *pipe_config,
+				       struct link_config_limits *limits);
+bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state);
 bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
 			   i915_reg_t dp_reg, enum port port,
 			   enum pipe *pipe);
@@ -2154,10 +2164,13 @@ void intel_panel_update_backlight(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
 void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_state);
-extern struct drm_display_mode *intel_find_panel_downclock(
-				struct drm_i915_private *dev_priv,
-				struct drm_display_mode *fixed_mode,
-				struct drm_connector *connector);
+struct drm_display_mode *
+intel_panel_edid_downclock_mode(struct intel_connector *connector,
+				const struct drm_display_mode *fixed_mode);
+struct drm_display_mode *
+intel_panel_edid_fixed_mode(struct intel_connector *connector);
+struct drm_display_mode *
+intel_panel_vbt_fixed_mode(struct intel_connector *connector);
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
 int intel_backlight_device_register(struct intel_connector *connector);
@@ -2267,18 +2280,24 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices);
 
 static inline void
-assert_rpm_device_not_suspended(struct drm_i915_private *i915)
+assert_rpm_device_not_suspended(struct i915_runtime_pm *rpm)
 {
-	WARN_ONCE(i915->runtime_pm.suspended,
+	WARN_ONCE(rpm->suspended,
 		  "Device suspended during HW access\n");
+}
+
+static inline void
+__assert_rpm_wakelock_held(struct i915_runtime_pm *rpm)
+{
+	assert_rpm_device_not_suspended(rpm);
+	WARN_ONCE(!atomic_read(&rpm->wakeref_count),
+		  "RPM wakelock ref not held during HW access");
 }
 
 static inline void
 assert_rpm_wakelock_held(struct drm_i915_private *i915)
 {
-	assert_rpm_device_not_suspended(i915);
-	WARN_ONCE(!atomic_read(&i915->runtime_pm.wakeref_count),
-		  "RPM wakelock ref not held during HW access");
+	__assert_rpm_wakelock_held(&i915->runtime_pm);
 }
 
 /**
@@ -2372,7 +2391,6 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv);
-void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv);
 void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);

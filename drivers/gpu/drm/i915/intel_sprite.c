@@ -269,7 +269,8 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_rect *src = &plane_state->base.src;
-	u32 src_x, src_y, src_w, src_h;
+	u32 src_x, src_y, src_w, src_h, hsub, vsub;
+	bool rotated = drm_rotation_90_or_270(plane_state->base.rotation);
 
 	/*
 	 * Hardware doesn't handle subpixel coordinates.
@@ -287,18 +288,26 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	src->y1 = src_y << 16;
 	src->y2 = (src_y + src_h) << 16;
 
-	if (fb->format->is_yuv &&
-	    (src_x & 1 || src_w & 1)) {
-		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of 2 for YUV planes\n",
-			      src_x, src_w);
+	if (!fb->format->is_yuv)
+		return 0;
+
+	/* YUV specific checks */
+	if (!rotated) {
+		hsub = fb->format->hsub;
+		vsub = fb->format->vsub;
+	} else {
+		hsub = vsub = max(fb->format->hsub, fb->format->vsub);
+	}
+
+	if (src_x % hsub || src_w % hsub) {
+		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of %u for %sYUV planes\n",
+			      src_x, src_w, hsub, rotated ? "rotated " : "");
 		return -EINVAL;
 	}
 
-	if (fb->format->is_yuv &&
-	    fb->format->num_planes > 1 &&
-	    (src_y & 1 || src_h & 1)) {
-		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of 2 for planar YUV planes\n",
-			      src_y, src_h);
+	if (src_y % vsub || src_h % vsub) {
+		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of %u for %sYUV planes\n",
+			      src_y, src_h, vsub, rotated ? "rotated " : "");
 		return -EINVAL;
 	}
 
@@ -1522,6 +1531,11 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		case DRM_FORMAT_XBGR16161616F:
 		case DRM_FORMAT_ARGB16161616F:
 		case DRM_FORMAT_ABGR16161616F:
+		case DRM_FORMAT_Y210:
+		case DRM_FORMAT_Y212:
+		case DRM_FORMAT_Y216:
+		case DRM_FORMAT_XVYU12_16161616:
+		case DRM_FORMAT_XVYU16161616:
 			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
 				      drm_get_format_name(fb->format->format,
 							  &format_name));
@@ -2098,12 +2112,7 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_P010:
 	case DRM_FORMAT_P012:
 	case DRM_FORMAT_P016:
-	case DRM_FORMAT_Y210:
-	case DRM_FORMAT_Y212:
-	case DRM_FORMAT_Y216:
 	case DRM_FORMAT_XVYU2101010:
-	case DRM_FORMAT_XVYU12_16161616:
-	case DRM_FORMAT_XVYU16161616:
 		if (modifier == I915_FORMAT_MOD_Yf_TILED)
 			return true;
 		/* fall through */
@@ -2112,6 +2121,11 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_ABGR16161616F:
 	case DRM_FORMAT_XRGB16161616F:
 	case DRM_FORMAT_ARGB16161616F:
+	case DRM_FORMAT_Y210:
+	case DRM_FORMAT_Y212:
+	case DRM_FORMAT_Y216:
+	case DRM_FORMAT_XVYU12_16161616:
+	case DRM_FORMAT_XVYU16161616:
 		if (modifier == DRM_FORMAT_MOD_LINEAR ||
 		    modifier == I915_FORMAT_MOD_X_TILED ||
 		    modifier == I915_FORMAT_MOD_Y_TILED)

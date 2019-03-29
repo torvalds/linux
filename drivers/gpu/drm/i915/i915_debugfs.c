@@ -409,9 +409,8 @@ static void print_context_stats(struct seq_file *m,
 
 			rcu_read_lock();
 			task = pid_task(ctx->pid ?: file->pid, PIDTYPE_PID);
-			snprintf(name, sizeof(name), "%s/%d",
-				 task ? task->comm : "<unknown>",
-				 ctx->user_handle);
+			snprintf(name, sizeof(name), "%s",
+				 task ? task->comm : "<unknown>");
 			rcu_read_unlock();
 
 			print_file_stats(m, name, stats);
@@ -881,7 +880,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		for_each_engine(engine, dev_priv, id) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
-				   engine->name, I915_READ_IMR(engine));
+				   engine->name, ENGINE_READ(engine, RING_IMR));
 		}
 	}
 
@@ -1094,7 +1093,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		}
 
 		/* RPSTAT1 is in the GT power well */
-		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
 		if (INTEL_GEN(dev_priv) >= 9)
@@ -1122,7 +1121,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		cagf = intel_gpu_freq(dev_priv,
 				      intel_get_cagf(dev_priv, rpstat));
 
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		if (INTEL_GEN(dev_priv) >= 11) {
 			pm_ier = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
@@ -1414,13 +1413,14 @@ static int ironlake_drpc_info(struct seq_file *m)
 static int i915_forcewake_domains(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_uncore_forcewake_domain *fw_domain;
 	unsigned int tmp;
 
 	seq_printf(m, "user.bypass_count = %u\n",
-		   i915->uncore.user_forcewake.count);
+		   uncore->user_forcewake.count);
 
-	for_each_fw_domain(fw_domain, i915, tmp)
+	for_each_fw_domain(fw_domain, uncore, tmp)
 		seq_printf(m, "%s.wake_count = %u\n",
 			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
 			   READ_ONCE(fw_domain->wake_count));
@@ -2059,12 +2059,12 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
 
-		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 		rpup = I915_READ_FW(GEN6_RP_CUR_UP) & GEN6_RP_EI_MASK;
 		rpupei = I915_READ_FW(GEN6_RP_CUR_UP_EI) & GEN6_RP_EI_MASK;
 		rpdown = I915_READ_FW(GEN6_RP_CUR_DOWN) & GEN6_RP_EI_MASK;
 		rpdownei = I915_READ_FW(GEN6_RP_CUR_DOWN_EI) & GEN6_RP_EI_MASK;
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
 			   rps_power_to_str(rps->power.mode));
@@ -4250,7 +4250,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 		return 0;
 
 	file->private_data = (void *)(uintptr_t)intel_runtime_pm_get(i915);
-	intel_uncore_forcewake_user_get(i915);
+	intel_uncore_forcewake_user_get(&i915->uncore);
 
 	return 0;
 }
@@ -4262,7 +4262,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 	if (INTEL_GEN(i915) < 6)
 		return 0;
 
-	intel_uncore_forcewake_user_put(i915);
+	intel_uncore_forcewake_user_put(&i915->uncore);
 	intel_runtime_pm_put(i915,
 			     (intel_wakeref_t)(uintptr_t)file->private_data);
 

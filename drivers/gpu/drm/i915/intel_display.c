@@ -1040,7 +1040,7 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
 
 		/* Wait for the Pipe State to go off */
-		if (intel_wait_for_register(dev_priv,
+		if (intel_wait_for_register(&dev_priv->uncore,
 					    reg, I965_PIPECONF_ACTIVE, 0,
 					    100))
 			WARN(1, "pipe_off wait timed out\n");
@@ -1346,7 +1346,7 @@ static void _vlv_enable_pll(struct intel_crtc *crtc,
 	POSTING_READ(DPLL(pipe));
 	udelay(150);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DPLL(pipe),
 				    DPLL_LOCK_VLV,
 				    DPLL_LOCK_VLV,
@@ -1399,7 +1399,7 @@ static void _chv_enable_pll(struct intel_crtc *crtc,
 	I915_WRITE(DPLL(pipe), pipe_config->dpll_hw_state.dpll);
 
 	/* Check PLL is locked */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DPLL(pipe), DPLL_LOCK_VLV, DPLL_LOCK_VLV,
 				    1))
 		DRM_ERROR("PLL %d failed to lock\n", pipe);
@@ -1442,6 +1442,14 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	}
 }
 
+static bool i9xx_has_pps(struct drm_i915_private *dev_priv)
+{
+	if (IS_I830(dev_priv))
+		return false;
+
+	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+}
+
 static void i9xx_enable_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *crtc_state)
 {
@@ -1453,7 +1461,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc,
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
 	/* PLL is protected by panel, make sure we can write it */
-	if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
+	if (i9xx_has_pps(dev_priv))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
 
 	/*
@@ -1572,7 +1580,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		BUG();
 	}
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    dpll_reg, port_mask, expected_mask,
 				    1000))
 		WARN(1, "timed out waiting for port %c ready: got 0x%x, expected 0x%x\n",
@@ -1633,7 +1641,7 @@ static void ironlake_enable_pch_transcoder(const struct intel_crtc_state *crtc_s
 	}
 
 	I915_WRITE(reg, val | TRANS_ENABLE);
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    reg, TRANS_STATE_ENABLE, TRANS_STATE_ENABLE,
 				    100))
 		DRM_ERROR("failed to enable transcoder %c\n", pipe_name(pipe));
@@ -1663,7 +1671,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		val |= TRANS_PROGRESSIVE;
 
 	I915_WRITE(LPT_TRANSCONF, val);
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    LPT_TRANSCONF,
 				    TRANS_STATE_ENABLE,
 				    TRANS_STATE_ENABLE,
@@ -1689,7 +1697,7 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val &= ~TRANS_ENABLE;
 	I915_WRITE(reg, val);
 	/* wait for PCH transcoder off, transcoder state */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    reg, TRANS_STATE_ENABLE, 0,
 				    50))
 		DRM_ERROR("failed to disable transcoder %c\n", pipe_name(pipe));
@@ -1711,7 +1719,7 @@ void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 	val &= ~TRANS_ENABLE;
 	I915_WRITE(LPT_TRANSCONF, val);
 	/* wait for PCH transcoder off, transcoder state */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    LPT_TRANSCONF, TRANS_STATE_ENABLE, 0,
 				    50))
 		DRM_ERROR("Failed to disable PCH transcoder\n");
@@ -5291,7 +5299,7 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 		 * and don't wait for vblanks until the end of crtc_enable, then
 		 * the HW state readout code will complain that the expected
 		 * IPS_CTL value is not the one we read. */
-		if (intel_wait_for_register(dev_priv,
+		if (intel_wait_for_register(&dev_priv->uncore,
 					    IPS_CTL, IPS_ENABLE, IPS_ENABLE,
 					    50))
 			DRM_ERROR("Timed out waiting for IPS enable\n");
@@ -5316,7 +5324,7 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 		 * 42ms timeout value leads to occasional timeouts so use 100ms
 		 * instead.
 		 */
-		if (intel_wait_for_register(dev_priv,
+		if (intel_wait_for_register(&dev_priv->uncore,
 					    IPS_CTL, IPS_ENABLE, 0,
 					    100))
 			DRM_ERROR("Timed out waiting for IPS disable\n");
@@ -7962,14 +7970,22 @@ static int vlv_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
+static bool i9xx_has_pfit(struct drm_i915_private *dev_priv)
+{
+	if (IS_I830(dev_priv))
+		return false;
+
+	return INTEL_GEN(dev_priv) >= 4 ||
+		IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+}
+
 static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 tmp;
 
-	if (INTEL_GEN(dev_priv) <= 3 &&
-	    (IS_I830(dev_priv) || !IS_MOBILE(dev_priv)))
+	if (!i9xx_has_pfit(dev_priv))
 		return;
 
 	tmp = I915_READ(PFIT_CONTROL);
@@ -9465,7 +9481,8 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 	I915_WRITE(LCPLL_CTL, val);
 	POSTING_READ(LCPLL_CTL);
 
-	if (intel_wait_for_register(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 0, 1))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    LCPLL_CTL, LCPLL_PLL_LOCK, 0, 1))
 		DRM_ERROR("LCPLL still locked\n");
 
 	val = hsw_read_dcomp(dev_priv);
@@ -9503,7 +9520,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	 * Make sure we're not on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine. To prevent PC8 state, just enable force_wake.
 	 */
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
@@ -9520,7 +9537,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	val &= ~LCPLL_PLL_DISABLE;
 	I915_WRITE(LCPLL_CTL, val);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    LCPLL_CTL, LCPLL_PLL_LOCK, LCPLL_PLL_LOCK,
 				    5))
 		DRM_ERROR("LCPLL not locked yet\n");
@@ -9535,7 +9552,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	intel_update_cdclk(dev_priv);
 	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
@@ -13517,7 +13534,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		 * so enable debugging for the next modeset - and hope we catch
 		 * the culprit.
 		 */
-		intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+		intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET, wakeref);
 	}
 
@@ -14697,7 +14714,12 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		intel_ddi_init(dev_priv, PORT_A);
+		intel_ddi_init(dev_priv, PORT_B);
+		intel_ddi_init(dev_priv, PORT_C);
+		icl_dsi_init(dev_priv);
+	} else if (INTEL_GEN(dev_priv) >= 11) {
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_B);
 		intel_ddi_init(dev_priv, PORT_C);

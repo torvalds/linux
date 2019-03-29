@@ -161,10 +161,10 @@
  */
 #define REG_FIELD_PREP(__mask, __val)						\
 	((u32)((((typeof(__mask))(__val) << __bf_shf(__mask)) & (__mask)) +	\
-	       BUILD_BUG_ON_ZERO(!__builtin_constant_p(__mask)) +		\
+	       BUILD_BUG_ON_ZERO(!__is_constexpr(__mask)) +		\
 	       BUILD_BUG_ON_ZERO((__mask) == 0 || (__mask) > U32_MAX) +		\
 	       BUILD_BUG_ON_ZERO(!IS_POWER_OF_2((__mask) + (1ULL << __bf_shf(__mask)))) + \
-	       BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(__val), (~((__mask) >> __bf_shf(__mask)) & (__val)), 0))))
+	       BUILD_BUG_ON_ZERO(__builtin_choose_expr(__is_constexpr(__val), (~((__mask) >> __bf_shf(__mask)) & (__val)), 0))))
 
 /**
  * REG_FIELD_GET() - Extract a u32 bitfield value
@@ -434,9 +434,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN11_VECS_SFC_USAGE(engine)		_MMIO((engine)->mmio_base + 0x2014)
 #define   GEN11_VECS_SFC_USAGE_BIT		(1 << 0)
 
-#define RING_PP_DIR_BASE(engine)	_MMIO((engine)->mmio_base + 0x228)
-#define RING_PP_DIR_BASE_READ(engine)	_MMIO((engine)->mmio_base + 0x518)
-#define RING_PP_DIR_DCLV(engine)	_MMIO((engine)->mmio_base + 0x220)
+#define RING_PP_DIR_BASE(base)		_MMIO((base) + 0x228)
+#define RING_PP_DIR_BASE_READ(base)	_MMIO((base) + 0x518)
+#define RING_PP_DIR_DCLV(base)		_MMIO((base) + 0x220)
 #define   PP_DIR_DCLV_2G		0xffffffff
 
 #define GEN8_RING_PDP_UDW(engine, n)	_MMIO((engine)->mmio_base + 0x270 + (n) * 8 + 4)
@@ -2568,12 +2568,12 @@ enum i915_power_well_id {
 #define HWS_START_ADDRESS_SHIFT	4
 #define PWRCTXA		_MMIO(0x2088) /* 965GM+ only */
 #define   PWRCTX_EN	(1 << 0)
-#define IPEIR		_MMIO(0x2088)
-#define IPEHR		_MMIO(0x208c)
+#define IPEIR(base)	_MMIO((base) + 0x88)
+#define IPEHR(base)	_MMIO((base) + 0x8c)
 #define GEN2_INSTDONE	_MMIO(0x2090)
 #define NOPID		_MMIO(0x2094)
 #define HWSTAM		_MMIO(0x2098)
-#define DMA_FADD_I8XX	_MMIO(0x20d0)
+#define DMA_FADD_I8XX(base)	_MMIO((base) + 0xd0)
 #define RING_BBSTATE(base)	_MMIO((base) + 0x110)
 #define   RING_BB_PPGTT		(1 << 5)
 #define RING_SBBADDR(base)	_MMIO((base) + 0x114) /* hsw+ */
@@ -2747,7 +2747,7 @@ enum i915_power_well_id {
 #define   INSTPM_FORCE_ORDERING				(1 << 7) /* GEN6+ */
 #define   INSTPM_TLB_INVALIDATE	(1 << 9)
 #define   INSTPM_SYNC_FLUSH	(1 << 5)
-#define ACTHD	        _MMIO(0x20c8)
+#define ACTHD(base)	_MMIO((base) + 0xc8)
 #define MEM_MODE	_MMIO(0x20cc)
 #define   MEM_DISPLAY_B_TRICKLE_FEED_DISABLE (1 << 3) /* 830 only */
 #define   MEM_DISPLAY_A_TRICKLE_FEED_DISABLE (1 << 2) /* 830/845 only */
@@ -2953,7 +2953,7 @@ enum i915_power_well_id {
 #define GEN11_GT_VEBOX_VDBOX_DISABLE	_MMIO(0x9140)
 #define   GEN11_GT_VDBOX_DISABLE_MASK	0xff
 #define   GEN11_GT_VEBOX_DISABLE_SHIFT	16
-#define   GEN11_GT_VEBOX_DISABLE_MASK	(0xff << GEN11_GT_VEBOX_DISABLE_SHIFT)
+#define   GEN11_GT_VEBOX_DISABLE_MASK	(0x0f << GEN11_GT_VEBOX_DISABLE_SHIFT)
 
 #define GEN11_EU_DISABLE _MMIO(0x9134)
 #define GEN11_EU_DIS_MASK 0xFF
@@ -3947,7 +3947,7 @@ enum i915_power_well_id {
 /*
  * Logical Context regs
  */
-#define CCID				_MMIO(0x2180)
+#define CCID(base)			_MMIO((base) + 0x180)
 #define   CCID_EN			BIT(0)
 #define   CCID_EXTENDED_STATE_RESTORE	BIT(2)
 #define   CCID_EXTENDED_STATE_SAVE	BIT(3)
@@ -9352,7 +9352,7 @@ enum skl_power_gate {
 #define TRANS_DDI_FUNC_CTL2(tran)	_MMIO_TRANS2(tran, \
 						     _TRANS_DDI_FUNC_CTL2_A)
 #define  PORT_SYNC_MODE_ENABLE			(1 << 4)
-#define  PORT_SYNC_MODE_MASTER_SELECT(x)	((x) < 0)
+#define  PORT_SYNC_MODE_MASTER_SELECT(x)	((x) << 0)
 #define  PORT_SYNC_MODE_MASTER_SELECT_MASK	(0x7 << 0)
 #define  PORT_SYNC_MODE_MASTER_SELECT_SHIFT	0
 

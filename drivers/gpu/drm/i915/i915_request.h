@@ -128,7 +128,10 @@ struct i915_request {
 	 * It is used by the driver to then queue the request for execution.
 	 */
 	struct i915_sw_fence submit;
-	wait_queue_entry_t submitq;
+	union {
+		wait_queue_entry_t submitq;
+		struct i915_sw_dma_fence_cb dmaq;
+	};
 	struct list_head execute_cb;
 
 	/*

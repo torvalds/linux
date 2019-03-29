@@ -1010,7 +1010,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 		return PTR_ERR(file);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ppgtt = i915_ppgtt_create(dev_priv, file->driver_priv);
+	ppgtt = i915_ppgtt_create(dev_priv);
 	if (IS_ERR(ppgtt)) {
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
@@ -1020,7 +1020,6 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 
 	err = func(dev_priv, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
-	i915_ppgtt_close(&ppgtt->vm);
 	i915_ppgtt_put(ppgtt);
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);

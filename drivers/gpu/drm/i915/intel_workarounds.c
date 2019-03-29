@@ -905,7 +905,7 @@ wal_get_fw_for_rmw(struct drm_i915_private *dev_priv,
 	unsigned int i;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		fw |= intel_uncore_forcewake_for_reg(dev_priv,
+		fw |= intel_uncore_forcewake_for_reg(&dev_priv->uncore,
 						     wa->reg,
 						     FW_REG_READ |
 						     FW_REG_WRITE);
@@ -927,7 +927,7 @@ wa_list_apply(struct drm_i915_private *dev_priv, const struct i915_wa_list *wal)
 	fw = wal_get_fw_for_rmw(dev_priv, wal);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	intel_uncore_forcewake_get__locked(dev_priv, fw);
+	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
 		u32 val = I915_READ_FW(wa->reg);
@@ -938,7 +938,7 @@ wa_list_apply(struct drm_i915_private *dev_priv, const struct i915_wa_list *wal)
 		I915_WRITE_FW(wa->reg, val);
 	}
 
-	intel_uncore_forcewake_put__locked(dev_priv, fw);
+	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw);
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 }
 

@@ -1723,12 +1723,6 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 	}
 }
 
-struct link_config_limits {
-	int min_clock, max_clock;
-	int min_lane_count, max_lane_count;
-	int min_bpp, max_bpp;
-};
-
 static bool intel_dp_source_supports_fec(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *pipe_config)
 {
@@ -1791,7 +1785,7 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 }
 
 /* Adjust link config limits based on compliance test requests. */
-static void
+void
 intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  struct link_config_limits *limits)
@@ -2107,6 +2101,29 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
+bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	const struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
+		/*
+		 * See:
+		 * CEA-861-E - 5.1 Default Encoding Parameters
+		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
+		 */
+		return crtc_state->pipe_bpp != 18 &&
+			drm_default_rgb_quant_range(adjusted_mode) ==
+			HDMI_QUANTIZATION_RANGE_LIMITED;
+	} else {
+		return intel_conn_state->broadcast_rgb ==
+			INTEL_BROADCAST_RGB_LIMITED;
+	}
+}
+
 int
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -2175,20 +2192,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (ret < 0)
 		return ret;
 
-	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
-		/*
-		 * See:
-		 * CEA-861-E - 5.1 Default Encoding Parameters
-		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
-		 */
-		pipe_config->limited_color_range =
-			pipe_config->pipe_bpp != 18 &&
-			drm_default_rgb_quant_range(adjusted_mode) ==
-			HDMI_QUANTIZATION_RANGE_LIMITED;
-	} else {
-		pipe_config->limited_color_range =
-			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
-	}
+	pipe_config->limited_color_range =
+		intel_dp_limited_color_range(pipe_config, conn_state);
 
 	if (!pipe_config->dsc_params.compression_enable)
 		intel_link_compute_m_n(pipe_config->pipe_bpp,
@@ -2348,7 +2353,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 			I915_READ(pp_stat_reg),
 			I915_READ(pp_ctrl_reg));
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    pp_stat_reg, mask, value,
 				    5000))
 		DRM_ERROR("Panel status timeout: status %08x control %08x\n",
@@ -3937,7 +3942,7 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	if (port == PORT_A)
 		return;
 
-	if (intel_wait_for_register(dev_priv,DP_TP_STATUS(port),
+	if (intel_wait_for_register(&dev_priv->uncore, DP_TP_STATUS(port),
 				    DP_TP_STATUS_IDLE_DONE,
 				    DP_TP_STATUS_IDLE_DONE,
 				    1))
@@ -7033,9 +7038,7 @@ intel_dp_drrs_init(struct intel_connector *connector,
 		return NULL;
 	}
 
-	downclock_mode = intel_find_panel_downclock(dev_priv, fixed_mode,
-						    &connector->base);
-
+	downclock_mode = intel_panel_edid_downclock_mode(connector, fixed_mode);
 	if (!downclock_mode) {
 		DRM_DEBUG_KMS("Downclock mode is not found. DRRS not supported\n");
 		return NULL;
@@ -7057,7 +7060,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	bool has_dpcd;
-	struct drm_display_mode *scan;
 	enum pipe pipe = INVALID_PIPE;
 	intel_wakeref_t wakeref;
 	struct edid *edid;
@@ -7110,26 +7112,13 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	intel_connector->edid = edid;
 
-	/* prefer fixed mode from EDID if available */
-	list_for_each_entry(scan, &connector->probed_modes, head) {
-		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
-			fixed_mode = drm_mode_duplicate(dev, scan);
-			downclock_mode = intel_dp_drrs_init(
-						intel_connector, fixed_mode);
-			break;
-		}
-	}
+	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+	if (fixed_mode)
+		downclock_mode = intel_dp_drrs_init(intel_connector, fixed_mode);
 
 	/* fallback to VBT if available for eDP */
-	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
-		fixed_mode = drm_mode_duplicate(dev,
-					dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode) {
-			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-			connector->display_info.width_mm = fixed_mode->width_mm;
-			connector->display_info.height_mm = fixed_mode->height_mm;
-		}
-	}
+	if (!fixed_mode)
+		fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
