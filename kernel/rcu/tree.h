@@ -200,8 +200,8 @@ struct rcu_data {
 	atomic_long_t nocb_q_count_lazy; /*  invocation (all stages). */
 	struct rcu_head *nocb_cb_head;	/* CBs ready to invoke. */
 	struct rcu_head **nocb_cb_tail;
-	struct swait_queue_head nocb_wq; /* For nocb kthreads to sleep on. */
-	struct task_struct *nocb_cb_kthread;
+	struct swait_queue_head nocb_cb_wq; /* For nocb kthreads to sleep on. */
+	struct task_struct *nocb_gp_kthread;
 	raw_spinlock_t nocb_lock;	/* Guard following pair of fields. */
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 	struct timer_list nocb_timer;	/* Enforce finite deferral. */
@@ -211,6 +211,8 @@ struct rcu_data {
 					/* CBs waiting for GP. */
 	struct rcu_head **nocb_gp_tail;
 	bool nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
+	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
+	struct task_struct *nocb_cb_kthread;
 	struct rcu_data *nocb_next_cb_rdp;
 					/* Next rcu_data in wakeup chain. */
 
