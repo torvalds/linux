@@ -1347,7 +1347,7 @@ static void set_wqname(struct mlx5_core_dev *dev)
 	struct mlx5_cmd *cmd = &dev->cmd;
 
 	snprintf(cmd->wq_name, sizeof(cmd->wq_name), "mlx5_cmd_%s",
-		 dev_name(&dev->pdev->dev));
+		 dev->priv.name);
 }
 
 static void clean_debug_files(struct mlx5_core_dev *dev)
