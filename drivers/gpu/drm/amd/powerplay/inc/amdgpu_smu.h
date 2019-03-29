@@ -366,6 +366,23 @@ struct smu_bios_boot_up_values
 	uint32_t			pp_table_id;
 };
 
+enum smu_table_id
+{
+	SMU_TABLE_PPTABLE = 0,
+	SMU_TABLE_WATERMARKS,
+	SMU_TABLE_AVFS,
+	SMU_TABLE_AVFS_PSM_DEBUG,
+	SMU_TABLE_AVFS_FUSE_OVERRIDE,
+	SMU_TABLE_PMSTATUSLOG,
+	SMU_TABLE_SMU_METRICS,
+	SMU_TABLE_DRIVER_SMU_CONFIG,
+	SMU_TABLE_ACTIVITY_MONITOR_COEFF,
+	SMU_TABLE_OVERDRIVE,
+	SMU_TABLE_I2C_COMMANDS,
+	SMU_TABLE_PACE,
+	SMU_TABLE_COUNT,
+};
+
 struct smu_table_context
 {
 	void				*power_play_table;
@@ -495,6 +512,7 @@ struct pptable_funcs {
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_clk_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_feature_index)(struct smu_context *smu, uint32_t index);
+	int (*get_smu_table_index)(struct smu_context *smu, uint32_t index);
 	int (*run_afll_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
@@ -783,6 +801,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_clk_index? (smu)->ppt_funcs->get_smu_clk_index((smu), (msg)) : -EINVAL) : -EINVAL)
 #define smu_feature_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_feature_index? (smu)->ppt_funcs->get_smu_feature_index((smu), (msg)) : -EINVAL) : -EINVAL)
+#define smu_table_get_index(smu, tab) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_table_index? (smu)->ppt_funcs->get_smu_table_index((smu), (tab)) : -EINVAL) : -EINVAL)
 #define smu_run_afll_btc(smu) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
 #define smu_get_allowed_feature_mask(smu, feature_mask, num) \

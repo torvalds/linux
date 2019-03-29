@@ -189,6 +189,32 @@ static int vega20_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(XGMI),
 };
 
+static int vega20_table_map[SMU_TABLE_COUNT] = {
+	TAB_MAP(PPTABLE),
+	TAB_MAP(WATERMARKS),
+	TAB_MAP(AVFS),
+	TAB_MAP(AVFS_PSM_DEBUG),
+	TAB_MAP(AVFS_FUSE_OVERRIDE),
+	TAB_MAP(PMSTATUSLOG),
+	TAB_MAP(SMU_METRICS),
+	TAB_MAP(DRIVER_SMU_CONFIG),
+	TAB_MAP(ACTIVITY_MONITOR_COEFF),
+	TAB_MAP(OVERDRIVE),
+};
+
+static int vega20_get_smu_table_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_TABLE_COUNT)
+		return -EINVAL;
+
+	val = vega20_table_map[index];
+	if (val >= TABLE_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
 static int vega20_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -2925,6 +2951,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_smu_msg_index = vega20_get_smu_msg_index,
 	.get_smu_clk_index = vega20_get_smu_clk_index,
 	.get_smu_feature_index = vega20_get_smu_feature_index,
+	.get_smu_table_index = vega20_get_smu_table_index,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,

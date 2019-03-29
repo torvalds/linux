@@ -156,6 +156,21 @@ static int navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(ATHUB_PG),
 };
 
+static int navi10_table_map[SMU_TABLE_COUNT] = {
+	TAB_MAP(PPTABLE),
+	TAB_MAP(WATERMARKS),
+	TAB_MAP(AVFS),
+	TAB_MAP(AVFS_PSM_DEBUG),
+	TAB_MAP(AVFS_FUSE_OVERRIDE),
+	TAB_MAP(PMSTATUSLOG),
+	TAB_MAP(SMU_METRICS),
+	TAB_MAP(DRIVER_SMU_CONFIG),
+	TAB_MAP(ACTIVITY_MONITOR_COEFF),
+	TAB_MAP(OVERDRIVE),
+	TAB_MAP(I2C_COMMANDS),
+	TAB_MAP(PACE),
+};
+
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -190,6 +205,19 @@ static int navi10_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 
 	val = navi10_feature_mask_map[index];
 	if (val > 64)
+		return -EINVAL;
+
+	return val;
+}
+
+static int navi10_get_smu_table_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_TABLE_COUNT)
+		return -EINVAL;
+
+	val = navi10_table_map[index];
+	if (val >= TABLE_COUNT)
 		return -EINVAL;
 
 	return val;
@@ -412,6 +440,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_smu_msg_index = navi10_get_smu_msg_index,
 	.get_smu_clk_index = navi10_get_smu_clk_index,
 	.get_smu_feature_index = navi10_get_smu_feature_index,
+	.get_smu_table_index = navi10_get_smu_table_index,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 };

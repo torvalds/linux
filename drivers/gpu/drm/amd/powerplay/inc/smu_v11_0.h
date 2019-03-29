@@ -46,6 +46,9 @@
 #define FEA_MAP(fea) \
 	[SMU_FEATURE_##fea##_BIT] = FEATURE_##fea##_BIT
 
+#define TAB_MAP(tab) \
+	[SMU_TABLE_##tab] = TABLE_##tab
+
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;
