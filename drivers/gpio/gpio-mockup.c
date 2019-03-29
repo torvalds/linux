@@ -204,8 +204,8 @@ static ssize_t gpio_mockup_debugfs_read(struct file *file,
 	struct gpio_mockup_chip *chip;
 	struct seq_file *sfile;
 	struct gpio_chip *gc;
+	int val, cnt;
 	char buf[3];
-	int val, rv;
 
 	if (*ppos != 0)
 		return 0;
@@ -216,13 +216,9 @@ static ssize_t gpio_mockup_debugfs_read(struct file *file,
 	gc = &chip->gc;
 
 	val = gpio_mockup_get(gc, priv->offset);
-	snprintf(buf, sizeof(buf), "%d\n", val);
+	cnt = snprintf(buf, sizeof(buf), "%d\n", val);
 
-	rv = copy_to_user(usr_buf, buf, sizeof(buf));
-	if (rv)
-		return rv;
-
-	return sizeof(buf) - 1;
+	return simple_read_from_buffer(usr_buf, size, ppos, buf, cnt);
 }
 
 static ssize_t gpio_mockup_debugfs_write(struct file *file,
