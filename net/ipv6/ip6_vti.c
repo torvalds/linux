@@ -372,7 +372,7 @@ static int vti6_rcv_cb(struct sk_buff *skb, int err)
 		}
 	}
 
-	family = inner_mode->afinfo->family;
+	family = inner_mode->family;
 
 	skb->mark = be32_to_cpu(t->parms.i_key);
 	ret = xfrm_policy_check(NULL, XFRM_POLICY_IN, skb, family);

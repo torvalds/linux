@@ -285,7 +285,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 		}
 
 		if (!xfrm_policy_check(NULL, XFRM_POLICY_IN, skb,
-				       inner_mode->afinfo->family))
+				       inner_mode->family))
 			return -EPERM;
 	}
 
