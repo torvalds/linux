@@ -424,19 +424,6 @@ int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned 
 
 struct xfrm_mode {
 	/*
-	 * Remove encapsulation header.
-	 *
-	 * The IP header will be moved over the top of the encapsulation
-	 * header.
-	 *
-	 * On entry, the transport header shall point to where the IP header
-	 * should be and the network header shall be set to where the IP
-	 * header currently is.  skb->data shall point to the start of the
-	 * payload.
-	 */
-	int (*input2)(struct xfrm_state *x, struct sk_buff *skb);
-
-	/*
 	 * Add encapsulation header.
 	 *
 	 * On exit, the transport header will be set to the start of the

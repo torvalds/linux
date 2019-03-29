@@ -80,54 +80,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct iphdr *iph;
-	int optlen = 0;
-	int err = -EINVAL;
-
-	if (unlikely(XFRM_MODE_SKB_CB(skb)->protocol == IPPROTO_BEETPH)) {
-		struct ip_beet_phdr *ph;
-		int phlen;
-
-		if (!pskb_may_pull(skb, sizeof(*ph)))
-			goto out;
-
-		ph = (struct ip_beet_phdr *)skb->data;
-
-		phlen = sizeof(*ph) + ph->padlen;
-		optlen = ph->hdrlen * 8 + (IPV4_BEET_PHMAXLEN - phlen);
-		if (optlen < 0 || optlen & 3 || optlen > 250)
-			goto out;
-
-		XFRM_MODE_SKB_CB(skb)->protocol = ph->nexthdr;
-
-		if (!pskb_may_pull(skb, phlen))
-			goto out;
-		__skb_pull(skb, phlen);
-	}
-
-	skb_push(skb, sizeof(*iph));
-	skb_reset_network_header(skb);
-	skb_mac_header_rebuild(skb);
-
-	xfrm4_beet_make_header(skb);
-
-	iph = ip_hdr(skb);
-
-	iph->ihl += optlen / 4;
-	iph->tot_len = htons(skb->len);
-	iph->daddr = x->sel.daddr.a4;
-	iph->saddr = x->sel.saddr.a4;
-	iph->check = 0;
-	iph->check = ip_fast_csum(skb_network_header(skb), iph->ihl);
-	err = 0;
-out:
-	return err;
-}
-
 static struct xfrm_mode xfrm4_beet_mode = {
-	.input2 = xfrm4_beet_input,
 	.output2 = xfrm4_beet_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,

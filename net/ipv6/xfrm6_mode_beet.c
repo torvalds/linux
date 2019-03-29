@@ -76,34 +76,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->daddr = *(struct in6_addr *)&x->id.daddr;
 	return 0;
 }
-
-static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct ipv6hdr *ip6h;
-	int size = sizeof(struct ipv6hdr);
-	int err;
-
-	err = skb_cow_head(skb, size + skb->mac_len);
-	if (err)
-		goto out;
-
-	__skb_push(skb, size);
-	skb_reset_network_header(skb);
-	skb_mac_header_rebuild(skb);
-
-	xfrm6_beet_make_header(skb);
-
-	ip6h = ipv6_hdr(skb);
-	ip6h->payload_len = htons(skb->len - size);
-	ip6h->daddr = x->sel.daddr.in6;
-	ip6h->saddr = x->sel.saddr.in6;
-	err = 0;
-out:
-	return err;
-}
-
 static struct xfrm_mode xfrm6_beet_mode = {
-	.input2 = xfrm6_beet_input,
 	.output2 = xfrm6_beet_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,

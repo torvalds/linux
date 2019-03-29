@@ -15,14 +15,6 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
-{
-	struct iphdr *inner_iph = ipip_hdr(skb);
-
-	if (INET_ECN_is_ce(XFRM_MODE_SKB_CB(skb)->tos))
-		IP_ECN_set_ce(inner_iph);
-}
-
 /* Add encapsulation header.
  *
  * The top IP header will be constructed per RFC 2401.
@@ -71,38 +63,7 @@ static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm4_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err = -EINVAL;
-
-	if (XFRM_MODE_SKB_CB(skb)->protocol != IPPROTO_IPIP)
-		goto out;
-
-	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-		goto out;
-
-	err = skb_unclone(skb, GFP_ATOMIC);
-	if (err)
-		goto out;
-
-	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-		ipv4_copy_dscp(XFRM_MODE_SKB_CB(skb)->tos, ipip_hdr(skb));
-	if (!(x->props.flags & XFRM_STATE_NOECN))
-		ipip_ecn_decapsulate(skb);
-
-	skb_reset_network_header(skb);
-	skb_mac_header_rebuild(skb);
-	if (skb->mac_len)
-		eth_hdr(skb)->h_proto = skb->protocol;
-
-	err = 0;
-
-out:
-	return err;
-}
-
 static struct xfrm_mode xfrm4_tunnel_mode = {
-	.input2 = xfrm4_mode_tunnel_input,
 	.output2 = xfrm4_mode_tunnel_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
