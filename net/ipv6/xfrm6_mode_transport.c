@@ -31,22 +31,8 @@ static struct sk_buff *xfrm4_transport_gso_segment(struct xfrm_state *x,
 	return segs;
 }
 
-static void xfrm6_transport_xmit(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct xfrm_offload *xo = xfrm_offload(skb);
-
-	skb_reset_mac_len(skb);
-	pskb_pull(skb, skb->mac_len + sizeof(struct ipv6hdr) + x->props.header_len);
-
-	if (xo->flags & XFRM_GSO_SEGMENT) {
-		 skb_reset_transport_header(skb);
-		 skb->transport_header -= x->props.header_len;
-	}
-}
-
 static struct xfrm_mode xfrm6_transport_mode = {
 	.gso_segment = xfrm4_transport_gso_segment,
-	.xmit = xfrm6_transport_xmit,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TRANSPORT,
 	.family = AF_INET6,

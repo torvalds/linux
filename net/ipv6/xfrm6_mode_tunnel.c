@@ -109,22 +109,10 @@ static struct sk_buff *xfrm6_mode_tunnel_gso_segment(struct xfrm_state *x,
 	return skb_mac_gso_segment(skb, features);
 }
 
-static void xfrm6_mode_tunnel_xmit(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct xfrm_offload *xo = xfrm_offload(skb);
-
-	if (xo->flags & XFRM_GSO_SEGMENT)
-		skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
-
-	skb_reset_mac_len(skb);
-	pskb_pull(skb, skb->mac_len + x->props.header_len);
-}
-
 static struct xfrm_mode xfrm6_tunnel_mode = {
 	.input2 = xfrm6_mode_tunnel_input,
 	.output2 = xfrm6_mode_tunnel_output,
 	.gso_segment = xfrm6_mode_tunnel_gso_segment,
-	.xmit = xfrm6_mode_tunnel_xmit,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
