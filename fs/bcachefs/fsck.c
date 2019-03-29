@@ -91,7 +91,9 @@ static int reattach_inode(struct bch_fs *c,
 	bch2_inode_pack(&packed, lostfound_inode);
 
 	ret = bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
-				NULL, NULL, BTREE_INSERT_NOFAIL);
+				NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW);
 	if (ret) {
 		bch_err(c, "error %i reattaching inode %llu while updating lost+found",
 			ret, inum);
@@ -101,7 +103,8 @@ static int reattach_inode(struct bch_fs *c,
 	ret = bch2_dirent_create(c, lostfound_inode->bi_inum,
 				 &lostfound_hash_info,
 				 DT_DIR, &name, inum, NULL,
-				 BTREE_INSERT_NOFAIL);
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_LAZY_RW);
 	if (ret) {
 		bch_err(c, "error %i reattaching inode %llu while creating new dirent",
 			ret, inum);
@@ -483,7 +486,8 @@ static int check_extents(struct bch_fs *c)
 
 			ret = bch2_btree_insert(c, BTREE_ID_INODES,
 						&p.inode.k_i, NULL, NULL,
-						BTREE_INSERT_NOFAIL);
+						BTREE_INSERT_NOFAIL|
+						BTREE_INSERT_LAZY_RW);
 			if (ret) {
 				bch_err(c, "error in fs gc: error %i "
 					"updating inode", ret);
@@ -751,7 +755,9 @@ create_root:
 	bch2_inode_pack(&packed, root_inode);
 
 	return bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
-				 NULL, NULL, BTREE_INSERT_NOFAIL);
+				 NULL, NULL,
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_LAZY_RW);
 }
 
 /* Get lost+found, create if it doesn't exist: */
@@ -795,7 +801,9 @@ create_lostfound:
 	bch2_inode_pack(&packed, root_inode);
 
 	ret = bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
-				NULL, NULL, BTREE_INSERT_NOFAIL);
+				NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW);
 	if (ret)
 		return ret;
 
@@ -809,7 +817,8 @@ create_lostfound:
 
 	ret = bch2_dirent_create(c, BCACHEFS_ROOT_INO, &root_hash_info, DT_DIR,
 				 &lostfound, lostfound_inode->bi_inum, NULL,
-				 BTREE_INSERT_NOFAIL);
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_LAZY_RW);
 	if (ret)
 		return ret;
 
