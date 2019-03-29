@@ -6600,9 +6600,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 */
 	if (lock_and_validation_needed && overall_update_type <= UPDATE_TYPE_FAST)
 		WARN(1, "Global lock should be Set, overall_update_type should be UPDATE_TYPE_MED or UPDATE_TYPE_FULL");
-	else if (!lock_and_validation_needed && overall_update_type > UPDATE_TYPE_FAST)
-		WARN(1, "Global lock should NOT be set, overall_update_type should be UPDATE_TYPE_FAST");
-
 
 	if (overall_update_type > UPDATE_TYPE_FAST) {
 		ret = dm_atomic_get_state(state, &dm_state);
