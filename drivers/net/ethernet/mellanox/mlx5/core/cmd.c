@@ -1884,9 +1884,9 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	memset(cmd, 0, sizeof(*cmd));
 	cmd_if_rev = cmdif_rev(dev);
 	if (cmd_if_rev != CMD_IF_REV) {
-		dev_err(&dev->pdev->dev,
-			"Driver cmdif rev(%d) differs from firmware's(%d)\n",
-			CMD_IF_REV, cmd_if_rev);
+		mlx5_core_err(dev,
+			      "Driver cmdif rev(%d) differs from firmware's(%d)\n",
+			      CMD_IF_REV, cmd_if_rev);
 		return -EINVAL;
 	}
 
@@ -1903,14 +1903,14 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	cmd->log_sz = cmd_l >> 4 & 0xf;
 	cmd->log_stride = cmd_l & 0xf;
 	if (1 << cmd->log_sz > MLX5_MAX_COMMANDS) {
-		dev_err(&dev->pdev->dev, "firmware reports too many outstanding commands %d\n",
-			1 << cmd->log_sz);
+		mlx5_core_err(dev, "firmware reports too many outstanding commands %d\n",
+			      1 << cmd->log_sz);
 		err = -EINVAL;
 		goto err_free_page;
 	}
 
 	if (cmd->log_sz + cmd->log_stride > MLX5_ADAPTER_PAGE_SHIFT) {
-		dev_err(&dev->pdev->dev, "command queue size overflow\n");
+		mlx5_core_err(dev, "command queue size overflow\n");
 		err = -EINVAL;
 		goto err_free_page;
 	}
@@ -1921,8 +1921,8 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	cmd->cmdif_rev = ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
 	if (cmd->cmdif_rev > CMD_IF_REV) {
-		dev_err(&dev->pdev->dev, "driver does not support command interface version. driver %d, firmware %d\n",
-			CMD_IF_REV, cmd->cmdif_rev);
+		mlx5_core_err(dev, "driver does not support command interface version. driver %d, firmware %d\n",
+			      CMD_IF_REV, cmd->cmdif_rev);
 		err = -EOPNOTSUPP;
 		goto err_free_page;
 	}
@@ -1938,7 +1938,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	cmd_h = (u32)((u64)(cmd->dma) >> 32);
 	cmd_l = (u32)(cmd->dma);
 	if (cmd_l & 0xfff) {
-		dev_err(&dev->pdev->dev, "invalid command queue address\n");
+		mlx5_core_err(dev, "invalid command queue address\n");
 		err = -ENOMEM;
 		goto err_free_page;
 	}
@@ -1958,7 +1958,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	set_wqname(dev);
 	cmd->wq = create_singlethread_workqueue(cmd->wq_name);
 	if (!cmd->wq) {
-		dev_err(&dev->pdev->dev, "failed to create command workqueue\n");
+		mlx5_core_err(dev, "failed to create command workqueue\n");
 		err = -ENOMEM;
 		goto err_cache;
 	}
