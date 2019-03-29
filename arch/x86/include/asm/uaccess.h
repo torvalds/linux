@@ -585,7 +585,6 @@ extern void __cmpxchg_wrong_size(void)
 #define __user_atomic_cmpxchg_inatomic(uval, ptr, old, new, size)	\
 ({									\
 	int __ret = 0;							\
-	__typeof__(ptr) __uval = (uval);				\
 	__typeof__(*(ptr)) __old = (old);				\
 	__typeof__(*(ptr)) __new = (new);				\
 	__uaccess_begin_nospec();					\
@@ -661,7 +660,7 @@ extern void __cmpxchg_wrong_size(void)
 		__cmpxchg_wrong_size();					\
 	}								\
 	__uaccess_end();						\
-	*__uval = __old;						\
+	*(uval) = __old;						\
 	__ret;								\
 })
 
