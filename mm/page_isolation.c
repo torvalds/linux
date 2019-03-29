@@ -160,27 +160,36 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
 	return NULL;
 }
 
-/*
- * start_isolate_page_range() -- make page-allocation-type of range of pages
- * to be MIGRATE_ISOLATE.
- * @start_pfn: The lower PFN of the range to be isolated.
- * @end_pfn: The upper PFN of the range to be isolated.
- * @migratetype: migrate type to set in error recovery.
+/**
+ * start_isolate_page_range() - make page-allocation-type of range of pages to
+ * be MIGRATE_ISOLATE.
+ * @start_pfn:		The lower PFN of the range to be isolated.
+ * @end_pfn:		The upper PFN of the range to be isolated.
+ *			start_pfn/end_pfn must be aligned to pageblock_order.
+ * @migratetype:	Migrate type to set in error recovery.
+ * @flags:		The following flags are allowed (they can be combined in
+ *			a bit mask)
+ *			SKIP_HWPOISON - ignore hwpoison pages
+ *			REPORT_FAILURE - report details about the failure to
+ *			isolate the range
  *
  * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
  * the range will never be allocated. Any free pages and pages freed in the
- * future will not be allocated again.
- *
- * start_pfn/end_pfn must be aligned to pageblock_order.
- * Return 0 on success and -EBUSY if any part of range cannot be isolated.
+ * future will not be allocated again. If specified range includes migrate types
+ * other than MOVABLE or CMA, this will fail with -EBUSY. For isolating all
+ * pages in the range finally, the caller have to free all pages in the range.
+ * test_page_isolated() can be used for test it.
  *
  * There is no high level synchronization mechanism that prevents two threads
- * from trying to isolate overlapping ranges.  If this happens, one thread
+ * from trying to isolate overlapping ranges. If this happens, one thread
  * will notice pageblocks in the overlapping range already set to isolate.
  * This happens in set_migratetype_isolate, and set_migratetype_isolate
- * returns an error.  We then clean up by restoring the migration type on
- * pageblocks we may have modified and return -EBUSY to caller.  This
+ * returns an error. We then clean up by restoring the migration type on
+ * pageblocks we may have modified and return -EBUSY to caller. This
  * prevents two threads from simultaneously working on overlapping ranges.
+ *
+ * Return: the number of isolated pageblocks on success and -EBUSY if any part
+ * of range cannot be isolated.
  */
 int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			     unsigned migratetype, int flags)
@@ -188,6 +197,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	unsigned long pfn;
 	unsigned long undo_pfn;
 	struct page *page;
+	int nr_isolate_pageblock = 0;
 
 	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
 	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
@@ -196,13 +206,15 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	     pfn < end_pfn;
 	     pfn += pageblock_nr_pages) {
 		page = __first_valid_page(pfn, pageblock_nr_pages);
-		if (page &&
-		    set_migratetype_isolate(page, migratetype, flags)) {
-			undo_pfn = pfn;
-			goto undo;
+		if (page) {
+			if (set_migratetype_isolate(page, migratetype, flags)) {
+				undo_pfn = pfn;
+				goto undo;
+			}
+			nr_isolate_pageblock++;
 		}
 	}
-	return 0;
+	return nr_isolate_pageblock;
 undo:
 	for (pfn = start_pfn;
 	     pfn < undo_pfn;
