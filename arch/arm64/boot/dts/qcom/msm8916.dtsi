@@ -278,7 +278,21 @@
 					type = "critical";
 				};
 			};
+		};
 
+		modem-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 0>;
+
+			trips {
+				modem_alert0: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
 		};
 
 	};
