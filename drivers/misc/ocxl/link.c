@@ -184,7 +184,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	u64 dsisr, dar, pe_handle;
 	struct pe_data *pe_data;
 	struct ocxl_process_element *pe;
-	int lpid, pid, tid;
+	int pid;
 	bool schedule = false;
 
 	read_irq(spa, &dsisr, &dar, &pe_handle);
@@ -192,9 +192,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 
 	WARN_ON(pe_handle > SPA_PE_MASK);
 	pe = spa->spa_mem + pe_handle;
-	lpid = be32_to_cpu(pe->lpid);
 	pid = be32_to_cpu(pe->pid);
-	tid = be32_to_cpu(pe->tid);
 	/* We could be reading all null values here if the PE is being
 	 * removed while an interrupt kicks in. It's not supposed to
 	 * happen if the driver notified the AFU to terminate the
