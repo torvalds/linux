@@ -288,8 +288,6 @@ struct net_bridge_port {
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
 #define br_promisc_port(p) ((p)->flags & BR_PROMISC)
 
-#define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
-
 static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *dev)
 {
 	return rcu_dereference(dev->rx_handler_data);
@@ -297,13 +295,13 @@ static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *d
 
 static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *dev)
 {
-	return br_port_exists(dev) ?
+	return netif_is_bridge_port(dev) ?
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
 
 static inline struct net_bridge_port *br_port_get_rtnl_rcu(const struct net_device *dev)
 {
-	return br_port_exists(dev) ?
+	return netif_is_bridge_port(dev) ?
 		rcu_dereference_rtnl(dev->rx_handler_data) : NULL;
 }
 

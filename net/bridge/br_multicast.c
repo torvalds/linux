@@ -2189,7 +2189,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 	int count = 0;
 
 	rcu_read_lock();
-	if (!br_ip_list || !br_port_exists(dev))
+	if (!br_ip_list || !netif_is_bridge_port(dev))
 		goto unlock;
 
 	port = br_port_get_rcu(dev);
@@ -2236,7 +2236,7 @@ bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto)
 	bool ret = false;
 
 	rcu_read_lock();
-	if (!br_port_exists(dev))
+	if (!netif_is_bridge_port(dev))
 		goto unlock;
 
 	port = br_port_get_rcu(dev);
@@ -2272,7 +2272,7 @@ bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto)
 	bool ret = false;
 
 	rcu_read_lock();
-	if (!br_port_exists(dev))
+	if (!netif_is_bridge_port(dev))
 		goto unlock;
 
 	port = br_port_get_rcu(dev);
