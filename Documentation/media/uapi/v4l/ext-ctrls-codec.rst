@@ -105,7 +105,7 @@ enum v4l2_mpeg_stream_vbi_fmt -
 
 
 
-.. tabularcolumns:: |p{6 cm}|p{11.5cm}|
+.. tabularcolumns:: |p{6.6 cm}|p{10.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -477,7 +477,7 @@ enum v4l2_mpeg_audio_dec_playback -
 
 
 
-.. tabularcolumns:: |p{9.0cm}|p{8.5cm}|
+.. tabularcolumns:: |p{9.8cm}|p{7.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -888,7 +888,7 @@ enum v4l2_mpeg_video_multi_slice_mode -
 
 
 
-.. tabularcolumns:: |p{8.7cm}|p{8.8cm}|
+.. tabularcolumns:: |p{9.6cm}|p{7.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -923,9 +923,11 @@ enum v4l2_mpeg_video_multi_slice_mode -
 enum v4l2_mpeg_video_h264_loop_filter_mode -
     Loop filter mode for H264 encoder. Possible values are:
 
+.. raw:: latex
 
+    \small
 
-.. tabularcolumns:: |p{14.0cm}|p{3.5cm}|
+.. tabularcolumns:: |p{13.6cm}|p{3.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -938,6 +940,9 @@ enum v4l2_mpeg_video_h264_loop_filter_mode -
     * - ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY``
       - Loop filter is disabled at the slice boundary.
 
+.. raw:: latex
+
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA (integer)``
@@ -963,6 +968,8 @@ enum v4l2_mpeg_video_h264_entropy_mode -
     Entropy coding mode for H264 - CABAC/CAVALC. Applicable to the H264
     encoder. Possible values are:
 
+
+.. tabularcolumns:: |p{9.0cm}|p{8.5cm}|
 
 
 .. flat-table::
@@ -1129,7 +1136,9 @@ enum v4l2_mpeg_video_header_mode -
     it returned together with the first frame. Applicable to encoders.
     Possible values are:
 
+.. raw:: latex
 
+    \small
 
 .. tabularcolumns:: |p{10.3cm}|p{7.2cm}|
 
@@ -1143,6 +1152,9 @@ enum v4l2_mpeg_video_header_mode -
       - The stream header is returned together with the first encoded
 	frame.
 
+.. raw:: latex
+
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER (boolean)``
@@ -1181,6 +1193,10 @@ enum v4l2_mpeg_video_h264_sei_fp_arrangement_type -
     Frame packing arrangement type for H264 SEI. Applicable to the H264
     encoder. Possible values are:
 
+.. raw:: latex
+
+    \small
+
 .. tabularcolumns:: |p{12cm}|p{5.5cm}|
 
 .. flat-table::
@@ -1200,6 +1216,10 @@ enum v4l2_mpeg_video_h264_sei_fp_arrangement_type -
     * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TEMPORAL``
       - One view per frame.
 
+.. raw:: latex
+
+    \normalsize
+
 
 
 ``V4L2_CID_MPEG_VIDEO_H264_FMO (boolean)``
@@ -1216,6 +1236,10 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
     When using FMO, the map type divides the image in different scan
     patterns of macroblocks. Applicable to the H264 encoder. Possible
     values are:
+
+.. raw:: latex
+
+    \small
 
 .. tabularcolumns:: |p{12.5cm}|p{5.0cm}|
 
@@ -1239,6 +1263,10 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
       - Slice groups grow in wipe scan pattern from top to bottom.
     * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_EXPLICIT``
       - User defined map type.
+
+.. raw:: latex
+
+    \normalsize
 
 
 
@@ -1361,6 +1389,8 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 .. cssclass:: longtable
 
+.. tabularcolumns:: |p{5.8cm}|p{4.8cm}|p{6.6cm}|
+
 .. flat-table:: struct v4l2_ctrl_mpeg2_slice_params
     :header-rows:  0
     :stub-columns: 0
@@ -1402,6 +1432,8 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 .. cssclass:: longtable
 
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
+
 .. flat-table:: struct v4l2_mpeg2_sequence
     :header-rows:  0
     :stub-columns: 0
@@ -1432,6 +1464,8 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 .. c:type:: v4l2_mpeg2_picture
 
 .. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
 
 .. flat-table:: struct v4l2_mpeg2_picture
     :header-rows:  0
@@ -1492,6 +1526,12 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 .. cssclass:: longtable
 
+.. tabularcolumns:: |p{1.2cm}|p{8.0cm}|p{7.4cm}|
+
+.. raw:: latex
+
+    \small
+
 .. flat-table:: struct v4l2_ctrl_mpeg2_quantization
     :header-rows:  0
     :stub-columns: 0
@@ -1544,6 +1584,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 ``V4L2_CID_FWHT_P_FRAME_QP (integer)``
     Quantization parameter for a P frame for FWHT. Valid range: from 1
     to 31.
+
+.. raw:: latex
+
+    \normalsize
+
 
 MFC 5.1 MPEG Controls
 =====================
@@ -1652,7 +1697,11 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode -
     are:
 
 
-.. tabularcolumns:: |p{9.0cm}|p{8.5cm}|
+.. tabularcolumns:: |p{9.2cm}|p{8.3cm}|
+
+.. raw:: latex
+
+    \small
 
 .. flat-table::
     :header-rows:  0
@@ -1667,7 +1716,9 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode -
       - Frame skip mode enabled and buffer limit is set by the VBV
 	(MPEG1/2/4) or CPB (H264) buffer size control.
 
+.. raw:: latex
 
+    \normalsize
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_RC_FIXED_TARGET_BIT (integer)``
     Enable rate-control with fixed target bit. If this setting is
@@ -1690,7 +1741,7 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
     Force a frame type for the next queued buffer. Applicable to
     encoders. Possible values are:
 
-
+.. tabularcolumns:: |p{9.5cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -1719,6 +1770,8 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
 .. c:type:: v4l2_ctrl_fwht_params
 
 .. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.4cm}|p{4.3cm}|p{11.8cm}|
 
 .. flat-table:: struct v4l2_ctrl_fwht_params
     :header-rows:  0
@@ -1763,9 +1816,10 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
 
 FWHT Flags
 ============
-.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
 
 .. cssclass:: longtable
+
+.. tabularcolumns:: |p{6.8cm}|p{2.4cm}|p{8.3cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -1869,9 +1923,11 @@ enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type -
     Select the algorithm to use for the Luma Spatial Filter (default
     ``1D_HOR``). Possible values:
 
-
-
 .. tabularcolumns:: |p{14.5cm}|p{3.0cm}|
+
+.. raw:: latex
+
+    \small
 
 .. flat-table::
     :header-rows:  0
@@ -1888,6 +1944,10 @@ enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type -
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE``
       - Two-dimensional symmetrical non-separable
 
+.. raw:: latex
+
+    \normalsize
+
 
 
 .. _chroma-spatial-filter-type:
@@ -1900,6 +1960,7 @@ enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type -
     ``1D_HOR``). Possible values are:
 
 
+.. tabularcolumns:: |p{14.0cm}|p{3.5cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2042,6 +2103,10 @@ enum v4l2_vp8_num_ref_frames -
 
 .. tabularcolumns:: |p{7.9cm}|p{9.6cm}|
 
+.. raw:: latex
+
+    \small
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -2055,6 +2120,10 @@ enum v4l2_vp8_num_ref_frames -
     * - ``V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME``
       - The last encoded frame, the golden frame and the altref frame will
 	be searched.
+
+.. raw:: latex
+
+    \normalsize
 
 
 
@@ -2085,7 +2154,7 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \footnotesize
+    \scriptsize
 
 .. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
@@ -2407,7 +2476,7 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
     \footnotesize
 
-.. tabularcolumns:: |p{10.7cm}|p{6.3cm}|
+.. tabularcolumns:: |p{12.1cm}|p{5.4cm}|
 
 .. flat-table::
     :header-rows:  0
