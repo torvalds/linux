@@ -52,7 +52,7 @@
 #include <asm/firmware.h>
 #include <asm/dma.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 
 #ifdef CONFIG_PPC_BOOK3S_64

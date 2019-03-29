@@ -32,7 +32,7 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 /*
  * Called when unmapping pages to flush entries from the TLB/hash table.

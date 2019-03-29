@@ -46,7 +46,7 @@
 #include <asm/hugetlb.h>
 #include <asm/paca.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 /*
  * This struct lists the sw-supported page sizes.  The hardawre MMU may support

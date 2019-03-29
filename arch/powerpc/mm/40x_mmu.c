@@ -49,7 +49,7 @@
 #include <asm/machdep.h>
 #include <asm/setup.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 extern int __map_without_ltlbs;
 /*

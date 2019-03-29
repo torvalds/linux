@@ -15,7 +15,7 @@
 #include <asm/tlb.h>
 #include <asm/dma.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*

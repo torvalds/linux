@@ -36,7 +36,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */

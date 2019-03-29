@@ -17,7 +17,7 @@
 #include <asm/trace.h>
 #include <asm/powernv.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 #include <trace/events/thp.h>
 
 unsigned long __pmd_frag_nr;

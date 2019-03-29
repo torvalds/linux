@@ -19,7 +19,7 @@
 #include <asm/mmu.h>
 #include <asm/tlb.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thp.h>

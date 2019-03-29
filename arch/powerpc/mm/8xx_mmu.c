@@ -17,7 +17,7 @@
 #include <asm/fixmap.h>
 #include <asm/code-patching.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 #define IMMR_SIZE (FIX_IMMR_SIZE << PAGE_SHIFT)
 

@@ -54,7 +54,7 @@
 #include <asm/setup.h>
 #include <asm/paca.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 unsigned int tlbcam_index;
 

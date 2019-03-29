@@ -52,7 +52,7 @@
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 /*
  * The MPC8xx has only 16 contexts. We rotate through them on each task switch.

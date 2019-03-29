@@ -54,7 +54,7 @@
 #include <asm/swiotlb.h>
 #include <asm/rtas.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 #ifndef CPU_FTR_COHERENT_ICACHE
 #define CPU_FTR_COHERENT_ICACHE	0	/* XXX for now */
