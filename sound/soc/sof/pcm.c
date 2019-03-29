@@ -171,6 +171,9 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	spcm->posn_offset[substream->stream] =
 		sdev->stream_box.offset + posn_offset;
 
+	dev_dbg(sdev->dev, "pcm: stream dir %d, posn mailbox offset is 0x%x",
+		substream->stream, spcm->posn_offset[substream->stream]);
+
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
 
