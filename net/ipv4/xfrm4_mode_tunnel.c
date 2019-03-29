@@ -15,56 +15,7 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-/* Add encapsulation header.
- *
- * The top IP header will be constructed per RFC 2401.
- */
-static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb_dst(skb);
-	struct iphdr *top_iph;
-	int flags;
-
-	skb_set_inner_network_header(skb, skb_network_offset(skb));
-	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
-
-	skb_set_network_header(skb, -x->props.header_len);
-	skb->mac_header = skb->network_header +
-			  offsetof(struct iphdr, protocol);
-	skb->transport_header = skb->network_header + sizeof(*top_iph);
-	top_iph = ip_hdr(skb);
-
-	top_iph->ihl = 5;
-	top_iph->version = 4;
-
-	top_iph->protocol = xfrm_af2proto(skb_dst(skb)->ops->family);
-
-	/* DS disclosing depends on XFRM_SA_XFLAG_DONT_ENCAP_DSCP */
-	if (x->props.extra_flags & XFRM_SA_XFLAG_DONT_ENCAP_DSCP)
-		top_iph->tos = 0;
-	else
-		top_iph->tos = XFRM_MODE_SKB_CB(skb)->tos;
-	top_iph->tos = INET_ECN_encapsulate(top_iph->tos,
-					    XFRM_MODE_SKB_CB(skb)->tos);
-
-	flags = x->props.flags;
-	if (flags & XFRM_STATE_NOECN)
-		IP_ECN_clear(top_iph);
-
-	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
-		0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));
-
-	top_iph->ttl = ip4_dst_hoplimit(xfrm_dst_child(dst));
-
-	top_iph->saddr = x->props.saddr.a4;
-	top_iph->daddr = x->id.daddr.a4;
-	ip_select_ident(dev_net(dst->dev), skb, NULL);
-
-	return 0;
-}
-
 static struct xfrm_mode xfrm4_tunnel_mode = {
-	.output2 = xfrm4_mode_tunnel_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

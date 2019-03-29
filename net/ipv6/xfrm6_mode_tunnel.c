@@ -22,43 +22,7 @@
  *
  * The top IP header will be constructed per RFC 2401.
  */
-static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb_dst(skb);
-	struct ipv6hdr *top_iph;
-	int dsfield;
-
-	skb_set_inner_network_header(skb, skb_network_offset(skb));
-	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
-
-	skb_set_network_header(skb, -x->props.header_len);
-	skb->mac_header = skb->network_header +
-			  offsetof(struct ipv6hdr, nexthdr);
-	skb->transport_header = skb->network_header + sizeof(*top_iph);
-	top_iph = ipv6_hdr(skb);
-
-	top_iph->version = 6;
-
-	memcpy(top_iph->flow_lbl, XFRM_MODE_SKB_CB(skb)->flow_lbl,
-	       sizeof(top_iph->flow_lbl));
-	top_iph->nexthdr = xfrm_af2proto(skb_dst(skb)->ops->family);
-
-	if (x->props.extra_flags & XFRM_SA_XFLAG_DONT_ENCAP_DSCP)
-		dsfield = 0;
-	else
-		dsfield = XFRM_MODE_SKB_CB(skb)->tos;
-	dsfield = INET_ECN_encapsulate(dsfield, XFRM_MODE_SKB_CB(skb)->tos);
-	if (x->props.flags & XFRM_STATE_NOECN)
-		dsfield &= ~INET_ECN_MASK;
-	ipv6_change_dsfield(top_iph, 0, dsfield);
-	top_iph->hop_limit = ip6_dst_hoplimit(xfrm_dst_child(dst));
-	top_iph->saddr = *(struct in6_addr *)&x->props.saddr;
-	top_iph->daddr = *(struct in6_addr *)&x->id.daddr;
-	return 0;
-}
-
 static struct xfrm_mode xfrm6_tunnel_mode = {
-	.output2 = xfrm6_mode_tunnel_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

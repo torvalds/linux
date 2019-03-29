@@ -19,65 +19,7 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-static void xfrm6_beet_make_header(struct sk_buff *skb)
-{
-	struct ipv6hdr *iph = ipv6_hdr(skb);
-
-	iph->version = 6;
-
-	memcpy(iph->flow_lbl, XFRM_MODE_SKB_CB(skb)->flow_lbl,
-	       sizeof(iph->flow_lbl));
-	iph->nexthdr = XFRM_MODE_SKB_CB(skb)->protocol;
-
-	ipv6_change_dsfield(iph, 0, XFRM_MODE_SKB_CB(skb)->tos);
-	iph->hop_limit = XFRM_MODE_SKB_CB(skb)->ttl;
-}
-
-/* Add encapsulation header.
- *
- * The top IP header will be constructed per draft-nikander-esp-beet-mode-06.txt.
- */
-static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct ipv6hdr *top_iph;
-	struct ip_beet_phdr *ph;
-	int optlen, hdr_len;
-
-	hdr_len = 0;
-	optlen = XFRM_MODE_SKB_CB(skb)->optlen;
-	if (unlikely(optlen))
-		hdr_len += IPV4_BEET_PHMAXLEN - (optlen & 4);
-
-	skb_set_network_header(skb, -x->props.header_len - hdr_len);
-	if (x->sel.family != AF_INET6)
-		skb->network_header += IPV4_BEET_PHMAXLEN;
-	skb->mac_header = skb->network_header +
-			  offsetof(struct ipv6hdr, nexthdr);
-	skb->transport_header = skb->network_header + sizeof(*top_iph);
-	ph = __skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl - hdr_len);
-
-	xfrm6_beet_make_header(skb);
-
-	top_iph = ipv6_hdr(skb);
-	if (unlikely(optlen)) {
-
-		BUG_ON(optlen < 0);
-
-		ph->padlen = 4 - (optlen & 4);
-		ph->hdrlen = optlen / 8;
-		ph->nexthdr = top_iph->nexthdr;
-		if (ph->padlen)
-			memset(ph + 1, IPOPT_NOP, ph->padlen);
-
-		top_iph->nexthdr = IPPROTO_BEETPH;
-	}
-
-	top_iph->saddr = *(struct in6_addr *)&x->props.saddr;
-	top_iph->daddr = *(struct in6_addr *)&x->id.daddr;
-	return 0;
-}
 static struct xfrm_mode xfrm6_beet_mode = {
-	.output2 = xfrm6_beet_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

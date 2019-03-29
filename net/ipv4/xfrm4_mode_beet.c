@@ -17,71 +17,8 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-static void xfrm4_beet_make_header(struct sk_buff *skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-
-	iph->ihl = 5;
-	iph->version = 4;
-
-	iph->protocol = XFRM_MODE_SKB_CB(skb)->protocol;
-	iph->tos = XFRM_MODE_SKB_CB(skb)->tos;
-
-	iph->id = XFRM_MODE_SKB_CB(skb)->id;
-	iph->frag_off = XFRM_MODE_SKB_CB(skb)->frag_off;
-	iph->ttl = XFRM_MODE_SKB_CB(skb)->ttl;
-}
-
-/* Add encapsulation header.
- *
- * The top IP header will be constructed per draft-nikander-esp-beet-mode-06.txt.
- */
-static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct ip_beet_phdr *ph;
-	struct iphdr *top_iph;
-	int hdrlen, optlen;
-
-	hdrlen = 0;
-	optlen = XFRM_MODE_SKB_CB(skb)->optlen;
-	if (unlikely(optlen))
-		hdrlen += IPV4_BEET_PHMAXLEN - (optlen & 4);
-
-	skb_set_network_header(skb, -x->props.header_len -
-				    hdrlen + (XFRM_MODE_SKB_CB(skb)->ihl - sizeof(*top_iph)));
-	if (x->sel.family != AF_INET6)
-		skb->network_header += IPV4_BEET_PHMAXLEN;
-	skb->mac_header = skb->network_header +
-			  offsetof(struct iphdr, protocol);
-	skb->transport_header = skb->network_header + sizeof(*top_iph);
-
-	xfrm4_beet_make_header(skb);
-
-	ph = __skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl - hdrlen);
-
-	top_iph = ip_hdr(skb);
-
-	if (unlikely(optlen)) {
-		BUG_ON(optlen < 0);
-
-		ph->padlen = 4 - (optlen & 4);
-		ph->hdrlen = optlen / 8;
-		ph->nexthdr = top_iph->protocol;
-		if (ph->padlen)
-			memset(ph + 1, IPOPT_NOP, ph->padlen);
-
-		top_iph->protocol = IPPROTO_BEETPH;
-		top_iph->ihl = sizeof(struct iphdr) / 4;
-	}
-
-	top_iph->saddr = x->props.saddr.a4;
-	top_iph->daddr = x->id.daddr.a4;
-
-	return 0;
-}
 
 static struct xfrm_mode xfrm4_beet_mode = {
-	.output2 = xfrm4_beet_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
