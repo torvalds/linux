@@ -352,6 +352,13 @@ void mlx5_drain_health_recovery(struct mlx5_core_dev *dev)
 	cancel_delayed_work_sync(&dev->priv.health.recover_work);
 }
 
+void mlx5_health_flush(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+
+	flush_workqueue(health->wq);
+}
+
 void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;

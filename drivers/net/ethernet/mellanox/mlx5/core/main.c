@@ -1220,6 +1220,7 @@ static const struct devlink_ops mlx5_devlink_ops = {
 static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx, const char *name)
 {
 	struct mlx5_priv *priv = &dev->priv;
+	int err;
 
 	strncpy(priv->name, name, MLX5_MAX_NAME_LEN);
 	priv->name[MLX5_MAX_NAME_LEN - 1] = 0;
@@ -1247,11 +1248,28 @@ static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx, const char
 		return -ENOMEM;
 	}
 
+	err = mlx5_health_init(dev);
+	if (err)
+		goto err_health_init;
+
+	err = mlx5_pagealloc_init(dev);
+	if (err)
+		goto err_pagealloc_init;
+
 	return 0;
+
+err_pagealloc_init:
+	mlx5_health_cleanup(dev);
+err_health_init:
+	debugfs_remove(dev->priv.dbg_root);
+
+	return err;
 }
 
 static void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 {
+	mlx5_pagealloc_cleanup(dev);
+	mlx5_health_cleanup(dev);
 	debugfs_remove_recursive(dev->priv.dbg_root);
 }
 
@@ -1280,16 +1298,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto pci_init_err;
 	}
 
-	err = mlx5_health_init(dev);
-	if (err) {
-		dev_err(&pdev->dev, "mlx5_health_init failed with error code %d\n", err);
-		goto close_pci;
-	}
-
-	err = mlx5_pagealloc_init(dev);
-	if (err)
-		goto err_pagealloc_init;
-
 	err = mlx5_load_one(dev, true);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_load_one failed with error code %d\n", err);
@@ -1307,11 +1315,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 clean_load:
 	mlx5_unload_one(dev, true);
+
 err_load_one:
-	mlx5_pagealloc_cleanup(dev);
-err_pagealloc_init:
-	mlx5_health_cleanup(dev);
-close_pci:
 	mlx5_pci_close(dev);
 pci_init_err:
 	mlx5_mdev_uninit(dev);
@@ -1331,12 +1336,10 @@ static void remove_one(struct pci_dev *pdev)
 
 	if (mlx5_unload_one(dev, true)) {
 		dev_err(&dev->pdev->dev, "mlx5_unload_one failed\n");
-		mlx5_health_cleanup(dev);
+		mlx5_health_flush(dev);
 		return;
 	}
 
-	mlx5_pagealloc_cleanup(dev);
-	mlx5_health_cleanup(dev);
 	mlx5_pci_close(dev);
 	mlx5_mdev_uninit(dev);
 	devlink_free(devlink);
