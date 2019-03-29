@@ -665,8 +665,7 @@ static int devm_clk_get_enable(struct device *dev, char *id)
 }
 
 static int axg_register_clk_hw_input(struct device *dev,
-				     const char *name,
-				     unsigned int clkid)
+				     const char *name)
 {
 	char *clk_name;
 	struct clk_hw *hw;
@@ -686,8 +685,6 @@ static int axg_register_clk_hw_input(struct device *dev,
 			if (err != -EPROBE_DEFER)
 				dev_err(dev, "failed to get %s clock", name);
 		}
-	} else {
-		axg_audio_hw_onecell_data.hws[clkid] = hw;
 	}
 
 	kfree(clk_name);
@@ -696,8 +693,7 @@ static int axg_register_clk_hw_input(struct device *dev,
 
 static int axg_register_clk_hw_inputs(struct device *dev,
 				      const char *basename,
-				      unsigned int count,
-				      unsigned int clkid)
+				      unsigned int count)
 {
 	char *name;
 	int i, ret;
@@ -707,7 +703,7 @@ static int axg_register_clk_hw_inputs(struct device *dev,
 		if (!name)
 			return -ENOMEM;
 
-		ret = axg_register_clk_hw_input(dev, name, clkid + i);
+		ret = axg_register_clk_hw_input(dev, name);
 		kfree(name);
 		if (ret)
 			return ret;
@@ -759,26 +755,21 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	axg_audio_hw_onecell_data.hws[AUD_CLKID_PCLK] = hw;
-
 	/* Register optional input master clocks */
 	ret = axg_register_clk_hw_inputs(dev, "mst_in",
-					 AUD_MST_IN_COUNT,
-					 AUD_CLKID_MST0);
+					 AUD_MST_IN_COUNT);
 	if (ret)
 		return ret;
 
 	/* Register optional input slave sclks */
 	ret = axg_register_clk_hw_inputs(dev, "slv_sclk",
-					 AUD_SLV_SCLK_COUNT,
-					 AUD_CLKID_SLV_SCLK0);
+					 AUD_SLV_SCLK_COUNT);
 	if (ret)
 		return ret;
 
 	/* Register optional input slave lrclks */
 	ret = axg_register_clk_hw_inputs(dev, "slv_lrclk",
-					 AUD_SLV_LRCLK_COUNT,
-					 AUD_CLKID_SLV_LRCLK0);
+					 AUD_SLV_LRCLK_COUNT);
 	if (ret)
 		return ret;
 
