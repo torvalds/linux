@@ -526,6 +526,17 @@ static void bdw_load_gamma_lut(const struct intel_crtc_state *crtc_state, u32 of
 		I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 0), (1 << 16));
 		I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 1), (1 << 16));
 		I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 2), (1 << 16));
+
+		/*
+		 * Program the gc max 2 register to clamp values > 1.0.
+		 * ToDo: Extend the ABI to be able to program values
+		 * from 3.0 to 7.0
+		 */
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+			I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 0), (1 << 16));
+			I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 1), (1 << 16));
+			I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 2), (1 << 16));
+		}
 	} else {
 		for (i = 0; i < lut_size; i++) {
 			u32 v = (i * ((1 << 10) - 1)) / (lut_size - 1);
@@ -537,6 +548,17 @@ static void bdw_load_gamma_lut(const struct intel_crtc_state *crtc_state, u32 of
 		I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 0), (1 << 16));
 		I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 1), (1 << 16));
 		I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 2), (1 << 16));
+
+		/*
+		 * Program the gc max 2 register to clamp values > 1.0.
+		 * ToDo: Extend the ABI to be able to program values
+		 * from 3.0 to 7.0
+		 */
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+			I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 0), (1 << 16));
+			I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 1), (1 << 16));
+			I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 2), (1 << 16));
+		}
 	}
 
 	/*
