@@ -1284,6 +1284,12 @@ enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, 
 			if (pipe_ctx->stream != dc_stream)
 				continue;
 
+			if (IS_DIAG_DC(dc->ctx->dce_environment) ||
+				dc->res_pool->res_cap->num_dsc == 1) {
+				// Diags build can also run on platforms that have fewer DSCs than pipes.
+				// In that case, add DSC only if needed by timing.
+				is_add_dsc = (dc_stream->timing.flags.DSC == 1);
+			}
 			if (is_add_dsc) {
 				pipe_ctx->stream_res.dsc = acquire_dsc(&new_ctx->res_ctx, pool);
 
