@@ -31,7 +31,6 @@ Optional properties:
 - vcc-max-microamp      : specifies max. load that can be drawn from vcc supply
 - vccq-max-microamp     : specifies max. load that can be drawn from vccq supply
 - vccq2-max-microamp    : specifies max. load that can be drawn from vccq2 supply
-- <name>-fixed-regulator : boolean property specifying that <name>-supply is a fixed regulator
 
 - clocks                : List of phandle and clock specifier pairs
 - clock-names           : List of clock input name strings sorted in the same
@@ -63,7 +62,6 @@ Example:
 		interrupts = <0 28 0>;
 
 		vdd-hba-supply = <&xxx_reg0>;
-		vdd-hba-fixed-regulator;
 		vcc-supply = <&xxx_reg1>;
 		vcc-supply-1p8;
 		vccq-supply = <&xxx_reg2>;
