@@ -400,15 +400,15 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 	struct smu_table *tables = NULL;
 	int ret = 0;
 
-	if (smu_table->tables || smu_table->table_count != 0)
+	if (smu_table->tables || smu_table->table_count == 0)
 		return -EINVAL;
 
-	tables = kcalloc(TABLE_COUNT, sizeof(struct smu_table), GFP_KERNEL);
+	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
+			 GFP_KERNEL);
 	if (!tables)
 		return -ENOMEM;
 
 	smu_table->tables = tables;
-	smu_table->table_count = TABLE_COUNT;
 
 	SMU_TABLE_INIT(tables, TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);

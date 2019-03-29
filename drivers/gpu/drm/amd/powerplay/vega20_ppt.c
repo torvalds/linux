@@ -2989,6 +2989,9 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+
 	smu->ppt_funcs = &vega20_ppt_funcs;
 	smu->smc_if_version = SMU11_DRIVER_IF_VERSION;
+	smu_table->table_count = TABLE_COUNT;
 }
