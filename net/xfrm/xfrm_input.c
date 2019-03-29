@@ -166,7 +166,7 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 }
 EXPORT_SYMBOL(xfrm_parse_spi);
 
-int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
+static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct xfrm_mode *inner_mode = x->inner_mode;
 	int err;
@@ -184,7 +184,76 @@ int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->protocol = inner_mode->afinfo->eth_proto;
 	return inner_mode->input2(x, skb);
 }
-EXPORT_SYMBOL(xfrm_prepare_input);
+
+/* Remove encapsulation header.
+ *
+ * The IP header will be moved over the top of the encapsulation header.
+ *
+ * On entry, skb_transport_header() shall point to where the IP header
+ * should be and skb_network_header() shall be set to where the IP header
+ * currently is.  skb->data shall point to the start of the payload.
+ */
+static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_INET_XFRM_MODE_TRANSPORT)
+	int ihl = skb->data - skb_transport_header(skb);
+
+	if (skb->transport_header != skb->network_header) {
+		memmove(skb_transport_header(skb),
+			skb_network_header(skb), ihl);
+		skb->network_header = skb->transport_header;
+	}
+	ip_hdr(skb)->tot_len = htons(skb->len + ihl);
+	skb_reset_transport_header(skb);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_INET6_XFRM_MODE_TRANSPORT)
+	int ihl = skb->data - skb_transport_header(skb);
+
+	if (skb->transport_header != skb->network_header) {
+		memmove(skb_transport_header(skb),
+			skb_network_header(skb), ihl);
+		skb->network_header = skb->transport_header;
+	}
+	ipv6_hdr(skb)->payload_len = htons(skb->len + ihl -
+					   sizeof(struct ipv6hdr));
+	skb_reset_transport_header(skb);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int xfrm_inner_mode_input(struct xfrm_state *x,
+				 const struct xfrm_mode *inner_mode,
+				 struct sk_buff *skb)
+{
+	switch (inner_mode->encap) {
+	case XFRM_MODE_BEET:
+	case XFRM_MODE_TUNNEL:
+		return xfrm_prepare_input(x, skb);
+	case XFRM_MODE_TRANSPORT:
+		if (inner_mode->family == AF_INET)
+			return xfrm4_transport_input(x, skb);
+		if (inner_mode->family == AF_INET6)
+			return xfrm6_transport_input(x, skb);
+		break;
+	case XFRM_MODE_ROUTEOPTIMIZATION:
+		WARN_ON_ONCE(1);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
 
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 {
@@ -410,7 +479,7 @@ resume:
 			}
 		}
 
-		if (inner_mode->input(x, skb)) {
+		if (xfrm_inner_mode_input(x, inner_mode, skb)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMODEERROR);
 			goto drop;
 		}

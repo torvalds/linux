@@ -122,7 +122,6 @@ static void xfrm6_mode_tunnel_xmit(struct xfrm_state *x, struct sk_buff *skb)
 
 static struct xfrm_mode xfrm6_tunnel_mode = {
 	.input2 = xfrm6_mode_tunnel_input,
-	.input = xfrm_prepare_input,
 	.output2 = xfrm6_mode_tunnel_output,
 	.output = xfrm6_prepare_output,
 	.gso_segment = xfrm6_mode_tunnel_gso_segment,

@@ -437,16 +437,6 @@ struct xfrm_mode {
 	int (*input2)(struct xfrm_state *x, struct sk_buff *skb);
 
 	/*
-	 * This is the actual input entry point.
-	 *
-	 * For transport mode and equivalent this would be identical to
-	 * input2 (which does not need to be set).  While tunnel mode
-	 * and equivalent would set this to the tunnel encapsulation function
-	 * xfrm4_prepare_input that would in turn call input2.
-	 */
-	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
-
-	/*
 	 * Add encapsulation header.
 	 *
 	 * On exit, the transport header will be set to the start of the
@@ -1606,7 +1596,6 @@ int xfrm_init_replay(struct xfrm_state *x);
 int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload);
 int xfrm_init_state(struct xfrm_state *x);
-int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type);
 int xfrm_input_resume(struct sk_buff *skb, int nexthdr);
 int xfrm_trans_queue(struct sk_buff *skb,

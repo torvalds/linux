@@ -128,7 +128,6 @@ out:
 
 static struct xfrm_mode xfrm4_beet_mode = {
 	.input2 = xfrm4_beet_input,
-	.input = xfrm_prepare_input,
 	.output2 = xfrm4_beet_output,
 	.output = xfrm4_prepare_output,
 	.owner = THIS_MODULE,

@@ -35,28 +35,6 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-/* Remove encapsulation header.
- *
- * The IP header will be moved over the top of the encapsulation header.
- *
- * On entry, skb->h shall point to where the IP header should be and skb->nh
- * shall be set to where the IP header currently is.  skb->data shall point
- * to the start of the payload.
- */
-static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int ihl = skb->data - skb_transport_header(skb);
-
-	if (skb->transport_header != skb->network_header) {
-		memmove(skb_transport_header(skb),
-			skb_network_header(skb), ihl);
-		skb->network_header = skb->transport_header;
-	}
-	ip_hdr(skb)->tot_len = htons(skb->len + ihl);
-	skb_reset_transport_header(skb);
-	return 0;
-}
-
 static struct sk_buff *xfrm4_transport_gso_segment(struct xfrm_state *x,
 						   struct sk_buff *skb,
 						   netdev_features_t features)
@@ -87,7 +65,6 @@ static void xfrm4_transport_xmit(struct xfrm_state *x, struct sk_buff *skb)
 }
 
 static struct xfrm_mode xfrm4_transport_mode = {
-	.input = xfrm4_transport_input,
 	.output = xfrm4_transport_output,
 	.gso_segment = xfrm4_transport_gso_segment,
 	.xmit = xfrm4_transport_xmit,
