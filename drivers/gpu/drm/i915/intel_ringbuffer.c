@@ -976,20 +976,16 @@ gen5_irq_disable(struct intel_engine_cs *engine)
 static void
 i9xx_irq_enable(struct intel_engine_cs *engine)
 {
-	GEM_BUG_ON(engine->id != RCS0);
-
 	engine->i915->irq_mask &= ~engine->irq_enable_mask;
-	ENGINE_WRITE(engine, RING_IMR, engine->i915->irq_mask);
-	ENGINE_POSTING_READ(engine, RING_IMR);
+	intel_uncore_write(engine->uncore, IMR, engine->i915->irq_mask);
+	intel_uncore_posting_read_fw(engine->uncore, IMR);
 }
 
 static void
 i9xx_irq_disable(struct intel_engine_cs *engine)
 {
-	GEM_BUG_ON(engine->id != RCS0);
-
 	engine->i915->irq_mask |= engine->irq_enable_mask;
-	ENGINE_WRITE(engine, RING_IMR, engine->i915->irq_mask);
+	intel_uncore_write(engine->uncore, IMR, engine->i915->irq_mask);
 }
 
 static void
