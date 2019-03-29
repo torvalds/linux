@@ -171,8 +171,10 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (!ret) {
 		if (!req->dst) {
 			req->dst = sgl_alloc(req->dlen, GFP_ATOMIC, NULL);
-			if (!req->dst)
+			if (!req->dst) {
+				ret = -ENOMEM;
 				goto out;
+			}
 		}
 		scatterwalk_map_and_copy(scratch_dst, req->dst, 0, req->dlen,
 					 1);
