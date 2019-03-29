@@ -1142,6 +1142,10 @@ int ltdc_load(struct drm_device *ddev)
 		goto err;
 	}
 
+	/* Disable interrupts */
+	reg_clear(ldev->regs, LTDC_IER,
+		  IER_LIE | IER_RRIE | IER_FUIE | IER_TERRIE);
+
 	for (i = 0; i < MAX_IRQ; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0)
@@ -1161,10 +1165,6 @@ int ltdc_load(struct drm_device *ddev)
 		usleep_range(10, 20);
 		reset_control_deassert(rstc);
 	}
-
-	/* Disable interrupts */
-	reg_clear(ldev->regs, LTDC_IER,
-		  IER_LIE | IER_RRIE | IER_FUIE | IER_TERRIE);
 
 	ret = ltdc_get_caps(ddev);
 	if (ret) {
