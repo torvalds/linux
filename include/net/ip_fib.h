@@ -76,27 +76,48 @@ struct fnhe_hash_bucket {
 #define FNHE_HASH_SIZE		(1 << FNHE_HASH_SHIFT)
 #define FNHE_RECLAIM_DEPTH	5
 
+struct fib_nh_common {
+	struct net_device	*nhc_dev;
+	int			nhc_oif;
+	unsigned int		nhc_flags;
+	struct lwtunnel_state	*nhc_lwtstate;
+	unsigned char		nhc_scope;
+	u8			nhc_family;
+	u8			nhc_has_gw:1,
+				unused:7;
+	union {
+		__be32          ipv4;
+		struct in6_addr ipv6;
+	} nhc_gw;
+
+	int			nhc_weight;
+	atomic_t		nhc_upper_bound;
+};
+
 struct fib_nh {
-	struct net_device	*nh_dev;
+	struct fib_nh_common	nh_common;
 	struct hlist_node	nh_hash;
 	struct fib_info		*nh_parent;
-	unsigned int		nh_flags;
-	unsigned char		nh_scope;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int			nh_weight;
-	atomic_t		nh_upper_bound;
-#endif
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			nh_tclassid;
 #endif
-	int			nh_oif;
-	__be32			nh_gw;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
 	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
 	struct rtable __rcu	*nh_rth_input;
 	struct fnhe_hash_bucket	__rcu *nh_exceptions;
-	struct lwtunnel_state	*nh_lwtstate;
+#define fib_nh_family		nh_common.nhc_family
+#define fib_nh_dev		nh_common.nhc_dev
+#define fib_nh_oif		nh_common.nhc_oif
+#define fib_nh_flags		nh_common.nhc_flags
+#define fib_nh_lws		nh_common.nhc_lwtstate
+#define fib_nh_scope		nh_common.nhc_scope
+#define fib_nh_family		nh_common.nhc_family
+#define fib_nh_has_gw		nh_common.nhc_has_gw
+#define fib_nh_gw4		nh_common.nhc_gw.ipv4
+#define fib_nh_gw6		nh_common.nhc_gw.ipv6
+#define fib_nh_weight		nh_common.nhc_weight
+#define fib_nh_upper_bound	nh_common.nhc_upper_bound
 };
 
 /*
@@ -125,7 +146,7 @@ struct fib_info {
 	int			fib_nhs;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
-#define fib_dev		fib_nh[0].nh_dev
+#define fib_dev		fib_nh[0].fib_nh_dev
 };
 
 
@@ -180,9 +201,9 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 	  atomic_read(&(net)->ipv4.dev_addr_genid)) ?	\
 	 FIB_RES_NH(res).nh_saddr :			\
 	 fib_info_update_nh_saddr((net), &FIB_RES_NH(res)))
-#define FIB_RES_GW(res)			(FIB_RES_NH(res).nh_gw)
-#define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
-#define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
+#define FIB_RES_GW(res)			(FIB_RES_NH(res).fib_nh_gw4)
+#define FIB_RES_DEV(res)		(FIB_RES_NH(res).fib_nh_dev)
+#define FIB_RES_OIF(res)		(FIB_RES_NH(res).fib_nh_oif)
 
 #define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
 					 FIB_RES_SADDR(net, res))
@@ -415,6 +436,15 @@ int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 void fib_select_multipath(struct fib_result *res, int hash);
 void fib_select_path(struct net *net, struct fib_result *res,
 		     struct flowi4 *fl4, const struct sk_buff *skb);
+
+int fib_nh_init(struct net *net, struct fib_nh *fib_nh,
+		struct fib_config *cfg, int nh_weight,
+		struct netlink_ext_ack *extack);
+void fib_nh_release(struct net *net, struct fib_nh *fib_nh);
+int fib_nh_common_init(struct fib_nh_common *nhc, struct nlattr *fc_encap,
+		       u16 fc_encap_type, void *cfg, gfp_t gfp_flags,
+		       struct netlink_ext_ack *extack);
+void fib_nh_common_release(struct fib_nh_common *nhc);
 
 /* Exported by fib_trie.c */
 void fib_trie_init(void);

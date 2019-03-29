@@ -4634,12 +4634,12 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	nh = &res.fi->fib_nh[res.nh_sel];
 
 	/* do not handle lwt encaps right now */
-	if (nh->nh_lwtstate)
+	if (nh->fib_nh_lws)
 		return BPF_FIB_LKUP_RET_UNSUPP_LWT;
 
-	dev = nh->nh_dev;
-	if (nh->nh_gw)
-		params->ipv4_dst = nh->nh_gw;
+	dev = nh->fib_nh_dev;
+	if (nh->fib_nh_gw4)
+		params->ipv4_dst = nh->fib_nh_gw4;
 
 	params->rt_metric = res.fi->fib_priority;
 
@@ -4748,13 +4748,13 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 			return BPF_FIB_LKUP_RET_FRAG_NEEDED;
 	}
 
-	if (f6i->fib6_nh.nh_lwtstate)
+	if (f6i->fib6_nh.fib_nh_lws)
 		return BPF_FIB_LKUP_RET_UNSUPP_LWT;
 
-	if (f6i->fib6_flags & RTF_GATEWAY)
-		*dst = f6i->fib6_nh.nh_gw;
+	if (f6i->fib6_nh.fib_nh_has_gw)
+		*dst = f6i->fib6_nh.fib_nh_gw6;
 
-	dev = f6i->fib6_nh.nh_dev;
+	dev = f6i->fib6_nh.fib_nh_dev;
 	params->rt_metric = f6i->fib6_metric;
 
 	/* xdp and cls_bpf programs are run in RCU-bh so rcu_read_lock_bh is

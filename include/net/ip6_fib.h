@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/ip_fib.h>
 #include <net/netlink.h>
 #include <net/inetpeer.h>
 #include <net/fib_notifier.h>
@@ -125,13 +126,7 @@ struct rt6_exception {
 #define FIB6_MAX_DEPTH 5
 
 struct fib6_nh {
-	struct in6_addr		nh_gw;
-	struct net_device	*nh_dev;
-	struct lwtunnel_state	*nh_lwtstate;
-
-	unsigned int		nh_flags;
-	atomic_t		nh_upper_bound;
-	int			nh_weight;
+	struct fib_nh_common	nh_common;
 };
 
 struct fib6_info {
@@ -441,13 +436,18 @@ void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 
 static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.nh_dev;
+	return f6i->fib6_nh.fib_nh_dev;
 }
+
+int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+		 struct fib6_config *cfg, gfp_t gfp_flags,
+		 struct netlink_ext_ack *extack);
+void fib6_nh_release(struct fib6_nh *fib6_nh);
 
 static inline
 struct lwtunnel_state *fib6_info_nh_lwt(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.nh_lwtstate;
+	return f6i->fib6_nh.fib_nh_lws;
 }
 
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,

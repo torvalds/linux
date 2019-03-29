@@ -199,10 +199,7 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 		free_percpu(f6i->rt6i_pcpu);
 	}
 
-	lwtstate_put(f6i->fib6_nh.nh_lwtstate);
-
-	if (f6i->fib6_nh.nh_dev)
-		dev_put(f6i->fib6_nh.nh_dev);
+	fib6_nh_release(&f6i->fib6_nh);
 
 	ip_fib_metrics_put(f6i->fib6_metrics);
 
@@ -2297,6 +2294,7 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct fib6_info *rt = v;
 	struct ipv6_route_iter *iter = seq->private;
+	unsigned int flags = rt->fib6_flags;
 	const struct net_device *dev;
 
 	seq_printf(seq, "%pi6 %02x ", &rt->fib6_dst.addr, rt->fib6_dst.plen);
@@ -2306,15 +2304,17 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 #else
 	seq_puts(seq, "00000000000000000000000000000000 00 ");
 #endif
-	if (rt->fib6_flags & RTF_GATEWAY)
-		seq_printf(seq, "%pi6", &rt->fib6_nh.nh_gw);
-	else
+	if (rt->fib6_nh.fib_nh_has_gw) {
+		flags |= RTF_GATEWAY;
+		seq_printf(seq, "%pi6", &rt->fib6_nh.fib_nh_gw6);
+	} else {
 		seq_puts(seq, "00000000000000000000000000000000");
+	}
 
-	dev = rt->fib6_nh.nh_dev;
+	dev = rt->fib6_nh.fib_nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
 		   rt->fib6_metric, atomic_read(&rt->fib6_ref), 0,
-		   rt->fib6_flags, dev ? dev->name : "");
+		   flags, dev ? dev->name : "");
 	iter->w.leaf = NULL;
 	return 0;
 }

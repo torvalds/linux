@@ -122,7 +122,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev,
 	/* Handle add/replace event */
 	if (fi->fib_nhs == 1) {
 		if (__mlx5_lag_is_active(ldev)) {
-			struct net_device *nh_dev = fi->fib_nh[0].nh_dev;
+			struct net_device *nh_dev = fi->fib_nh[0].fib_nh_dev;
 			int i = mlx5_lag_dev_get_netdev_idx(ldev, nh_dev);
 
 			mlx5_lag_set_port_affinity(ldev, ++i);
@@ -134,10 +134,10 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev,
 		return;
 
 	/* Verify next hops are ports of the same hca */
-	if (!(fi->fib_nh[0].nh_dev == ldev->pf[0].netdev &&
-	      fi->fib_nh[1].nh_dev == ldev->pf[1].netdev) &&
-	    !(fi->fib_nh[0].nh_dev == ldev->pf[1].netdev &&
-	      fi->fib_nh[1].nh_dev == ldev->pf[0].netdev)) {
+	if (!(fi->fib_nh[0].fib_nh_dev == ldev->pf[0].netdev &&
+	      fi->fib_nh[1].fib_nh_dev == ldev->pf[1].netdev) &&
+	    !(fi->fib_nh[0].fib_nh_dev == ldev->pf[1].netdev &&
+	      fi->fib_nh[1].fib_nh_dev == ldev->pf[0].netdev)) {
 		mlx5_core_warn(ldev->pf[0].dev, "Multipath offload require two ports of the same HCA\n");
 		return;
 	}
@@ -167,7 +167,7 @@ static void mlx5_lag_fib_nexthop_event(struct mlx5_lag *ldev,
 
 	/* nh added/removed */
 	if (event == FIB_EVENT_NH_DEL) {
-		int i = mlx5_lag_dev_get_netdev_idx(ldev, fib_nh->nh_dev);
+		int i = mlx5_lag_dev_get_netdev_idx(ldev, fib_nh->fib_nh_dev);
 
 		if (i >= 0) {
 			i = (i + 1) % 2 + 1; /* peer port */

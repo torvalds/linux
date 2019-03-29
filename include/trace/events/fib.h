@@ -63,13 +63,16 @@ TRACE_EVENT(fib_table_lookup,
 		}
 
 		if (nh) {
+			struct net_device *dev;
+
 			p32 = (__be32 *) __entry->saddr;
 			*p32 = nh->nh_saddr;
 
 			p32 = (__be32 *) __entry->gw;
-			*p32 = nh->nh_gw;
+			*p32 = nh->fib_nh_gw4;
 
-			__assign_str(name, nh->nh_dev ? nh->nh_dev->name : "-");
+			dev = nh->fib_nh_dev;
+			__assign_str(name, dev ? dev->name : "-");
 		} else {
 			p32 = (__be32 *) __entry->saddr;
 			*p32 = 0;

@@ -1276,8 +1276,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	rt = rt6_get_dflt_router(net, &ipv6_hdr(skb)->saddr, skb->dev);
 
 	if (rt) {
-		neigh = ip6_neigh_lookup(&rt->fib6_nh.nh_gw,
-					 rt->fib6_nh.nh_dev, NULL,
+		neigh = ip6_neigh_lookup(&rt->fib6_nh.fib_nh_gw6,
+					 rt->fib6_nh.fib_nh_dev, NULL,
 					  &ipv6_hdr(skb)->saddr);
 		if (!neigh) {
 			ND_PRINTK(0, err,
@@ -1306,8 +1306,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			return;
 		}
 
-		neigh = ip6_neigh_lookup(&rt->fib6_nh.nh_gw,
-					 rt->fib6_nh.nh_dev, NULL,
+		neigh = ip6_neigh_lookup(&rt->fib6_nh.fib_nh_gw6,
+					 rt->fib6_nh.fib_nh_dev, NULL,
 					  &ipv6_hdr(skb)->saddr);
 		if (!neigh) {
 			ND_PRINTK(0, err,

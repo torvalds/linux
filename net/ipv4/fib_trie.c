@@ -1471,18 +1471,16 @@ found:
 			continue;
 		for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
 			const struct fib_nh *nh = &fi->fib_nh[nhsel];
-			struct in_device *in_dev = __in_dev_get_rcu(nh->nh_dev);
 
-			if (nh->nh_flags & RTNH_F_DEAD)
+			if (nh->fib_nh_flags & RTNH_F_DEAD)
 				continue;
-			if (in_dev &&
-			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
-			    nh->nh_flags & RTNH_F_LINKDOWN &&
+			if (ip_ignore_linkdown(nh->fib_nh_dev) &&
+			    nh->fib_nh_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
 			if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
 				if (flp->flowi4_oif &&
-				    flp->flowi4_oif != nh->nh_oif)
+				    flp->flowi4_oif != nh->fib_nh_oif)
 					continue;
 			}
 
@@ -2653,7 +2651,7 @@ static unsigned int fib_flag_trans(int type, __be32 mask, const struct fib_info 
 
 	if (type == RTN_UNREACHABLE || type == RTN_PROHIBIT)
 		flags = RTF_REJECT;
-	if (fi && fi->fib_nh->nh_gw)
+	if (fi && fi->fib_nh->fib_nh_gw4)
 		flags |= RTF_GATEWAY;
 	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
@@ -2704,7 +2702,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 				   "%d\t%08X\t%d\t%u\t%u",
 				   fi->fib_dev ? fi->fib_dev->name : "*",
 				   prefix,
-				   fi->fib_nh->nh_gw, flags, 0, 0,
+				   fi->fib_nh->fib_nh_gw4, flags, 0, 0,
 				   fi->fib_priority,
 				   mask,
 				   (fi->fib_advmss ?
