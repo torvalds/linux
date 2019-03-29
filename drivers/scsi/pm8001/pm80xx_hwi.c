@@ -4617,7 +4617,7 @@ static int pm80xx_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 	return pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);
 }
 
-static u32 pm80xx_chip_is_our_interupt(struct pm8001_hba_info *pm8001_ha)
+static u32 pm80xx_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 {
 #ifdef PM8001_USE_MSIX
 	return 1;
@@ -4725,7 +4725,7 @@ const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.chip_rst		= pm80xx_hw_chip_rst,
 	.chip_iounmap		= pm8001_chip_iounmap,
 	.isr			= pm80xx_chip_isr,
-	.is_our_interupt	= pm80xx_chip_is_our_interupt,
+	.is_our_interrupt	= pm80xx_chip_is_our_interrupt,
 	.isr_process_oq		= process_oq,
 	.interrupt_enable	= pm80xx_chip_interrupt_enable,
 	.interrupt_disable	= pm80xx_chip_interrupt_disable,
