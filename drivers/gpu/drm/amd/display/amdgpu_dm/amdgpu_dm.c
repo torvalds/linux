@@ -251,6 +251,12 @@ get_crtc_by_otg_inst(struct amdgpu_device *adev,
 	return NULL;
 }
 
+static inline bool amdgpu_dm_vrr_active(struct dm_crtc_state *dm_state)
+{
+	return dm_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE ||
+	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
+}
+
 static void dm_pflip_high_irq(void *interrupt_params)
 {
 	struct amdgpu_crtc *amdgpu_crtc;
@@ -4738,6 +4744,31 @@ static void pre_update_freesync_state_on_stream(
 	new_crtc_state->vrr_params = vrr_params;
 }
 
+static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
+					    struct dm_crtc_state *new_state)
+{
+	bool old_vrr_active = amdgpu_dm_vrr_active(old_state);
+	bool new_vrr_active = amdgpu_dm_vrr_active(new_state);
+
+	if (!old_vrr_active && new_vrr_active) {
+		/* Transition VRR inactive -> active:
+		 * While VRR is active, we must not disable vblank irq, as a
+		 * reenable after disable would compute bogus vblank/pflip
+		 * timestamps if it likely happened inside display front-porch.
+		 */
+		drm_crtc_vblank_get(new_state->base.crtc);
+		DRM_DEBUG_DRIVER("%s: crtc=%u VRR off->on: Get vblank ref\n",
+				 __func__, new_state->base.crtc->base.id);
+	} else if (old_vrr_active && !new_vrr_active) {
+		/* Transition VRR active -> inactive:
+		 * Allow vblank irq disable again for fixed refresh rate.
+		 */
+		drm_crtc_vblank_put(new_state->base.crtc);
+		DRM_DEBUG_DRIVER("%s: crtc=%u VRR on->off: Drop vblank ref\n",
+				 __func__, new_state->base.crtc->base.id);
+	}
+}
+
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct dc_state *dc_state,
 				    struct drm_device *dev,
@@ -5278,6 +5309,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+
+		/* Handle vrr on->off / off->on transitions */
+		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
+						dm_new_crtc_state);
+
 		modeset_needed = modeset_required(
 				new_crtc_state,
 				dm_new_crtc_state->stream,
