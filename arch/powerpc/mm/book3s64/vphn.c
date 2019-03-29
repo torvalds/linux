@@ -42,7 +42,8 @@ int vphn_unpack_associativity(const long *packed, __be32 *unpacked)
 		u16 new = be16_to_cpup(field++);
 
 		if (is_32bit) {
-			/* Let's concatenate the 16 bits of this field to the
+			/*
+			 * Let's concatenate the 16 bits of this field to the
 			 * 15 lower bits of the previous field
 			 */
 			unpacked[++nr_assoc_doms] =
@@ -56,7 +57,8 @@ int vphn_unpack_associativity(const long *packed, __be32 *unpacked)
 			unpacked[++nr_assoc_doms] =
 				cpu_to_be32(new & VPHN_FIELD_MASK);
 		} else {
-			/* Data is in the lower 15 bits of this field
+			/*
+			 * Data is in the lower 15 bits of this field
 			 * concatenated with the next 16 bit field
 			 */
 			last = new;

@@ -1,6 +1,6 @@
 /*
  * Copyright IBM Corporation, 2015
- * Author Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+ * Author Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU Lesser General Public License

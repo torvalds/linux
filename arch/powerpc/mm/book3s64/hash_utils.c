@@ -128,7 +128,8 @@ static DEFINE_SPINLOCK(linear_map_hash_lock);
 struct mmu_hash_ops mmu_hash_ops;
 EXPORT_SYMBOL(mmu_hash_ops);
 
-/* There are definitions of page sizes arrays to be used when none
+/*
+ * These are definitions of page sizes arrays to be used when none
  * is provided by the firmware.
  */
 
@@ -145,7 +146,8 @@ static struct mmu_psize_def mmu_psize_defaults[] = {
 	},
 };
 
-/* POWER4, GPUL, POWER5
+/*
+ * POWER4, GPUL, POWER5
  *
  * Support for 16Mb large pages
  */
@@ -479,7 +481,8 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
-/* Scan for 16G memory blocks that have been set aside for huge pages
+/*
+ * Scan for 16G memory blocks that have been set aside for huge pages
  * and reserve those blocks for 16G huge pages.
  */
 static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
@@ -496,8 +499,10 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	if (type == NULL || strcmp(type, "memory") != 0)
 		return 0;
 
-	/* This property is the log base 2 of the number of virtual pages that
-	 * will represent this memory block. */
+	/*
+	 * This property is the log base 2 of the number of virtual pages that
+	 * will represent this memory block.
+	 */
 	page_count_prop = of_get_flat_dt_prop(node, "ibm,expected#pages", NULL);
 	if (page_count_prop == NULL)
 		return 0;
@@ -673,7 +678,8 @@ static void __init htab_init_page_sizes(void)
 #endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	/* We try to use 16M pages for vmemmap if that is supported
+	/*
+	 * We try to use 16M pages for vmemmap if that is supported
 	 * and we have at least 1G of RAM at boot
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift &&
@@ -742,7 +748,8 @@ unsigned htab_shift_for_mem_size(unsigned long mem_size)
 
 static unsigned long __init htab_get_table_size(void)
 {
-	/* If hash size isn't already provided by the platform, we try to
+	/*
+	 * If hash size isn't already provided by the platform, we try to
 	 * retrieve it from the device-tree. If it's not there neither, we
 	 * calculate it now based on the total RAM size
 	 */
@@ -1043,7 +1050,8 @@ void __init hash__early_init_mmu(void)
 	if (!mmu_hash_ops.hpte_insert)
 		panic("hash__early_init_mmu: No MMU hash ops defined!\n");
 
-	/* Initialize the MMU Hash table and create the linear mapping
+	/*
+	 * Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is
 	 * currently where the page size encoding is obtained.
 	 */
@@ -1228,7 +1236,8 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 	}
 }
 
-/* Result code is:
+/*
+ * Result code is:
  *  0 - handled
  *  1 - normal page fault
  * -1 - critical hash insertion error
@@ -1276,8 +1285,9 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		ssize = mmu_kernel_ssize;
 		break;
 	default:
-		/* Not a valid range
-		 * Send the problem up to do_page_fault 
+		/*
+		 * Not a valid range
+		 * Send the problem up to do_page_fault()
 		 */
 		rc = 1;
 		goto bail;
@@ -1302,7 +1312,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		flags |= HPTE_LOCAL_UPDATE;
 
 #ifndef CONFIG_PPC_64K_PAGES
-	/* If we use 4K pages and our psize is not 4K, then we might
+	/*
+	 * If we use 4K pages and our psize is not 4K, then we might
 	 * be hitting a special driver mapping, and need to align the
 	 * address before we fetch the PTE.
 	 *
@@ -1324,7 +1335,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	/* Add _PAGE_PRESENT to the required access perm */
 	access |= _PAGE_PRESENT;
 
-	/* Pre-check access permissions (will be re-checked atomically
+	/*
+	 * Pre-check access permissions (will be re-checked atomically
 	 * in __hash_page_XX but this pre-check is a fast path
 	 */
 	if (!check_pte_access(access, pte_val(*ptep))) {
@@ -1371,7 +1383,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		psize = MMU_PAGE_4K;
 	}
 
-	/* If this PTE is non-cacheable and we have restrictions on
+	/*
+	 * If this PTE is non-cacheable and we have restrictions on
 	 * using non cacheable large pages, then we switch to 4k
 	 */
 	if (mmu_ci_restrictions && psize == MMU_PAGE_64K && pte_ci(*ptep)) {
@@ -1412,7 +1425,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 					    flags, ssize, spp);
 	}
 
-	/* Dump some info in case of hash insertion failure, they should
+	/*
+	 * Dump some info in case of hash insertion failure, they should
 	 * never happen so it is really useful to know if/when they do
 	 */
 	if (rc == -1)
@@ -1653,7 +1667,8 @@ unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
 	return gslot;
 }
 
-/* WARNING: This is called from hash_low_64.S, if you change this prototype,
+/*
+ * WARNING: This is called from hash_low_64.S, if you change this prototype,
  *          do not forget to update the assembly call site !
  */
 void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
@@ -1874,7 +1889,8 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* We don't currently support the first MEMBLOCK not mapping 0
+	/*
+	 * We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);

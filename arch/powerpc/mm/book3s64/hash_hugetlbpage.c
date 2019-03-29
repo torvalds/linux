@@ -34,7 +34,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	/* Search the Linux page table for a match with va */
 	vpn = hpt_vpn(ea, vsid, ssize);
 
-	/* At this point, we have a pte (old_pte) which can be used to build
+	/*
+	 * At this point, we have a pte (old_pte) which can be used to build
 	 * or update an HPTE. There are 2 cases:
 	 *
 	 * 1. There is a valid (present) pte with no associated HPTE (this is
@@ -55,8 +56,10 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (unlikely(!check_pte_access(access, old_pte)))
 			return 1;
 
-		/* Try to lock the PTE, add ACCESSED and DIRTY if it was
-		 * a write access */
+		/*
+		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
+		 * a write access
+		 */
 		new_pte = old_pte | H_PAGE_BUSY | _PAGE_ACCESSED;
 		if (access & _PAGE_WRITE)
 			new_pte |= _PAGE_DIRTY;
@@ -74,8 +77,10 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	rpte = __real_pte(__pte(old_pte), ptep, offset);
 
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
-		/* No CPU has hugepages but lacks no execute, so we
-		 * don't need to worry about that case */
+		/*
+		 * No CPU has hugepages but lacks no execute, so we
+		 * don't need to worry about that case
+		 */
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 
 	/* Check if pte already has an hpte (case 2) */

@@ -2,8 +2,7 @@
 #ifndef _ARCH_POWERPC_MM_VPHN_H_
 #define _ARCH_POWERPC_MM_VPHN_H_
 
-/* The H_HOME_NODE_ASSOCIATIVITY h_call returns 6 64-bit registers.
- */
+/* The H_HOME_NODE_ASSOCIATIVITY h_call returns 6 64-bit registers. */
 #define VPHN_REGISTER_COUNT 6
 
 /*

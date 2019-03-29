@@ -55,7 +55,8 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 
 	i = batch->index;
 
-	/* Get page size (maybe move back to caller).
+	/*
+	 * Get page size (maybe move back to caller).
 	 *
 	 * NOTE: when using special 64K mappings in 4K environment like
 	 * for SPEs, we obtain the page size from the slice, which thus
@@ -77,10 +78,12 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 #endif
 	} else {
 		psize = pte_pagesize_index(mm, addr, pte);
-		/* Mask the address for the standard page size.  If we
+		/*
+		 * Mask the address for the standard page size.  If we
 		 * have a 64k page kernel, but the hardware does not
 		 * support 64k pages, this might be different from the
-		 * hardware page size encoded in the slice table. */
+		 * hardware page size encoded in the slice table.
+		 */
 		addr &= PAGE_MASK;
 		offset = PTRS_PER_PTE;
 	}
@@ -161,7 +164,8 @@ void hash__tlb_flush(struct mmu_gather *tlb)
 {
 	struct ppc64_tlb_batch *tlbbatch = &get_cpu_var(ppc64_tlb_batch);
 
-	/* If there's a TLB batch pending, then we must flush it because the
+	/*
+	 * If there's a TLB batch pending, then we must flush it because the
 	 * pages are going to be freed and we really don't want to have a CPU
 	 * access a freed page because it has a stale TLB
 	 */
@@ -201,7 +205,8 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 
 	BUG_ON(!mm->pgd);
 
-	/* Note: Normally, we should only ever use a batch within a
+	/*
+	 * Note: Normally, we should only ever use a batch within a
 	 * PTE locked section. This violates the rule, but will work
 	 * since we don't actually modify the PTEs, we just flush the
 	 * hash while leaving the PTEs intact (including their reference
@@ -238,7 +243,8 @@ void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr)
 	unsigned long flags;
 
 	addr = _ALIGN_DOWN(addr, PMD_SIZE);
-	/* Note: Normally, we should only ever use a batch within a
+	/*
+	 * Note: Normally, we should only ever use a batch within a
 	 * PTE locked section. This violates the rule, but will work
 	 * since we don't actually modify the PTEs, we just flush the
 	 * hash while leaving the PTEs intact (including their reference

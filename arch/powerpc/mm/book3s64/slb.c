@@ -554,7 +554,8 @@ void slb_initialize(void)
 	asm volatile("isync; slbia; isync":::"memory");
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, LINEAR_INDEX);
 
-	/* For the boot cpu, we're running on the stack in init_thread_union,
+	/*
+	 * For the boot cpu, we're running on the stack in init_thread_union,
 	 * which is in the first segment of the linear mapping, and also
 	 * get_paca()->kstack hasn't been initialized yet.
 	 * For secondary cpus, we need to bolt the kernel stack entry now.

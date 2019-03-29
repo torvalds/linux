@@ -1068,7 +1068,7 @@ u64 memory_hotplug_max(void)
 /* Virtual Processor Home Node (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
 
-#include "vphn.h"
+#include "book3s64/vphn.h"
 
 struct topology_update_data {
 	struct topology_update_data *next;
