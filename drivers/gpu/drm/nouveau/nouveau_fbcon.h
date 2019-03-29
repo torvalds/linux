@@ -32,7 +32,7 @@
 #include "nouveau_display.h"
 
 struct nouveau_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	unsigned int saved_flags;
 	struct nvif_object surf2d;
 	struct nvif_object clip;

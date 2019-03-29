@@ -264,8 +264,6 @@ static int versatile_panel_get_modes(struct drm_panel *panel)
 	struct versatile_panel *vpanel = to_versatile_panel(panel);
 	struct drm_display_mode *mode;
 
-	strncpy(connector->display_info.name, vpanel->panel_type->name,
-		DRM_DISPLAY_INFO_LEN);
 	connector->display_info.width_mm = vpanel->panel_type->width_mm;
 	connector->display_info.height_mm = vpanel->panel_type->height_mm;
 	connector->display_info.bus_flags = vpanel->panel_type->bus_flags;

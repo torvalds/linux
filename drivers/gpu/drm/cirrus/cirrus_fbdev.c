@@ -195,8 +195,6 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 		goto err_vfree;
 	}
 
-	info->par = gfbdev;
-
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb) {
 		ret = -ENOMEM;
@@ -214,13 +212,9 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	/* setup helper */
 	gfbdev->helper.fb = fb;
 
-	strcpy(info->fix.id, "cirrusdrmfb");
-
 	info->fbops = &cirrusfb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, &gfbdev->helper, sizes->fb_width,
-			       sizes->fb_height);
+	drm_fb_helper_fill_info(info, &gfbdev->helper, sizes);
 
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures->ranges[0].base = cdev->dev->mode_config.fb_base;

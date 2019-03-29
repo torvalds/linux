@@ -2866,7 +2866,6 @@ static void intel_connector_info(struct seq_file *m,
 	if (connector->status == connector_status_disconnected)
 		return;
 
-	seq_printf(m, "\tname: %s\n", connector->display_info.name);
 	seq_printf(m, "\tphysical dimensions: %dx%dmm\n",
 		   connector->display_info.width_mm,
 		   connector->display_info.height_mm);

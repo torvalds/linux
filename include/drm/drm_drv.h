@@ -152,9 +152,9 @@ enum drm_driver_feature {
 /**
  * struct drm_driver - DRM driver structure
  *
- * This structure represent the common code for a family of cards. There will
- * one drm_device for each card present in this family. It contains lots of
- * vfunc entries, and a pile of those probably should be moved to more
+ * This structure represent the common code for a family of cards. There will be
+ * one &struct drm_device for each card present in this family. It contains lots
+ * of vfunc entries, and a pile of those probably should be moved to more
  * appropriate places like &drm_mode_config_funcs or into a new operations
  * structure for GEM drivers.
  */
