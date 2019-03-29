@@ -79,7 +79,7 @@ static u64 uar2pfn(struct mlx5_core_dev *mdev, u32 index)
 	else
 		system_page_index = index;
 
-	return (pci_resource_start(mdev->pdev, 0) >> PAGE_SHIFT) + system_page_index;
+	return (mdev->bar_addr >> PAGE_SHIFT) + system_page_index;
 }
 
 static void up_rel_func(struct kref *kref)

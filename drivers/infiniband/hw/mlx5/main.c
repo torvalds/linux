@@ -1984,7 +1984,7 @@ static phys_addr_t uar_index2pfn(struct mlx5_ib_dev *dev,
 
 	fw_uars_per_page = MLX5_CAP_GEN(dev->mdev, uar_4k) ? MLX5_UARS_IN_PAGE : 1;
 
-	return (pci_resource_start(dev->mdev->pdev, 0) >> PAGE_SHIFT) + uar_idx / fw_uars_per_page;
+	return (dev->mdev->bar_addr >> PAGE_SHIFT) + uar_idx / fw_uars_per_page;
 }
 
 static int get_command(unsigned long offset)
@@ -2174,7 +2174,7 @@ static int dm_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	    page_idx + npages)
 		return -EINVAL;
 
-	pfn = ((pci_resource_start(dev->mdev->pdev, 0) +
+	pfn = ((dev->mdev->bar_addr +
 	      MLX5_CAP64_DEV_MEM(dev->mdev, memic_bar_start_addr)) >>
 	      PAGE_SHIFT) +
 	      page_idx;
@@ -2258,7 +2258,7 @@ struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 		goto err_free;
 
 	start_offset = memic_addr & ~PAGE_MASK;
-	page_idx = (memic_addr - pci_resource_start(memic->dev->pdev, 0) -
+	page_idx = (memic_addr - memic->dev->bar_addr -
 		    MLX5_CAP64_DEV_MEM(memic->dev, memic_bar_start_addr)) >>
 		    PAGE_SHIFT;
 
@@ -2301,7 +2301,7 @@ int mlx5_ib_dealloc_dm(struct ib_dm *ibdm)
 	if (ret)
 		return ret;
 
-	page_idx = (dm->dev_addr - pci_resource_start(memic->dev->pdev, 0) -
+	page_idx = (dm->dev_addr - memic->dev->bar_addr -
 		    MLX5_CAP64_DEV_MEM(memic->dev, memic_bar_start_addr)) >>
 		    PAGE_SHIFT;
 	bitmap_clear(to_mucontext(ibdm->uobject->context)->dm_pages,
