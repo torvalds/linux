@@ -2438,6 +2438,8 @@ static void dcn10_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
@@ -2451,7 +2453,7 @@ static void dcn10_prepare_bandwidth(
 				false);
 	}
 
-	hubbub1_program_watermarks(dc->res_pool->hubbub,
+	hubbub->funcs->program_watermarks(hubbub,
 			&context->bw_ctx.bw.dcn.watermarks,
 			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);
@@ -2468,6 +2470,8 @@ static void dcn10_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
@@ -2481,7 +2485,7 @@ static void dcn10_optimize_bandwidth(
 				true);
 	}
 
-	hubbub1_program_watermarks(dc->res_pool->hubbub,
+	hubbub->funcs->program_watermarks(hubbub,
 			&context->bw_ctx.bw.dcn.watermarks,
 			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);

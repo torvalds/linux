@@ -77,6 +77,12 @@ struct hubbub_funcs {
 	void (*get_dchub_ref_freq)(struct hubbub *hubbub,
 			unsigned int dccg_ref_freq_inKhz,
 			unsigned int *dchub_ref_freq_inKhz);
+
+	void (*program_watermarks)(
+			struct hubbub *hubbub,
+			struct dcn_watermark_set *watermarks,
+			unsigned int refclk_mhz,
+			bool safe_to_lower);
 };
 
 struct hubbub {
