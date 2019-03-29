@@ -943,7 +943,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		/* reject already-mapped transfers; PIO won't always work */
 		if (message->is_dma_mapped
 				|| transfer->rx_dma || transfer->tx_dma) {
-			dev_err(&drv_data->pdev->dev,
+			dev_err(&spi->dev,
 				"Mapped transfer length of %u is greater than %d\n",
 				transfer->len, MAX_DMA_LEN);
 			return -EINVAL;
@@ -957,7 +957,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 	/* Setup the transfer state based on the type of transfer */
 	if (pxa2xx_spi_flush(drv_data) == 0) {
-		dev_err(&drv_data->pdev->dev, "Flush failed\n");
+		dev_err(&spi->dev, "Flush failed\n");
 		return -EIO;
 	}
 	drv_data->n_bytes = chip->n_bytes;
