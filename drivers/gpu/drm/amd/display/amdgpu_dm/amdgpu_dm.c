@@ -4646,7 +4646,6 @@ static void update_freesync_state_on_stream(
 {
 	struct mod_vrr_params vrr_params = new_crtc_state->vrr_params;
 	struct dc_info_packet vrr_infopacket = {0};
-	struct mod_freesync_config config = new_crtc_state->freesync_config;
 
 	if (!new_stream)
 		return;
@@ -4658,20 +4657,6 @@ static void update_freesync_state_on_stream(
 
 	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
 		return;
-
-	if (new_crtc_state->vrr_supported &&
-	    config.min_refresh_in_uhz &&
-	    config.max_refresh_in_uhz) {
-		config.state = new_crtc_state->base.vrr_enabled ?
-			VRR_STATE_ACTIVE_VARIABLE :
-			VRR_STATE_INACTIVE;
-	} else {
-		config.state = VRR_STATE_UNSUPPORTED;
-	}
-
-	mod_freesync_build_vrr_params(dm->freesync_module,
-				      new_stream,
-				      &config, &vrr_params);
 
 	if (surface) {
 		mod_freesync_handle_preflip(
@@ -4711,6 +4696,46 @@ static void update_freesync_state_on_stream(
 			      new_crtc_state->base.crtc->base.id,
 			      (int)new_crtc_state->base.vrr_enabled,
 			      (int)vrr_params.state);
+}
+
+static void pre_update_freesync_state_on_stream(
+	struct amdgpu_display_manager *dm,
+	struct dm_crtc_state *new_crtc_state)
+{
+	struct dc_stream_state *new_stream = new_crtc_state->stream;
+	struct mod_vrr_params vrr_params = new_crtc_state->vrr_params;
+	struct mod_freesync_config config = new_crtc_state->freesync_config;
+
+	if (!new_stream)
+		return;
+
+	/*
+	 * TODO: Determine why min/max totals and vrefresh can be 0 here.
+	 * For now it's sufficient to just guard against these conditions.
+	 */
+	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
+		return;
+
+	if (new_crtc_state->vrr_supported &&
+	    config.min_refresh_in_uhz &&
+	    config.max_refresh_in_uhz) {
+		config.state = new_crtc_state->base.vrr_enabled ?
+			VRR_STATE_ACTIVE_VARIABLE :
+			VRR_STATE_INACTIVE;
+	} else {
+		config.state = VRR_STATE_UNSUPPORTED;
+	}
+
+	mod_freesync_build_vrr_params(dm->freesync_module,
+				      new_stream,
+				      &config, &vrr_params);
+
+	new_crtc_state->freesync_timing_changed |=
+		(memcmp(&new_crtc_state->vrr_params.adjust,
+			&vrr_params.adjust,
+			sizeof(vrr_params.adjust)) != 0);
+
+	new_crtc_state->vrr_params = vrr_params;
 }
 
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
@@ -5232,6 +5257,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 						     &stream_update,
 						     dc_state);
 		mutex_unlock(&dm->dc_lock);
+	}
+
+	/* Update freesync state before amdgpu_dm_handle_vrr_transition(). */
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
