@@ -351,7 +351,7 @@ xfrm_inner_mode_encap_remove(struct xfrm_state *x,
 
 static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct xfrm_mode *inner_mode = x->inner_mode;
+	const struct xfrm_mode *inner_mode = x->inner_mode;
 	const struct xfrm_state_afinfo *afinfo;
 	int err = -EAFNOSUPPORT;
 
@@ -394,7 +394,6 @@ static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
  */
 static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-#if IS_ENABLED(CONFIG_INET_XFRM_MODE_TRANSPORT)
 	int ihl = skb->data - skb_transport_header(skb);
 
 	if (skb->transport_header != skb->network_header) {
@@ -405,14 +404,11 @@ static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 	ip_hdr(skb)->tot_len = htons(skb->len + ihl);
 	skb_reset_transport_header(skb);
 	return 0;
-#else
-	return -EOPNOTSUPP;
-#endif
 }
 
 static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-#if IS_ENABLED(CONFIG_INET6_XFRM_MODE_TRANSPORT)
+#if IS_ENABLED(CONFIG_IPV6)
 	int ihl = skb->data - skb_transport_header(skb);
 
 	if (skb->transport_header != skb->network_header) {
@@ -425,7 +421,8 @@ static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb_reset_transport_header(skb);
 	return 0;
 #else
-	return -EOPNOTSUPP;
+	WARN_ON_ONCE(1);
+	return -EAFNOSUPPORT;
 #endif
 }
 
@@ -458,12 +455,12 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 {
 	const struct xfrm_state_afinfo *afinfo;
 	struct net *net = dev_net(skb->dev);
+	const struct xfrm_mode *inner_mode;
 	int err;
 	__be32 seq;
 	__be32 seq_hi;
 	struct xfrm_state *x = NULL;
 	xfrm_address_t *daddr;
-	struct xfrm_mode *inner_mode;
 	u32 mark = skb->mark;
 	unsigned int family = AF_UNSPEC;
 	int decaps = 0;

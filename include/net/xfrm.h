@@ -234,9 +234,9 @@ struct xfrm_state {
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	const struct xfrm_type	*type;
-	struct xfrm_mode	*inner_mode;
-	struct xfrm_mode	*inner_mode_iaf;
-	struct xfrm_mode	*outer_mode;
+	const struct xfrm_mode	*inner_mode;
+	const struct xfrm_mode	*inner_mode_iaf;
+	const struct xfrm_mode	*outer_mode;
 
 	const struct xfrm_type_offload	*type_offload;
 
@@ -347,7 +347,6 @@ struct xfrm_state_afinfo {
 	struct module			*owner;
 	const struct xfrm_type		*type_map[IPPROTO_MAX];
 	const struct xfrm_type_offload	*type_offload_map[IPPROTO_MAX];
-	struct xfrm_mode		*mode_map[XFRM_MODE_MAX];
 
 	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_selector *sel,
@@ -423,7 +422,6 @@ int xfrm_register_type_offload(const struct xfrm_type_offload *type, unsigned sh
 int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 
 struct xfrm_mode {
-	struct module *owner;
 	u8 encap;
 	u8 family;
 	u8 flags;
@@ -433,9 +431,6 @@ struct xfrm_mode {
 enum {
 	XFRM_MODE_FLAG_TUNNEL = 1,
 };
-
-int xfrm_register_mode(struct xfrm_mode *mode);
-void xfrm_unregister_mode(struct xfrm_mode *mode);
 
 static inline int xfrm_af2proto(unsigned int family)
 {
@@ -449,7 +444,7 @@ static inline int xfrm_af2proto(unsigned int family)
 	}
 }
 
-static inline struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
+static inline const struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
 {
 	if ((ipproto == IPPROTO_IPIP && x->props.family == AF_INET) ||
 	    (ipproto == IPPROTO_IPV6 && x->props.family == AF_INET6))

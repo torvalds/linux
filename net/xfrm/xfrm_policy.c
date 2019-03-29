@@ -2546,10 +2546,10 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 					    struct dst_entry *dst)
 {
 	const struct xfrm_state_afinfo *afinfo;
+	const struct xfrm_mode *inner_mode;
 	struct net *net = xp_net(policy);
 	unsigned long now = jiffies;
 	struct net_device *dev;
-	struct xfrm_mode *inner_mode;
 	struct xfrm_dst *xdst_prev = NULL;
 	struct xfrm_dst *xdst0 = NULL;
 	int i = 0;

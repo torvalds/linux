@@ -61,7 +61,6 @@ static struct dst_entry *skb_dst_pop(struct sk_buff *skb)
  */
 static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-#if IS_ENABLED(CONFIG_INET_XFRM_MODE_TRANSPORT)
 	struct iphdr *iph = ip_hdr(skb);
 	int ihl = iph->ihl * 4;
 
@@ -74,10 +73,6 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	__skb_pull(skb, ihl);
 	memmove(skb_network_header(skb), iph, ihl);
 	return 0;
-#else
-	WARN_ON_ONCE(1);
-	return -EOPNOTSUPP;
-#endif
 }
 
 /* Add encapsulation header.
@@ -87,7 +82,7 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
  */
 static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-#if IS_ENABLED(CONFIG_INET6_XFRM_MODE_TRANSPORT)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct ipv6hdr *iph;
 	u8 *prevhdr;
 	int hdr_len;
@@ -107,7 +102,7 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 #else
 	WARN_ON_ONCE(1);
-	return -EOPNOTSUPP;
+	return -EAFNOSUPPORT;
 #endif
 }
 
@@ -118,7 +113,7 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
  */
 static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-#if IS_ENABLED(CONFIG_INET6_XFRM_MODE_ROUTEOPTIMIZATION)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct ipv6hdr *iph;
 	u8 *prevhdr;
 	int hdr_len;
@@ -140,7 +135,7 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 #else
 	WARN_ON_ONCE(1);
-	return -EOPNOTSUPP;
+	return -EAFNOSUPPORT;
 #endif
 }
 
@@ -624,7 +619,7 @@ EXPORT_SYMBOL_GPL(xfrm_output);
 static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	const struct xfrm_state_afinfo *afinfo;
-	struct xfrm_mode *inner_mode;
+	const struct xfrm_mode *inner_mode;
 	int err = -EAFNOSUPPORT;
 
 	if (x->sel.family == AF_UNSPEC)
