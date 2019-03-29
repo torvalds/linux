@@ -342,7 +342,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens0 6>;
+			thermal-sensors = <&tsens0 1>;
 
 			trips {
 				cpu_alert0: trip0 {
@@ -363,7 +363,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens0 7>;
+			thermal-sensors = <&tsens0 2>;
 
 			trips {
 				cpu_alert1: trip0 {
@@ -384,7 +384,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens0 8>;
+			thermal-sensors = <&tsens0 3>;
 
 			trips {
 				cpu_alert2: trip0 {
@@ -405,7 +405,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens0 9>;
+			thermal-sensors = <&tsens0 4>;
 
 			trips {
 				cpu_alert3: trip0 {
@@ -426,7 +426,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens0 10>;
+			thermal-sensors = <&tsens0 7>;
 
 			trips {
 				cpu_alert4: trip0 {
@@ -447,7 +447,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens0 11>;
+			thermal-sensors = <&tsens0 8>;
 
 			trips {
 				cpu_alert5: trip0 {
@@ -468,7 +468,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens1 0>;
+			thermal-sensors = <&tsens0 9>;
 
 			trips {
 				cpu_alert6: trip0 {
@@ -489,7 +489,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&tsens1 1>;
+			thermal-sensors = <&tsens0 10>;
 
 			trips {
 				cpu_alert7: trip0 {
