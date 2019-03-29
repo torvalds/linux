@@ -872,6 +872,8 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 			sk->sk_tx_skb_cache = NULL;
 			pskb_trim(skb, 0);
 			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
+			skb_shinfo(skb)->tx_flags = 0;
+			memset(TCP_SKB_CB(skb), 0, sizeof(struct tcp_skb_cb));
 			return skb;
 		}
 	}
