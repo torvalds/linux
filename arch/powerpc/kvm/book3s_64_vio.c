@@ -363,6 +363,22 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	return ret;
 }
 
+static long kvmppc_tce_to_ua(struct kvm *kvm, unsigned long tce,
+		unsigned long *ua)
+{
+	unsigned long gfn = tce >> PAGE_SHIFT;
+	struct kvm_memory_slot *memslot;
+
+	memslot = search_memslots(kvm_memslots(kvm), gfn);
+	if (!memslot)
+		return -EINVAL;
+
+	*ua = __gfn_to_hva_memslot(memslot, gfn) |
+		(tce & ~(PAGE_MASK | TCE_PCI_READ | TCE_PCI_WRITE));
+
+	return 0;
+}
+
 static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 		unsigned long tce)
 {
@@ -378,7 +394,7 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	if (iommu_tce_check_gpa(stt->page_shift, gpa))
 		return H_TOO_HARD;
 
-	if (kvmppc_tce_to_ua(stt->kvm, tce, &ua, NULL))
+	if (kvmppc_tce_to_ua(stt->kvm, tce, &ua))
 		return H_TOO_HARD;
 
 	list_for_each_entry_rcu(stit, &stt->iommu_tables, next) {
@@ -551,7 +567,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 
 	dir = iommu_tce_direction(tce);
 
-	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL)) {
+	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua)) {
 		ret = H_PARAMETER;
 		goto unlock_exit;
 	}
@@ -612,7 +628,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		return ret;
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	if (kvmppc_tce_to_ua(vcpu->kvm, tce_list, &ua, NULL)) {
+	if (kvmppc_tce_to_ua(vcpu->kvm, tce_list, &ua)) {
 		ret = H_TOO_HARD;
 		goto unlock_exit;
 	}
@@ -647,7 +663,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		}
 		tce = be64_to_cpu(tce);
 
-		if (kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL))
+		if (kvmppc_tce_to_ua(vcpu->kvm, tce, &ua))
 			return H_PARAMETER;
 
 		list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
