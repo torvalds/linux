@@ -443,9 +443,9 @@ found:
 struct l2t_data *t3_init_l2t(unsigned int l2t_capacity)
 {
 	struct l2t_data *d;
-	int i, size = sizeof(*d) + l2t_capacity * sizeof(struct l2t_entry);
+	int i;
 
-	d = kvzalloc(size, GFP_KERNEL);
+	d = kvzalloc(struct_size(d, l2tab, l2t_capacity), GFP_KERNEL);
 	if (!d)
 		return NULL;
 
