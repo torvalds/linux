@@ -5,6 +5,8 @@
 #define _I40E_DEVIDS_H_
 
 /* Device IDs */
+#define I40E_DEV_ID_X710_N3000		0x0CF8
+#define I40E_DEV_ID_XXV710_N3000	0x0D58
 #define I40E_DEV_ID_SFP_XL710		0x1572
 #define I40E_DEV_ID_QEMU		0x1574
 #define I40E_DEV_ID_KX_B		0x1580

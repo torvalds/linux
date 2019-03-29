@@ -32,6 +32,8 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_20G_KR2_A:
 		case I40E_DEV_ID_25G_B:
 		case I40E_DEV_ID_25G_SFP28:
+		case I40E_DEV_ID_X710_N3000:
+		case I40E_DEV_ID_XXV710_N3000:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
 		case I40E_DEV_ID_KX_X722:
