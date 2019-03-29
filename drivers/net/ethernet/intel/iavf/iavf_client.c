@@ -451,7 +451,7 @@ static int iavf_client_setup_qvlist(struct i40e_info *ldev,
 	struct i40e_qv_info *qv_info;
 	iavf_status err;
 	u32 v_idx, i;
-	u32 msg_size;
+	size_t msg_size;
 
 	if (adapter->aq_required)
 		return -EAGAIN;
@@ -469,9 +469,8 @@ static int iavf_client_setup_qvlist(struct i40e_info *ldev,
 	}
 
 	v_qvlist_info = (struct virtchnl_iwarp_qvlist_info *)qvlist_info;
-	msg_size = sizeof(struct virtchnl_iwarp_qvlist_info) +
-			(sizeof(struct virtchnl_iwarp_qv_info) *
-			(v_qvlist_info->num_vectors - 1));
+	msg_size = struct_size(v_qvlist_info, qv_info,
+			       v_qvlist_info->num_vectors - 1);
 
 	adapter->client_pending |= BIT(VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP);
 	err = iavf_aq_send_msg_to_pf(&adapter->hw,
