@@ -263,6 +263,10 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
 	unsigned long flags;
+	struct drm_pending_vblank_event *e;
+	struct dm_crtc_state *acrtc_state;
+	uint32_t vpos, hpos, v_blank_start, v_blank_end;
+	bool vrr_active;
 
 	amdgpu_crtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_PFLIP);
 
@@ -285,18 +289,57 @@ static void dm_pflip_high_irq(void *interrupt_params)
 		return;
 	}
 
-	/* Update to correct count(s) if racing with vblank irq */
-	drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
+	/* page flip completed. */
+	e = amdgpu_crtc->event;
+	amdgpu_crtc->event = NULL;
 
-	/* wake up userspace */
-	if (amdgpu_crtc->event) {
-		drm_crtc_send_vblank_event(&amdgpu_crtc->base, amdgpu_crtc->event);
-
-		/* page flip completed. clean up */
-		amdgpu_crtc->event = NULL;
-
-	} else
+	if (!e)
 		WARN_ON(1);
+
+	acrtc_state = to_dm_crtc_state(amdgpu_crtc->base.state);
+	vrr_active = amdgpu_dm_vrr_active(acrtc_state);
+
+	/* Fixed refresh rate, or VRR scanout position outside front-porch? */
+	if (!vrr_active ||
+	    !dc_stream_get_scanoutpos(acrtc_state->stream, &v_blank_start,
+				      &v_blank_end, &hpos, &vpos) ||
+	    (vpos < v_blank_start)) {
+		/* Update to correct count and vblank timestamp if racing with
+		 * vblank irq. This also updates to the correct vblank timestamp
+		 * even in VRR mode, as scanout is past the front-porch atm.
+		 */
+		drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
+
+		/* Wake up userspace by sending the pageflip event with proper
+		 * count and timestamp of vblank of flip completion.
+		 */
+		if (e) {
+			drm_crtc_send_vblank_event(&amdgpu_crtc->base, e);
+
+			/* Event sent, so done with vblank for this flip */
+			drm_crtc_vblank_put(&amdgpu_crtc->base);
+		}
+	} else if (e) {
+		/* VRR active and inside front-porch: vblank count and
+		 * timestamp for pageflip event will only be up to date after
+		 * drm_crtc_handle_vblank() has been executed from late vblank
+		 * irq handler after start of back-porch (vline 0). We queue the
+		 * pageflip event for send-out by drm_crtc_handle_vblank() with
+		 * updated timestamp and count, once it runs after us.
+		 *
+		 * We need to open-code this instead of using the helper
+		 * drm_crtc_arm_vblank_event(), as that helper would
+		 * call drm_crtc_accurate_vblank_count(), which we must
+		 * not call in VRR mode while we are in front-porch!
+		 */
+
+		/* sequence will be replaced by real count during send-out. */
+		e->sequence = drm_crtc_vblank_count(&amdgpu_crtc->base);
+		e->pipe = amdgpu_crtc->crtc_id;
+
+		list_add_tail(&e->base.link, &adev->ddev->vblank_event_list);
+		e = NULL;
+	}
 
 	/* Keep track of vblank of this flip for flip throttling. We use the
 	 * cooked hw counter, as that one incremented at start of this vblank
@@ -309,10 +352,9 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
-	DRM_DEBUG_DRIVER("%s - crtc :%d[%p], pflip_stat:AMDGPU_FLIP_NONE\n",
-					__func__, amdgpu_crtc->crtc_id, amdgpu_crtc);
-
-	drm_crtc_vblank_put(&amdgpu_crtc->base);
+	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_NONE, vrr[%d]-fp %d\n",
+			 amdgpu_crtc->crtc_id, amdgpu_crtc,
+			 vrr_active, (int) !e);
 }
 
 static void dm_vupdate_high_irq(void *interrupt_params)
