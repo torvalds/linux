@@ -43,8 +43,10 @@ extern struct hvm_start_info pvh_start_info;
 #endif	/* CONFIG_XEN_DOM0 */
 
 struct bio_vec;
+struct page;
+
 bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
-		const struct bio_vec *vec2);
+		const struct page *page);
 
 #if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_XEN_BALLOON)
 extern u64 xen_saved_max_mem_size;
