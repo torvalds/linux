@@ -93,19 +93,17 @@ static struct xfrm_mode xfrm4_transport_mode = {
 	.xmit = xfrm4_transport_xmit,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TRANSPORT,
+	.family = AF_INET,
 };
 
 static int __init xfrm4_transport_init(void)
 {
-	return xfrm_register_mode(&xfrm4_transport_mode, AF_INET);
+	return xfrm_register_mode(&xfrm4_transport_mode);
 }
 
 static void __exit xfrm4_transport_exit(void)
 {
-	int err;
-
-	err = xfrm_unregister_mode(&xfrm4_transport_mode, AF_INET);
-	BUG_ON(err);
+	xfrm_unregister_mode(&xfrm4_transport_mode);
 }
 
 module_init(xfrm4_transport_init);

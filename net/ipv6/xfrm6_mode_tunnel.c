@@ -130,19 +130,17 @@ static struct xfrm_mode xfrm6_tunnel_mode = {
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
+	.family = AF_INET6,
 };
 
 static int __init xfrm6_mode_tunnel_init(void)
 {
-	return xfrm_register_mode(&xfrm6_tunnel_mode, AF_INET6);
+	return xfrm_register_mode(&xfrm6_tunnel_mode);
 }
 
 static void __exit xfrm6_mode_tunnel_exit(void)
 {
-	int err;
-
-	err = xfrm_unregister_mode(&xfrm6_tunnel_mode, AF_INET6);
-	BUG_ON(err);
+	xfrm_unregister_mode(&xfrm6_tunnel_mode);
 }
 
 module_init(xfrm6_mode_tunnel_init);

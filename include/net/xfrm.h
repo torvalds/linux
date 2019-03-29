@@ -482,8 +482,9 @@ struct xfrm_mode {
 
 	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
-	unsigned int encap;
-	int flags;
+	u8 encap;
+	u8 family;
+	u8 flags;
 };
 
 /* Flags for xfrm_mode. */
@@ -491,8 +492,8 @@ enum {
 	XFRM_MODE_FLAG_TUNNEL = 1,
 };
 
-int xfrm_register_mode(struct xfrm_mode *mode, int family);
-int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
+int xfrm_register_mode(struct xfrm_mode *mode);
+void xfrm_unregister_mode(struct xfrm_mode *mode);
 
 static inline int xfrm_af2proto(unsigned int family)
 {

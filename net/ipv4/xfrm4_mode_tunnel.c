@@ -131,19 +131,17 @@ static struct xfrm_mode xfrm4_tunnel_mode = {
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
+	.family = AF_INET,
 };
 
 static int __init xfrm4_mode_tunnel_init(void)
 {
-	return xfrm_register_mode(&xfrm4_tunnel_mode, AF_INET);
+	return xfrm_register_mode(&xfrm4_tunnel_mode);
 }
 
 static void __exit xfrm4_mode_tunnel_exit(void)
 {
-	int err;
-
-	err = xfrm_unregister_mode(&xfrm4_tunnel_mode, AF_INET);
-	BUG_ON(err);
+	xfrm_unregister_mode(&xfrm4_tunnel_mode);
 }
 
 module_init(xfrm4_mode_tunnel_init);

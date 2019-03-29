@@ -134,19 +134,17 @@ static struct xfrm_mode xfrm4_beet_mode = {
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
+	.family = AF_INET,
 };
 
 static int __init xfrm4_beet_init(void)
 {
-	return xfrm_register_mode(&xfrm4_beet_mode, AF_INET);
+	return xfrm_register_mode(&xfrm4_beet_mode);
 }
 
 static void __exit xfrm4_beet_exit(void)
 {
-	int err;
-
-	err = xfrm_unregister_mode(&xfrm4_beet_mode, AF_INET);
-	BUG_ON(err);
+	xfrm_unregister_mode(&xfrm4_beet_mode);
 }
 
 module_init(xfrm4_beet_init);

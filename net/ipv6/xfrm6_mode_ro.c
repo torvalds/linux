@@ -64,19 +64,17 @@ static struct xfrm_mode xfrm6_ro_mode = {
 	.output = xfrm6_ro_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_ROUTEOPTIMIZATION,
+	.family = AF_INET6,
 };
 
 static int __init xfrm6_ro_init(void)
 {
-	return xfrm_register_mode(&xfrm6_ro_mode, AF_INET6);
+	return xfrm_register_mode(&xfrm6_ro_mode);
 }
 
 static void __exit xfrm6_ro_exit(void)
 {
-	int err;
-
-	err = xfrm_unregister_mode(&xfrm6_ro_mode, AF_INET6);
-	BUG_ON(err);
+	xfrm_unregister_mode(&xfrm6_ro_mode);
 }
 
 module_init(xfrm6_ro_init);
