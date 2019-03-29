@@ -176,4 +176,8 @@ extern const struct sof_intel_dsp_desc bdw_chip_info;
 extern const struct sof_intel_dsp_desc hsw_chip_info;
 extern const struct sof_intel_dsp_desc tng_chip_info;
 
+struct sof_intel_stream {
+	size_t posn_offset;
+};
+
 #endif

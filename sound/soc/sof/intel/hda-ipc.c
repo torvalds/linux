@@ -402,3 +402,50 @@ int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 
 	return 0;
 }
+
+void hda_ipc_msg_data(struct snd_sof_dev *sdev,
+		      struct snd_pcm_substream *substream,
+		      void *p, size_t sz)
+{
+	if (!substream || !sdev->stream_box.size) {
+		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
+	} else {
+		struct hdac_stream *hstream = substream->runtime->private_data;
+		struct sof_intel_hda_stream *hda_stream;
+
+		hda_stream = container_of(hstream,
+					  struct sof_intel_hda_stream,
+					  hda_stream.hstream);
+
+		/* The stream might already be closed */
+		if (hstream)
+			snd_sof_dsp_mailbox_read(sdev,
+						 hda_stream->stream.posn_offset,
+						 p, sz);
+	}
+}
+
+int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       const struct sof_ipc_pcm_params_reply *reply)
+{
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct sof_intel_hda_stream *hda_stream;
+	/* validate offset */
+	size_t posn_offset = reply->posn_offset;
+
+	hda_stream = container_of(hstream, struct sof_intel_hda_stream,
+				  hda_stream.hstream);
+
+	/* check if offset is overflow or it is not aligned */
+	if (posn_offset > sdev->stream_box.size ||
+	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0)
+		return -EINVAL;
+
+	hda_stream->stream.posn_offset = sdev->stream_box.offset + posn_offset;
+
+	dev_dbg(sdev->dev, "pcm: stream dir %d, posn mailbox offset is %zu",
+		substream->stream, hda_stream->stream.posn_offset);
+
+	return 0;
+}

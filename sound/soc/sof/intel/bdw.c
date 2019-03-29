@@ -674,10 +674,17 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 	.send_msg	= bdw_send_msg,
 	.fw_ready	= bdw_fw_ready,
 
+	.ipc_msg_data	= intel_ipc_msg_data,
+	.ipc_pcm_params	= intel_ipc_pcm_params,
+
 	/* debug */
 	.debug_map  = bdw_debugfs,
 	.debug_map_count    = ARRAY_SIZE(bdw_debugfs),
 	.dbg_dump   = bdw_dump,
+
+	/* stream callbacks */
+	.pcm_open	= intel_pcm_open,
+	.pcm_close	= intel_pcm_close,
 
 	/* Module loading */
 	.load_module    = snd_sof_parse_module_memcpy,

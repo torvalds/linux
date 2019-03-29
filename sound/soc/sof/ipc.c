@@ -343,7 +343,7 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	int err = 0;
 
 	/* read back header */
-	snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &hdr, sizeof(hdr));
+	snd_sof_ipc_msg_data(sdev, NULL, &hdr, sizeof(hdr));
 	ipc_log_header(sdev->dev, "ipc rx", hdr.cmd);
 
 	cmd = hdr.cmd & SOF_GLB_TYPE_MASK;
@@ -406,8 +406,7 @@ static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_id)
 	switch (msg_id) {
 	case SOF_IPC_TRACE_DMA_POSITION:
 		/* read back full message */
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
-					 sizeof(posn));
+		snd_sof_ipc_msg_data(sdev, NULL, &posn, sizeof(posn));
 		snd_sof_trace_update_pos(sdev, &posn);
 		break;
 	default:
@@ -423,9 +422,9 @@ static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_id)
 
 static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 {
+	struct snd_sof_pcm_stream *stream;
 	struct sof_ipc_stream_posn posn;
 	struct snd_sof_pcm *spcm;
-	u32 posn_offset;
 	int direction;
 
 	spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
@@ -436,33 +435,25 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 		return;
 	}
 
-	if (sdev->stream_box.size != 0) {
-		/* have stream box read from stream box */
-		posn_offset = spcm->posn_offset[direction];
-		snd_sof_dsp_mailbox_read(sdev, posn_offset, &posn,
-					 sizeof(posn));
-	} else {
-		/* read back full message */
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
-					 sizeof(posn));
-	}
+	stream = &spcm->stream[direction];
+	snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
 
 	dev_dbg(sdev->dev, "posn : host 0x%llx dai 0x%llx wall 0x%llx\n",
 		posn.host_posn, posn.dai_posn, posn.wallclock);
 
-	memcpy(&spcm->stream[direction].posn, &posn, sizeof(posn));
+	memcpy(&stream->posn, &posn, sizeof(posn));
 
 	/* only inform ALSA for period_wakeup mode */
-	if (!spcm->stream[direction].substream->runtime->no_period_wakeup)
-		snd_pcm_period_elapsed(spcm->stream[direction].substream);
+	if (!stream->substream->runtime->no_period_wakeup)
+		snd_pcm_period_elapsed(stream->substream);
 }
 
 /* DSP notifies host of an XRUN within FW */
 static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 {
+	struct snd_sof_pcm_stream *stream;
 	struct sof_ipc_stream_posn posn;
 	struct snd_sof_pcm *spcm;
-	u32 posn_offset;
 	int direction;
 
 	spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
@@ -472,24 +463,16 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 		return;
 	}
 
-	if (sdev->stream_box.size != 0) {
-		/* have stream box read from stream box */
-		posn_offset = spcm->posn_offset[direction];
-		snd_sof_dsp_mailbox_read(sdev, posn_offset, &posn,
-					 sizeof(posn));
-	} else {
-		/* read back full message */
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
-					 sizeof(posn));
-	}
+	stream = &spcm->stream[direction];
+	snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
 
 	dev_dbg(sdev->dev,  "posn XRUN: host %llx comp %d size %d\n",
 		posn.host_posn, posn.xrun_comp_id, posn.xrun_size);
 
 #if defined(CONFIG_SND_SOC_SOF_DEBUG_XRUN_STOP)
 	/* stop PCM on XRUN - used for pipeline debug */
-	memcpy(&spcm->stream[direction].posn, &posn, sizeof(posn));
-	snd_pcm_stop_xrun(spcm->stream[direction].substream);
+	memcpy(&stream->posn, &posn, sizeof(posn));
+	snd_pcm_stop_xrun(stream->substream);
 #endif
 }
 

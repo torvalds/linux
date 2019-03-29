@@ -38,6 +38,20 @@ static int create_page_table(struct snd_pcm_substream *substream,
 		spcm->stream[stream].page_table.area, size);
 }
 
+static int sof_pcm_dsp_params(struct snd_sof_pcm *spcm, struct snd_pcm_substream *substream,
+			      const struct sof_ipc_pcm_params_reply *reply)
+{
+	struct snd_sof_dev *sdev = spcm->sdev;
+	/* validate offset */
+	int ret = snd_sof_ipc_pcm_params(sdev, substream, reply);
+
+	if (ret < 0)
+		dev_err(sdev->dev, "error: got wrong reply for PCM %d\n",
+			spcm->pcm.pcm_id);
+
+	return ret;
+}
+
 /* this may get called several times by oss emulation */
 static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
@@ -50,7 +64,6 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_pcm_params pcm;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
-	int posn_offset;
 	int ret;
 
 	/* nothing todo for BE */
@@ -149,21 +162,9 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* validate offset */
-	posn_offset = ipc_params_reply.posn_offset;
-
-	/* check if offset is overflow or it is not aligned */
-	if (posn_offset > sdev->stream_box.size ||
-	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0) {
-		dev_err(sdev->dev, "error: got wrong posn offset 0x%x for PCM %d\n",
-			posn_offset, spcm->pcm.pcm_id);
-		return -EINVAL;
-	}
-	spcm->posn_offset[substream->stream] =
-		sdev->stream_box.offset + posn_offset;
-
-	dev_dbg(sdev->dev, "pcm: stream dir %d, posn mailbox offset is 0x%x",
-		substream->stream, spcm->posn_offset[substream->stream]);
+	ret = sof_pcm_dsp_params(spcm, substream, &ipc_params_reply);
+	if (ret < 0)
+		return ret;
 
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));

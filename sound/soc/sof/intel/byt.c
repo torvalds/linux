@@ -613,10 +613,17 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
 
+	.ipc_msg_data	= intel_ipc_msg_data,
+	.ipc_pcm_params	= intel_ipc_pcm_params,
+
 	/* debug */
 	.debug_map	= byt_debugfs,
 	.debug_map_count	= ARRAY_SIZE(byt_debugfs),
 	.dbg_dump	= byt_dump,
+
+	/* stream callbacks */
+	.pcm_open	= intel_pcm_open,
+	.pcm_close	= intel_pcm_close,
 
 	/* module loading */
 	.load_module	= snd_sof_parse_module_memcpy,
@@ -772,10 +779,17 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
 
+	.ipc_msg_data	= intel_ipc_msg_data,
+	.ipc_pcm_params	= intel_ipc_pcm_params,
+
 	/* debug */
 	.debug_map	= byt_debugfs,
 	.debug_map_count	= ARRAY_SIZE(byt_debugfs),
 	.dbg_dump	= byt_dump,
+
+	/* stream callbacks */
+	.pcm_open	= intel_pcm_open,
+	.pcm_close	= intel_pcm_close,
 
 	/* module loading */
 	.load_module	= snd_sof_parse_module_memcpy,
@@ -826,10 +840,17 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
 
+	.ipc_msg_data	= intel_ipc_msg_data,
+	.ipc_pcm_params	= intel_ipc_pcm_params,
+
 	/* debug */
 	.debug_map	= cht_debugfs,
 	.debug_map_count	= ARRAY_SIZE(cht_debugfs),
 	.dbg_dump	= byt_dump,
+
+	/* stream callbacks */
+	.pcm_open	= intel_pcm_open,
+	.pcm_close	= intel_pcm_close,
 
 	/* module loading */
 	.load_module	= snd_sof_parse_module_memcpy,

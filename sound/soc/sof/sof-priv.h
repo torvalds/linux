@@ -148,6 +148,16 @@ struct snd_sof_dsp_ops {
 	snd_pcm_uframes_t (*pcm_pointer)(struct snd_sof_dev *sdev,
 					 struct snd_pcm_substream *substream); /* optional */
 
+	/* host read DSP stream data */
+	void (*ipc_msg_data)(struct snd_sof_dev *sdev,
+			     struct snd_pcm_substream *substream,
+			     void *p, size_t sz); /* mandatory */
+
+	/* host configure DSP HW parameters */
+	int (*ipc_pcm_params)(struct snd_sof_dev *sdev,
+			      struct snd_pcm_substream *substream,
+			      const struct sof_ipc_pcm_params_reply *reply); /* mandatory */
+
 	/* pre/post firmware run */
 	int (*pre_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*post_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
@@ -273,7 +283,6 @@ struct snd_sof_pcm {
 	struct snd_sof_dev *sdev;
 	struct snd_soc_tplg_pcm pcm;
 	struct snd_sof_pcm_stream stream[2];
-	u32 posn_offset[2];
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
 	int restore_stream[2]; /* restore hw_params for paused stream */
@@ -609,5 +618,17 @@ void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
 		     size_t size);
 void sof_block_read(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *dest,
 		    size_t size);
+
+void intel_ipc_msg_data(struct snd_sof_dev *sdev,
+			struct snd_pcm_substream *substream,
+			void *p, size_t sz);
+int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
+			 struct snd_pcm_substream *substream,
+			 const struct sof_ipc_pcm_params_reply *reply);
+
+int intel_pcm_open(struct snd_sof_dev *sdev,
+		   struct snd_pcm_substream *substream);
+int intel_pcm_close(struct snd_sof_dev *sdev,
+		    struct snd_pcm_substream *substream);
 
 #endif

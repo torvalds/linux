@@ -330,6 +330,28 @@ snd_sof_pcm_platform_trigger(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+/* host DSP message data */
+static inline void snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
+					struct snd_pcm_substream *substream,
+					void *p, size_t sz)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->ipc_msg_data)
+		sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
+}
+
+/* host configure DSP HW parameters */
+static inline int
+snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       const struct sof_ipc_pcm_params_reply *reply)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->ipc_pcm_params)
+		return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
+
+	dev_err(sdev->dev, "error: %s not defined\n", __func__);
+	return -ENOTSUPP;
+}
+
 /* host stream pointer */
 static inline snd_pcm_uframes_t
 snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,

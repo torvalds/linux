@@ -190,6 +190,9 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.send_msg	= cnl_ipc_send_msg,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
 
+	.ipc_msg_data	= hda_ipc_msg_data,
+	.ipc_pcm_params	= hda_ipc_pcm_params,
+
 	/* debug */
 	.debug_map	= cnl_dsp_debugfs,
 	.debug_map_count	= ARRAY_SIZE(cnl_dsp_debugfs),

@@ -551,10 +551,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 	/* create capture streams */
 	for (i = 0; i < num_capture; i++) {
+		struct sof_intel_hda_stream *hda_stream;
 
-		stream = devm_kzalloc(sdev->dev, sizeof(*stream), GFP_KERNEL);
-		if (!stream)
+		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
+					  GFP_KERNEL);
+		if (!hda_stream)
 			return -ENOMEM;
+
+		stream = &hda_stream->hda_stream;
 
 		stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
 			SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
@@ -600,10 +604,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 	/* create playback streams */
 	for (i = num_capture; i < num_total; i++) {
+		struct sof_intel_hda_stream *hda_stream;
 
-		stream = devm_kzalloc(sdev->dev, sizeof(*stream), GFP_KERNEL);
-		if (!stream)
+		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
+					  GFP_KERNEL);
+		if (!hda_stream)
 			return -ENOMEM;
+
+		stream = &hda_stream->hda_stream;
 
 		/* we always have DSP support */
 		stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
@@ -657,6 +665,7 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *s, *_s;
 	struct hdac_ext_stream *stream;
+	struct sof_intel_hda_stream *hda_stream;
 
 	/* free position buffer */
 	if (bus->posbuf.area)
@@ -676,6 +685,8 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 			snd_dma_free_pages(&s->bdl);
 		list_del(&s->list);
 		stream = stream_to_hdac_ext_stream(s);
-		devm_kfree(sdev->dev, stream);
+		hda_stream = container_of(stream, struct sof_intel_hda_stream,
+					  hda_stream);
+		devm_kfree(sdev->dev, hda_stream);
 	}
 }

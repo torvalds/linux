@@ -12,6 +12,7 @@
 #define __SOF_INTEL_HDA_H
 
 #include <sound/hda_codec.h>
+#include <sound/hdaudio_ext.h>
 #include "shim.h"
 
 /* PCI registers */
@@ -360,7 +361,7 @@ struct sof_intel_hda_dev {
 	/* hw config */
 	const struct sof_intel_dsp_desc *desc;
 
-	/*trace */
+	/* trace */
 	struct hdac_ext_stream *dtrace_stream;
 
 	/* if position update IPC needed */
@@ -385,6 +386,11 @@ static inline struct hda_bus *sof_to_hbus(struct snd_sof_dev *s)
 
 	return &hda->hbus;
 }
+
+struct sof_intel_hda_stream {
+	struct hdac_ext_stream hda_stream;
+	struct sof_intel_stream stream;
+};
 
 #define bus_to_sof_hda(bus) \
 	container_of(bus, struct sof_intel_hda_dev, hbus.core)
@@ -461,6 +467,13 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
 int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       struct hdac_ext_stream *stream,
 			       int enable, u32 size);
+
+void hda_ipc_msg_data(struct snd_sof_dev *sdev,
+		      struct snd_pcm_substream *substream,
+		      void *p, size_t sz);
+int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       const struct sof_ipc_pcm_params_reply *reply);
 
 /*
  * DSP IPC Operations.

@@ -31,9 +31,16 @@ config SND_SOC_SOF_INTEL_PCI
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
 
+config SND_SOC_SOF_INTEL_HIFI_EP_IPC
+	tristate
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
 config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	tristate
 	select SND_SOC_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
@@ -91,6 +98,7 @@ config SND_SOC_SOF_BROADWELL_SUPPORT
 config SND_SOC_SOF_BROADWELL
 	tristate
 	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
