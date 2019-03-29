@@ -940,12 +940,13 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
-			   bool inserting, s64 sectors,
-			   struct bch_fs_usage *fs_usage,
-			   unsigned journal_seq, unsigned flags,
-			   bool gc)
+int bch2_mark_key_locked(struct bch_fs *c,
+		   struct bkey_s_c k,
+		   bool inserting, s64 sectors,
+		   struct bch_fs_usage *fs_usage,
+		   u64 journal_seq, unsigned flags)
 {
+	bool gc = flags & BCH_BUCKET_MARK_GC;
 	int ret = 0;
 
 	preempt_disable();
@@ -997,21 +998,8 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	return ret;
 }
 
-int bch2_mark_key_locked(struct bch_fs *c,
-		   struct bkey_s_c k,
-		   bool inserting, s64 sectors,
-		   struct gc_pos pos,
-		   struct bch_fs_usage *fs_usage,
-		   u64 journal_seq, unsigned flags)
-{
-	return do_mark_fn(__bch2_mark_key, c, pos, flags,
-			  k, inserting, sectors, fs_usage,
-			  journal_seq, flags);
-}
-
 int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		  bool inserting, s64 sectors,
-		  struct gc_pos pos,
 		  struct bch_fs_usage *fs_usage,
 		  u64 journal_seq, unsigned flags)
 {
@@ -1019,7 +1007,7 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 	percpu_down_read(&c->mark_lock);
 	ret = bch2_mark_key_locked(c, k, inserting, sectors,
-				   pos, fs_usage, journal_seq, flags);
+				   fs_usage, journal_seq, flags);
 	percpu_up_read(&c->mark_lock);
 
 	return ret;
@@ -1027,13 +1015,13 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 void bch2_mark_update(struct btree_trans *trans,
 		      struct btree_insert_entry *insert,
-		      struct bch_fs_usage *fs_usage)
+		      struct bch_fs_usage *fs_usage,
+		      unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
 	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
-	struct gc_pos		pos = gc_pos_btree_node(b);
 	struct bkey_packed	*_k;
 
 	if (!btree_node_type_needs_gc(iter->btree_id))
@@ -1043,7 +1031,7 @@ void bch2_mark_update(struct btree_trans *trans,
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
 			bkey_start_offset(&insert->k->k),
-			pos, fs_usage, trans->journal_res.seq, 0);
+			fs_usage, trans->journal_res.seq, flags);
 
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
 						      KEY_TYPE_discard))) {
@@ -1076,7 +1064,8 @@ void bch2_mark_update(struct btree_trans *trans,
 				BUG_ON(sectors <= 0);
 
 				bch2_mark_key_locked(c, k, true, sectors,
-					pos, fs_usage, trans->journal_res.seq, 0);
+					fs_usage, trans->journal_res.seq,
+					flags);
 
 				sectors = bkey_start_offset(&insert->k->k) -
 					k.k->p.offset;
@@ -1087,7 +1076,7 @@ void bch2_mark_update(struct btree_trans *trans,
 		}
 
 		bch2_mark_key_locked(c, k, false, sectors,
-			pos, fs_usage, trans->journal_res.seq, 0);
+			fs_usage, trans->journal_res.seq, flags);
 
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}

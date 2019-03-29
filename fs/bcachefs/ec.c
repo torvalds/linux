@@ -1232,10 +1232,7 @@ int bch2_stripes_write(struct bch_fs *c, bool *wrote)
 
 static void bch2_stripe_read_key(struct bch_fs *c, struct bkey_s_c k)
 {
-
-	struct gc_pos pos = { 0 };
-
-	bch2_mark_key(c, k, true, 0, pos, NULL, 0, 0);
+	bch2_mark_key(c, k, true, 0, NULL, 0, 0);
 }
 
 int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)

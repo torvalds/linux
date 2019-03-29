@@ -246,16 +246,16 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 #define BCH_BUCKET_MARK_NOATOMIC		(1 << 1)
 
 int bch2_mark_key_locked(struct bch_fs *, struct bkey_s_c,
-		  bool, s64, struct gc_pos,
-		  struct bch_fs_usage *, u64, unsigned);
+		  bool, s64, struct bch_fs_usage *,
+		  u64, unsigned);
 int bch2_mark_key(struct bch_fs *, struct bkey_s_c,
-		  bool, s64, struct gc_pos,
-		  struct bch_fs_usage *, u64, unsigned);
+		  bool, s64, struct bch_fs_usage *,
+		  u64, unsigned);
 int bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
 			struct disk_reservation *);
 
 void bch2_mark_update(struct btree_trans *, struct btree_insert_entry *,
-		      struct bch_fs_usage *);
+		      struct bch_fs_usage *, unsigned);
 void bch2_trans_fs_usage_apply(struct btree_trans *, struct bch_fs_usage *);
 
 /* disk reservations: */

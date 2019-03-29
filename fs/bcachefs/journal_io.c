@@ -876,8 +876,9 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 	 * but - there are other correctness issues if btree gc were to run
 	 * before journal replay finishes
 	 */
+	BUG_ON(c->gc_pos.phase);
+
 	bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
-		      gc_pos_btree_node(iter->l[0].b),
 		      NULL, 0, 0);
 	bch2_trans_exit(&trans);
 

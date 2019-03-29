@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
+#include "btree_gc.h"
 #include "btree_io.h"
 #include "btree_iter.h"
 #include "btree_locking.h"
@@ -602,9 +603,16 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	}
 
 	trans_for_each_update_iter(trans, i)
-		bch2_mark_update(trans, i, fs_usage);
+		bch2_mark_update(trans, i, fs_usage, 0);
 	if (fs_usage)
 		bch2_trans_fs_usage_apply(trans, fs_usage);
+
+	if (unlikely(c->gc_pos.phase)) {
+		trans_for_each_update_iter(trans, i)
+			if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
+				bch2_mark_update(trans, i, NULL,
+						 BCH_BUCKET_MARK_GC);
+	}
 
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);

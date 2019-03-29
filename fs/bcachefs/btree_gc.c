@@ -117,7 +117,6 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
-	struct gc_pos pos = { 0 };
 	unsigned flags =
 		BCH_BUCKET_MARK_GC|
 		(initial ? BCH_BUCKET_MARK_NOATOMIC : 0);
@@ -174,7 +173,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		*max_stale = max(*max_stale, ptr_stale(ca, ptr));
 	}
 
-	bch2_mark_key(c, k, true, k.k->size, pos, NULL, 0, flags);
+	bch2_mark_key(c, k, true, k.k->size, NULL, 0, flags);
 fsck_err:
 	return ret;
 }
@@ -395,7 +394,6 @@ static void bch2_mark_superblocks(struct bch_fs *c)
 /* Also see bch2_pending_btree_node_free_insert_done() */
 static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 {
-	struct gc_pos pos = { 0 };
 	struct btree_update *as;
 	struct pending_btree_node_free *d;
 
@@ -405,8 +403,7 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 	for_each_pending_btree_node_free(c, as, d)
 		if (d->index_update_done)
 			bch2_mark_key(c, bkey_i_to_s_c(&d->key),
-				      true, 0,
-				      pos, NULL, 0,
+				      true, 0, NULL, 0,
 				      BCH_BUCKET_MARK_GC);
 
 	mutex_unlock(&c->btree_interior_update_lock);

@@ -162,7 +162,6 @@ static void bch2_btree_node_free_index(struct btree_update *as, struct btree *b,
 {
 	struct bch_fs *c = as->c;
 	struct pending_btree_node_free *d;
-	struct gc_pos pos = { 0 };
 
 	for (d = as->pending; d < as->pending + as->nr_pending; d++)
 		if (!bkey_cmp(k.k->p, d->key.k.p) &&
@@ -190,18 +189,12 @@ found:
 	 * to cancel out one of mark and sweep's markings if necessary:
 	 */
 
-	/*
-	 * bch2_mark_key() compares the current gc pos to the pos we're
-	 * moving this reference from, hence one comparison here:
-	 */
 	if (gc_pos_cmp(c->gc_pos, b
 		       ? gc_pos_btree_node(b)
 		       : gc_pos_btree_root(as->btree_id)) >= 0 &&
 	    gc_pos_cmp(c->gc_pos, gc_phase(GC_PHASE_PENDING_DELETE)) < 0)
-		bch2_mark_key_locked(c,
-			      bkey_i_to_s_c(&d->key),
-			      false, 0, pos,
-			      NULL, 0, BCH_BUCKET_MARK_GC);
+		bch2_mark_key_locked(c, bkey_i_to_s_c(&d->key),
+			      false, 0, NULL, 0, BCH_BUCKET_MARK_GC);
 }
 
 static void __btree_node_free(struct bch_fs *c, struct btree *b)
@@ -273,8 +266,11 @@ static void bch2_btree_node_free_ondisk(struct bch_fs *c,
 
 	bch2_mark_key(c, bkey_i_to_s_c(&pending->key),
 		      false, 0,
-		      gc_phase(GC_PHASE_PENDING_DELETE),
 		      NULL, 0, 0);
+
+	if (gc_visited(c, gc_phase(GC_PHASE_PENDING_DELETE)))
+		bch2_mark_key(c, bkey_i_to_s_c(&pending->key),
+			      false, 0, NULL, 0, BCH_BUCKET_MARK_GC);
 }
 
 static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
@@ -1079,9 +1075,11 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
-		      true, 0,
-		      gc_pos_btree_root(b->btree_id),
-		      fs_usage, 0, 0);
+		      true, 0, fs_usage, 0, 0);
+	if (gc_visited(c, gc_pos_btree_root(b->btree_id)))
+		bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
+				     true, 0, NULL, 0,
+				     BCH_BUCKET_MARK_GC);
 
 	if (old && !btree_node_fake(old))
 		bch2_btree_node_free_index(as, NULL,
@@ -1173,8 +1171,11 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
-			     true, 0,
-			     gc_pos_btree_node(b), fs_usage, 0, 0);
+			     true, 0, fs_usage, 0, 0);
+
+	if (gc_visited(c, gc_pos_btree_node(b)))
+		bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
+				     true, 0, NULL, 0, BCH_BUCKET_MARK_GC);
 
 	while ((k = bch2_btree_node_iter_peek_all(node_iter, b)) &&
 	       bkey_iter_pos_cmp(b, &insert->k.p, k) > 0)
@@ -1994,9 +1995,12 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 		fs_usage = bch2_fs_usage_scratch_get(c);
 
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
-			      true, 0,
-			      gc_pos_btree_root(b->btree_id),
-			      fs_usage, 0, 0);
+			      true, 0, fs_usage, 0, 0);
+		if (gc_visited(c, gc_pos_btree_root(b->btree_id)))
+			bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
+					     true, 0, NULL, 0,
+					     BCH_BUCKET_MARK_GC);
+
 		bch2_btree_node_free_index(as, NULL,
 					   bkey_i_to_s_c(&b->key),
 					   fs_usage);
