@@ -116,12 +116,6 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 	if (tty->stopped)
 		return 0;
 
-	mutex_lock(&tty_mutex);
-	if (to->magic != TTY_MAGIC) {
-		mutex_unlock(&tty_mutex);
-		return -EIO;
-	}
-
 	if (c > 0) {
 		spin_lock_irqsave(&to->port->lock, flags);
 		/* Stuff the data into the input queue of the other end */
@@ -131,7 +125,6 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 			tty_flip_buffer_push(to->port);
 		spin_unlock_irqrestore(&to->port->lock, flags);
 	}
-	mutex_unlock(&tty_mutex);
 	return c;
 }
 

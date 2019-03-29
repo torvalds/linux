@@ -1448,13 +1448,10 @@ static void release_one_tty(struct work_struct *work)
 	struct tty_driver *driver = tty->driver;
 	struct module *owner = driver->owner;
 
-	mutex_lock(&tty_mutex);
 	if (tty->ops->cleanup)
 		tty->ops->cleanup(tty);
 
 	tty->magic = 0;
-	mutex_unlock(&tty_mutex);
-
 	tty_driver_kref_put(driver);
 	module_put(owner);
 
