@@ -58,21 +58,6 @@ int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	return xfrm4_extract_header(skb);
 }
 
-int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err;
-
-	err = xfrm_inner_extract_output(x, skb);
-	if (err)
-		return err;
-
-	IPCB(skb)->flags |= IPSKB_XFRM_TUNNEL_SIZE;
-	skb->protocol = htons(ETH_P_IP);
-
-	return x->outer_mode->output2(x, skb);
-}
-EXPORT_SYMBOL(xfrm4_prepare_output);
-
 int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb)
 {
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));

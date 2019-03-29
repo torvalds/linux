@@ -124,7 +124,6 @@ static void xfrm4_mode_tunnel_xmit(struct xfrm_state *x, struct sk_buff *skb)
 static struct xfrm_mode xfrm4_tunnel_mode = {
 	.input2 = xfrm4_mode_tunnel_input,
 	.output2 = xfrm4_mode_tunnel_output,
-	.output = xfrm4_prepare_output,
 	.gso_segment = xfrm4_mode_tunnel_gso_segment,
 	.xmit = xfrm4_mode_tunnel_xmit,
 	.owner = THIS_MODULE,

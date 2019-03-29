@@ -20,6 +20,7 @@
 #include <net/xfrm.h>
 
 static int xfrm_output2(struct net *net, struct sock *sk, struct sk_buff *skb);
+static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 
 static int xfrm_skb_check_space(struct sk_buff *skb)
 {
@@ -50,6 +51,166 @@ static struct dst_entry *skb_dst_pop(struct sk_buff *skb)
 	return child;
 }
 
+/* Add encapsulation header.
+ *
+ * The IP header will be moved forward to make space for the encapsulation
+ * header.
+ */
+static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_INET_XFRM_MODE_TRANSPORT)
+	struct iphdr *iph = ip_hdr(skb);
+	int ihl = iph->ihl * 4;
+
+	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
+
+	skb_set_network_header(skb, -x->props.header_len);
+	skb->mac_header = skb->network_header +
+			  offsetof(struct iphdr, protocol);
+	skb->transport_header = skb->network_header + ihl;
+	__skb_pull(skb, ihl);
+	memmove(skb_network_header(skb), iph, ihl);
+	return 0;
+#else
+	WARN_ON_ONCE(1);
+	return -EOPNOTSUPP;
+#endif
+}
+
+/* Add encapsulation header.
+ *
+ * The IP header and mutable extension headers will be moved forward to make
+ * space for the encapsulation header.
+ */
+static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_INET6_XFRM_MODE_TRANSPORT)
+	struct ipv6hdr *iph;
+	u8 *prevhdr;
+	int hdr_len;
+
+	iph = ipv6_hdr(skb);
+	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
+
+	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	if (hdr_len < 0)
+		return hdr_len;
+	skb_set_mac_header(skb,
+			   (prevhdr - x->props.header_len) - skb->data);
+	skb_set_network_header(skb, -x->props.header_len);
+	skb->transport_header = skb->network_header + hdr_len;
+	__skb_pull(skb, hdr_len);
+	memmove(ipv6_hdr(skb), iph, hdr_len);
+	return 0;
+#else
+	WARN_ON_ONCE(1);
+	return -EOPNOTSUPP;
+#endif
+}
+
+/* Add route optimization header space.
+ *
+ * The IP header and mutable extension headers will be moved forward to make
+ * space for the route optimization header.
+ */
+static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_INET6_XFRM_MODE_ROUTEOPTIMIZATION)
+	struct ipv6hdr *iph;
+	u8 *prevhdr;
+	int hdr_len;
+
+	iph = ipv6_hdr(skb);
+
+	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	if (hdr_len < 0)
+		return hdr_len;
+	skb_set_mac_header(skb,
+			   (prevhdr - x->props.header_len) - skb->data);
+	skb_set_network_header(skb, -x->props.header_len);
+	skb->transport_header = skb->network_header + hdr_len;
+	__skb_pull(skb, hdr_len);
+	memmove(ipv6_hdr(skb), iph, hdr_len);
+
+	x->lastused = ktime_get_real_seconds();
+
+	return 0;
+#else
+	WARN_ON_ONCE(1);
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+	int err;
+
+	err = xfrm_inner_extract_output(x, skb);
+	if (err)
+		return err;
+
+	IPCB(skb)->flags |= IPSKB_XFRM_TUNNEL_SIZE;
+	skb->protocol = htons(ETH_P_IP);
+
+	return x->outer_mode->output2(x, skb);
+}
+
+static int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	int err;
+
+	err = xfrm_inner_extract_output(x, skb);
+	if (err)
+		return err;
+
+	skb->ignore_df = 1;
+	skb->protocol = htons(ETH_P_IPV6);
+
+	return x->outer_mode->output2(x, skb);
+#else
+	WARN_ON_ONCE(1);
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+	switch (x->outer_mode->encap) {
+	case XFRM_MODE_BEET:
+	case XFRM_MODE_TUNNEL:
+		if (x->outer_mode->family == AF_INET)
+			return xfrm4_prepare_output(x, skb);
+		if (x->outer_mode->family == AF_INET6)
+			return xfrm6_prepare_output(x, skb);
+		break;
+	case XFRM_MODE_TRANSPORT:
+		if (x->outer_mode->family == AF_INET)
+			return xfrm4_transport_output(x, skb);
+		if (x->outer_mode->family == AF_INET6)
+			return xfrm6_transport_output(x, skb);
+		break;
+	case XFRM_MODE_ROUTEOPTIMIZATION:
+		if (x->outer_mode->family == AF_INET6)
+			return xfrm6_ro_output(x, skb);
+		WARN_ON_ONCE(1);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+#if IS_ENABLED(CONFIG_NET_PKTGEN)
+int pktgen_xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+	return xfrm_outer_mode_output(x, skb);
+}
+EXPORT_SYMBOL_GPL(pktgen_xfrm_outer_mode_output);
+#endif
+
 static int xfrm_output_one(struct sk_buff *skb, int err)
 {
 	struct dst_entry *dst = skb_dst(skb);
@@ -68,7 +229,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		skb->mark = xfrm_smark_get(skb->mark, x);
 
-		err = x->outer_mode->output(x, skb);
+		err = xfrm_outer_mode_output(x, skb);
 		if (err) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
 			goto error_nolock;
@@ -258,7 +419,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(xfrm_output);
 
-int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
+static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct xfrm_mode *inner_mode;
 	if (x->sel.family == AF_UNSPEC)
@@ -271,7 +432,6 @@ int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 		return -EAFNOSUPPORT;
 	return inner_mode->afinfo->extract_output(x, skb);
 }
-EXPORT_SYMBOL_GPL(xfrm_inner_extract_output);
 
 void xfrm_local_error(struct sk_buff *skb, int mtu)
 {

@@ -111,21 +111,6 @@ int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	return xfrm6_extract_header(skb);
 }
 
-int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err;
-
-	err = xfrm_inner_extract_output(x, skb);
-	if (err)
-		return err;
-
-	skb->ignore_df = 1;
-	skb->protocol = htons(ETH_P_IPV6);
-
-	return x->outer_mode->output2(x, skb);
-}
-EXPORT_SYMBOL(xfrm6_prepare_output);
-
 int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 {
 	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));

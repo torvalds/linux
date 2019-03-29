@@ -14,27 +14,6 @@
 #include <net/xfrm.h>
 #include <net/protocol.h>
 
-/* Add encapsulation header.
- *
- * The IP header will be moved forward to make space for the encapsulation
- * header.
- */
-static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-	int ihl = iph->ihl * 4;
-
-	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
-
-	skb_set_network_header(skb, -x->props.header_len);
-	skb->mac_header = skb->network_header +
-			  offsetof(struct iphdr, protocol);
-	skb->transport_header = skb->network_header + ihl;
-	__skb_pull(skb, ihl);
-	memmove(skb_network_header(skb), iph, ihl);
-	return 0;
-}
-
 static struct sk_buff *xfrm4_transport_gso_segment(struct xfrm_state *x,
 						   struct sk_buff *skb,
 						   netdev_features_t features)
@@ -65,7 +44,6 @@ static void xfrm4_transport_xmit(struct xfrm_state *x, struct sk_buff *skb)
 }
 
 static struct xfrm_mode xfrm4_transport_mode = {
-	.output = xfrm4_transport_output,
 	.gso_segment = xfrm4_transport_gso_segment,
 	.xmit = xfrm4_transport_xmit,
 	.owner = THIS_MODULE,

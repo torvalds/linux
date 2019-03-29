@@ -105,7 +105,6 @@ out:
 static struct xfrm_mode xfrm6_beet_mode = {
 	.input2 = xfrm6_beet_input,
 	.output2 = xfrm6_beet_output,
-	.output = xfrm6_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
