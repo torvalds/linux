@@ -50,7 +50,6 @@ const struct snd_sof_dsp_ops sof_skl_ops = {
 
 	/* ipc */
 	.send_msg	= hda_dsp_ipc_send_msg,
-	.get_reply	= hda_dsp_ipc_get_reply,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
 	.cmd_done	= hda_dsp_ipc_cmd_done,
 
