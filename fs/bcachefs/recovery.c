@@ -52,6 +52,84 @@ found:
 	return k;
 }
 
+static int verify_superblock_clean(struct bch_fs *c,
+				   struct bch_sb_field_clean **cleanp,
+				   struct jset *j)
+{
+	unsigned i;
+	struct bch_sb_field_clean *clean = *cleanp;
+	int ret = 0;
+
+	if (!clean || !j)
+		return 0;
+
+	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
+			"superblock journal seq (%llu) doesn't match journal (%llu) after clean shutdown",
+			le64_to_cpu(clean->journal_seq),
+			le64_to_cpu(j->seq))) {
+		kfree(clean);
+		*cleanp = NULL;
+		return 0;
+	}
+
+	mustfix_fsck_err_on(j->read_clock != clean->read_clock, c,
+			"superblock read clock doesn't match journal after clean shutdown");
+	mustfix_fsck_err_on(j->write_clock != clean->write_clock, c,
+			"superblock read clock doesn't match journal after clean shutdown");
+
+	for (i = 0; i < BTREE_ID_NR; i++) {
+		struct bkey_i *k1, *k2;
+		unsigned l1 = 0, l2 = 0;
+
+		k1 = btree_root_find(c, clean, NULL, i, &l1);
+		k2 = btree_root_find(c, NULL, j, i, &l2);
+
+		if (!k1 && !k2)
+			continue;
+
+		mustfix_fsck_err_on(!k1 || !k2 ||
+				    IS_ERR(k1) ||
+				    IS_ERR(k2) ||
+				    k1->k.u64s != k2->k.u64s ||
+				    memcmp(k1, k2, bkey_bytes(k1)) ||
+				    l1 != l2, c,
+			"superblock btree root doesn't match journal after clean shutdown");
+	}
+fsck_err:
+	return ret;
+}
+
+static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
+{
+	struct bch_sb_field_clean *clean, *sb_clean;
+
+	if (!c->sb.clean)
+		return NULL;
+
+	mutex_lock(&c->sb_lock);
+	sb_clean = bch2_sb_get_clean(c->disk_sb.sb);
+	if (!sb_clean) {
+		mutex_unlock(&c->sb_lock);
+		bch_err(c, "superblock marked clean but clean section not present");
+		return NULL;
+	}
+
+	clean = kmemdup(sb_clean, vstruct_bytes(&sb_clean->field),
+			GFP_KERNEL);
+	if (!clean) {
+		mutex_unlock(&c->sb_lock);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	if (le16_to_cpu(c->disk_sb.sb->version) <
+	    bcachefs_metadata_version_bkey_renumber)
+		bch2_sb_clean_renumber(clean, READ);
+
+	mutex_unlock(&c->sb_lock);
+
+	return clean;
+}
+
 static int journal_replay_entry_early(struct bch_fs *c,
 				      struct jset_entry *entry)
 {
@@ -106,49 +184,85 @@ static int journal_replay_entry_early(struct bch_fs *c,
 	return ret;
 }
 
-static int verify_superblock_clean(struct bch_fs *c,
-				   struct bch_sb_field_clean **cleanp,
-				   struct jset *j)
+static int load_journal_metadata(struct bch_fs *c,
+				 struct bch_sb_field_clean *clean,
+				 struct list_head *journal)
+{
+	struct jset_entry *entry;
+	int ret;
+
+	if (clean) {
+		c->bucket_clock[READ].hand = le16_to_cpu(clean->read_clock);
+		c->bucket_clock[WRITE].hand = le16_to_cpu(clean->write_clock);
+
+		for (entry = clean->start;
+		     entry != vstruct_end(&clean->field);
+		     entry = vstruct_next(entry)) {
+			ret = journal_replay_entry_early(c, entry);
+			if (ret)
+				return ret;
+		}
+	} else {
+		struct journal_replay *i =
+			list_last_entry(journal, struct journal_replay, list);
+
+		c->bucket_clock[READ].hand = le16_to_cpu(i->j.read_clock);
+		c->bucket_clock[WRITE].hand = le16_to_cpu(i->j.write_clock);
+
+		list_for_each_entry(i, journal, list)
+			vstruct_for_each(&i->j, entry) {
+				ret = journal_replay_entry_early(c, entry);
+				if (ret)
+					return ret;
+			}
+	}
+
+	bch2_fs_usage_initialize(c);
+
+	return 0;
+}
+
+static int read_btree_roots(struct bch_fs *c)
 {
 	unsigned i;
-	struct bch_sb_field_clean *clean = *cleanp;
 	int ret = 0;
 
-	if (!clean || !j)
-		return 0;
-
-	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
-			"superblock journal seq (%llu) doesn't match journal (%llu) after clean shutdown",
-			le64_to_cpu(clean->journal_seq),
-			le64_to_cpu(j->seq))) {
-		kfree(clean);
-		*cleanp = NULL;
-		return 0;
-	}
-
-	mustfix_fsck_err_on(j->read_clock != clean->read_clock, c,
-			"superblock read clock doesn't match journal after clean shutdown");
-	mustfix_fsck_err_on(j->write_clock != clean->write_clock, c,
-			"superblock read clock doesn't match journal after clean shutdown");
-
 	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct bkey_i *k1, *k2;
-		unsigned l1 = 0, l2 = 0;
+		struct btree_root *r = &c->btree_roots[i];
 
-		k1 = btree_root_find(c, clean, NULL, i, &l1);
-		k2 = btree_root_find(c, NULL, j, i, &l2);
-
-		if (!k1 && !k2)
+		if (!r->alive)
 			continue;
 
-		mustfix_fsck_err_on(!k1 || !k2 ||
-				    IS_ERR(k1) ||
-				    IS_ERR(k2) ||
-				    k1->k.u64s != k2->k.u64s ||
-				    memcmp(k1, k2, bkey_bytes(k1)) ||
-				    l1 != l2, c,
-			"superblock btree root doesn't match journal after clean shutdown");
+		if (i == BTREE_ID_ALLOC &&
+		    test_reconstruct_alloc(c)) {
+			c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
+			continue;
+		}
+
+
+		if (r->error) {
+			__fsck_err(c, i == BTREE_ID_ALLOC
+				   ? FSCK_CAN_IGNORE : 0,
+				   "invalid btree root %s",
+				   bch2_btree_ids[i]);
+			if (i == BTREE_ID_ALLOC)
+				c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
+		}
+
+		ret = bch2_btree_root_read(c, i, &r->key, r->level);
+		if (ret) {
+			__fsck_err(c, i == BTREE_ID_ALLOC
+				   ? FSCK_CAN_IGNORE : 0,
+				   "error reading btree root %s",
+				   bch2_btree_ids[i]);
+			if (i == BTREE_ID_ALLOC)
+				c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
+		}
 	}
+
+	for (i = 0; i < BTREE_ID_NR; i++)
+		if (!c->btree_roots[i].b)
+			bch2_btree_root_alloc(c, i);
 fsck_err:
 	return ret;
 }
@@ -186,38 +300,11 @@ static bool journal_empty(struct list_head *journal)
 int bch2_fs_recovery(struct bch_fs *c)
 {
 	const char *err = "cannot allocate memory";
-	struct bch_sb_field_clean *clean = NULL, *sb_clean = NULL;
-	struct jset_entry *entry;
+	struct bch_sb_field_clean *clean;
 	LIST_HEAD(journal);
-	struct jset *j = NULL;
-	unsigned i;
-	bool run_gc = c->opts.fsck ||
-		!(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO));
 	int ret;
 
-	mutex_lock(&c->sb_lock);
-	if (!c->replicas.entries) {
-		bch_info(c, "building replicas info");
-		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
-	}
-
-	if (c->sb.clean)
-		sb_clean = bch2_sb_get_clean(c->disk_sb.sb);
-	if (sb_clean) {
-		clean = kmemdup(sb_clean, vstruct_bytes(&sb_clean->field),
-				GFP_KERNEL);
-		if (!clean) {
-			ret = -ENOMEM;
-			mutex_unlock(&c->sb_lock);
-			goto err;
-		}
-
-		if (le16_to_cpu(c->disk_sb.sb->version) <
-		    bcachefs_metadata_version_bkey_renumber)
-			bch2_sb_clean_renumber(clean, READ);
-	}
-	mutex_unlock(&c->sb_lock);
-
+	clean = read_superblock_clean(c);
 	if (clean)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
@@ -227,78 +314,29 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (ret)
 			goto err;
 
-		j = &list_entry(journal.prev, struct journal_replay, list)->j;
+		ret = verify_superblock_clean(c, &clean,
+			&list_last_entry(&journal, struct journal_replay,
+					 list)->j);
+		if (ret)
+			goto err;
 	} else {
 		ret = bch2_journal_set_seq(c,
 					   le64_to_cpu(clean->journal_seq),
 					   le64_to_cpu(clean->journal_seq));
-		BUG_ON(ret);
+		if (ret)
+			goto err;
 	}
-
-	ret = verify_superblock_clean(c, &clean, j);
-	if (ret)
-		goto err;
 
 	fsck_err_on(clean && !journal_empty(&journal), c,
 		    "filesystem marked clean but journal not empty");
 
-	err = "insufficient memory";
-	if (clean) {
-		c->bucket_clock[READ].hand = le16_to_cpu(clean->read_clock);
-		c->bucket_clock[WRITE].hand = le16_to_cpu(clean->write_clock);
+	ret = load_journal_metadata(c, clean, &journal);
+	if (ret)
+		goto err;
 
-		for (entry = clean->start;
-		     entry != vstruct_end(&clean->field);
-		     entry = vstruct_next(entry)) {
-			ret = journal_replay_entry_early(c, entry);
-			if (ret)
-				goto err;
-		}
-	} else {
-		struct journal_replay *i;
-
-		c->bucket_clock[READ].hand = le16_to_cpu(j->read_clock);
-		c->bucket_clock[WRITE].hand = le16_to_cpu(j->write_clock);
-
-		list_for_each_entry(i, &journal, list)
-			vstruct_for_each(&i->j, entry) {
-				ret = journal_replay_entry_early(c, entry);
-				if (ret)
-					goto err;
-			}
-	}
-
-	bch2_fs_usage_initialize(c);
-
-	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct btree_root *r = &c->btree_roots[i];
-
-		if (!r->alive)
-			continue;
-
-		err = "invalid btree root pointer";
-		ret = -1;
-		if (r->error)
-			goto err;
-
-		if (i == BTREE_ID_ALLOC &&
-		    test_reconstruct_alloc(c))
-			continue;
-
-		err = "error reading btree root";
-		ret = bch2_btree_root_read(c, i, &r->key, r->level);
-		if (ret) {
-			if (i != BTREE_ID_ALLOC)
-				goto err;
-
-			mustfix_fsck_err(c, "error reading btree root");
-			run_gc = true;
-		}
-	}
-
-	for (i = 0; i < BTREE_ID_NR; i++)
-		if (!c->btree_roots[i].b)
-			bch2_btree_root_alloc(c, i);
+	ret = read_btree_roots(c);
+	if (ret)
+		goto err;
 
 	err = "error reading allocation information";
 	ret = bch2_alloc_read(c, &journal);
@@ -313,7 +351,14 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
-	if (run_gc) {
+	if (!c->replicas.entries) {
+		bch_info(c, "building replicas info");
+		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
+	}
+
+	if (c->opts.fsck ||
+	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
+	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
 		bch_verbose(c, "starting mark and sweep:");
 		err = "error in recovery";
 		ret = bch2_gc(c, &journal, true);
@@ -332,15 +377,15 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->sb.encryption_type && !c->sb.clean)
 		atomic64_add(1 << 16, &c->key_version);
 
-	if (c->opts.noreplay)
-		goto out;
-
 	/*
 	 * bch2_fs_journal_start() can't happen sooner, or btree_gc_finish()
 	 * will give spurious errors about oldest_gen > bucket_gen -
 	 * this is a hack but oh well.
 	 */
 	bch2_fs_journal_start(&c->journal);
+
+	if (c->opts.noreplay)
+		goto out;
 
 	bch_verbose(c, "starting journal replay:");
 	err = "journal replay failed";
@@ -357,6 +402,14 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (ret)
 		goto err;
 
+	if (enabled_qtypes(c)) {
+		bch_verbose(c, "reading quotas:");
+		ret = bch2_fs_quota_read(c);
+		if (ret)
+			goto err;
+		bch_verbose(c, "quotas done");
+	}
+
 	mutex_lock(&c->sb_lock);
 	if (c->opts.version_upgrade) {
 		if (c->sb.version < bcachefs_metadata_version_new_versioning)
@@ -371,15 +424,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
 	}
 	mutex_unlock(&c->sb_lock);
-
-	if (enabled_qtypes(c)) {
-		bch_verbose(c, "reading quotas:");
-		ret = bch2_fs_quota_read(c);
-		if (ret)
-			goto err;
-		bch_verbose(c, "quotas done");
-	}
-
 out:
 	bch2_journal_entries_free(&journal);
 	kfree(clean);
