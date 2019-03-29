@@ -3353,7 +3353,7 @@ static void iavf_init_task(struct work_struct *work)
 	struct net_device *netdev = adapter->netdev;
 	struct iavf_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	int err, bufsz;
+	int err;
 
 	switch (adapter->state) {
 	case __IAVF_STARTUP:
@@ -3423,10 +3423,9 @@ static void iavf_init_task(struct work_struct *work)
 	case __IAVF_INIT_GET_RESOURCES:
 		/* aq msg sent, awaiting reply */
 		if (!adapter->vf_res) {
-			bufsz = sizeof(struct virtchnl_vf_resource) +
-				(IAVF_MAX_VF_VSI *
-				 sizeof(struct virtchnl_vsi_resource));
-			adapter->vf_res = kzalloc(bufsz, GFP_KERNEL);
+			adapter->vf_res = kzalloc(struct_size(adapter->vf_res,
+						  vsi_res, IAVF_MAX_VF_VSI),
+						  GFP_KERNEL);
 			if (!adapter->vf_res)
 				goto err;
 		}
