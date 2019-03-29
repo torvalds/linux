@@ -21,6 +21,7 @@ Required properties for UFS nodes:
                        defined or a value in the array is "0" then it is assumed
                        that the frequency is set by the parent clock or a
                        fixed rate clock source.
+- vcc-supply         : phandle to VCC supply regulator node.
 
 Example:
 
@@ -37,4 +38,6 @@ Example:
 		clocks = <&infracfg_ao INFRACFG_AO_UFS_CG>;
 		clock-names = "ufs";
 		freq-table-hz = <0 0>;
+
+		vcc-supply = <&mt_pmic_vemc_ldo_reg>;
 	};
