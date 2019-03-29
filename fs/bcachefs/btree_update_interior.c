@@ -1429,6 +1429,7 @@ static void btree_split(struct btree_update *as, struct btree *b,
 
 	/* Successful split, update the iterator to point to the new nodes: */
 
+	six_lock_increment(&b->lock, SIX_LOCK_intent);
 	bch2_btree_iter_node_drop(iter, b);
 	if (n3)
 		bch2_btree_iter_node_replace(iter, n3);
@@ -1740,7 +1741,10 @@ retry:
 
 	bch2_open_buckets_put(c, &n->ob);
 
+	six_lock_increment(&b->lock, SIX_LOCK_intent);
 	bch2_btree_iter_node_drop(iter, b);
+	bch2_btree_iter_node_drop(iter, m);
+
 	bch2_btree_iter_node_replace(iter, n);
 
 	bch2_btree_iter_verify(iter, n);
@@ -1838,6 +1842,7 @@ static int __btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 
 	bch2_open_buckets_put(c, &n->ob);
 
+	six_lock_increment(&b->lock, SIX_LOCK_intent);
 	bch2_btree_iter_node_drop(iter, b);
 	bch2_btree_iter_node_replace(iter, n);
 	bch2_btree_node_free_inmem(c, b, iter);

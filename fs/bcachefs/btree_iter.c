@@ -819,14 +819,6 @@ void bch2_btree_iter_node_drop(struct btree_iter *iter, struct btree *b)
 	struct btree_iter *linked;
 	unsigned level = b->level;
 
-	/* caller now responsible for unlocking @b */
-
-	BUG_ON(iter->l[level].b != b);
-	BUG_ON(!btree_node_intent_locked(iter, level));
-
-	iter->l[level].b = BTREE_ITER_NOT_END;
-	mark_btree_node_unlocked(iter, level);
-
 	trans_for_each_iter(iter->trans, linked)
 		if (linked->l[level].b == b) {
 			__btree_node_unlock(linked, level);
