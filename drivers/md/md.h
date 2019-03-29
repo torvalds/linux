@@ -252,19 +252,6 @@ enum mddev_sb_flags {
 	MD_SB_NEED_REWRITE,	/* metadata write needs to be repeated */
 };
 
-#define NR_FLUSH_INFOS 8
-#define NR_FLUSH_BIOS 64
-struct flush_info {
-	struct bio			*bio;
-	struct mddev			*mddev;
-	struct work_struct		flush_work;
-	atomic_t			flush_pending;
-};
-struct flush_bio {
-	struct flush_info *fi;
-	struct md_rdev *rdev;
-};
-
 struct mddev {
 	void				*private;
 	struct md_personality		*pers;
@@ -470,8 +457,13 @@ struct mddev {
 						   * metadata and bitmap writes
 						   */
 
-	mempool_t			*flush_pool;
-	mempool_t			*flush_bio_pool;
+	/* Generic flush handling.
+	 * The last to finish preflush schedules a worker to submit
+	 * the rest of the request (without the REQ_PREFLUSH flag).
+	 */
+	struct bio *flush_bio;
+	atomic_t flush_pending;
+	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
