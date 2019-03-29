@@ -160,7 +160,7 @@
 		#size-cells = <1>;
 		compatible = "n25q00a";
 		reg = <0>;
-		spi-max-frequency = <50000000>;
+		spi-max-frequency = <100000000>;
 
 		m25p,fast-read;
 		cdns,page-size = <256>;
