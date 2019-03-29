@@ -341,7 +341,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	struct device_node *np = dev->of_node;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource_entry *win, *tmp;
-	struct pci_bus *bus, *child;
+	struct pci_bus *child;
 	struct pci_host_bridge *bridge;
 	struct resource *cfg_res;
 	int ret;
@@ -496,18 +496,18 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		goto err_free_msi;
 
-	bus = bridge->bus;
+	pp->root_bus = bridge->bus;
 
 	if (pp->ops->scan_bus)
 		pp->ops->scan_bus(pp);
 
-	pci_bus_size_bridges(bus);
-	pci_bus_assign_resources(bus);
+	pci_bus_size_bridges(pp->root_bus);
+	pci_bus_assign_resources(pp->root_bus);
 
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &pp->root_bus->children, node)
 		pcie_bus_configure_settings(child);
 
-	pci_bus_add_devices(bus);
+	pci_bus_add_devices(pp->root_bus);
 	return 0;
 
 err_free_msi:
