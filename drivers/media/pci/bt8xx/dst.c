@@ -1100,8 +1100,8 @@ static int dst_get_device_id(struct dst_state *state)
 			/*	Card capabilities	*/
 			state->dst_hw_cap = p_dst_type->dst_feature;
 			pr_err("Recognise [%s]\n", p_dst_type->device_id);
-			strscpy((char *)state->fw_name, p_dst_type->device_id,
-				sizeof(state->fw_name));
+			strscpy(state->fw_name, p_dst_type->device_id,
+			        sizeof(state->fw_name));
 			/*	Multiple tuners		*/
 			if (p_dst_type->tuner_type & TUNER_TYPE_MULTI) {
 				switch (use_dst_type) {
