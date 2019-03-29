@@ -83,8 +83,18 @@ do {									\
 		      __func__, __LINE__, current->pid,			\
 		      ##__VA_ARGS__)
 
+#define mlx5_core_warn_rl(__dev, format, ...)				      \
+	pr_warn_ratelimited("%s:%s:%d:(pid %d): " format, (__dev)->priv.name, \
+			   __func__, __LINE__, current->pid,		      \
+			   ##__VA_ARGS__)
+
 #define mlx5_core_info(__dev, format, ...)				\
 	pr_info("%s " format, (__dev)->priv.name, ##__VA_ARGS__)
+
+#define mlx5_core_info_rl(__dev, format, ...)				      \
+	pr_info_ratelimited("%s:%s:%d:(pid %d): " format, (__dev)->priv.name, \
+			   __func__, __LINE__, current->pid,		      \
+			   ##__VA_ARGS__)
 
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
