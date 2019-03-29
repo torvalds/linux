@@ -163,6 +163,27 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	return stream;
 }
 
+struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
+{
+	struct dc_stream_state *new_stream;
+
+	new_stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
+	if (stream == NULL)
+		return NULL;
+
+	memcpy(new_stream, stream, sizeof(struct dc_stream_state));
+
+	if (new_stream->sink)
+		dc_sink_retain(new_stream->sink);
+
+	if (new_stream->out_transfer_func)
+		dc_transfer_func_retain(new_stream->out_transfer_func);
+
+	kref_init(&new_stream->refcount);
+
+	return new_stream;
+}
+
 /**
  * dc_stream_get_status_from_state - Get stream status from given dc state
  * @state: DC state to find the stream status in
