@@ -228,9 +228,31 @@ static void release_spapr_tce_table(struct rcu_head *head)
 	unsigned long i, npages = kvmppc_tce_pages(stt->size);
 
 	for (i = 0; i < npages; i++)
-		__free_page(stt->pages[i]);
+		if (stt->pages[i])
+			__free_page(stt->pages[i]);
 
 	kfree(stt);
+}
+
+static struct page *kvm_spapr_get_tce_page(struct kvmppc_spapr_tce_table *stt,
+		unsigned long sttpage)
+{
+	struct page *page = stt->pages[sttpage];
+
+	if (page)
+		return page;
+
+	mutex_lock(&stt->alloc_lock);
+	page = stt->pages[sttpage];
+	if (!page) {
+		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		WARN_ON_ONCE(!page);
+		if (page)
+			stt->pages[sttpage] = page;
+	}
+	mutex_unlock(&stt->alloc_lock);
+
+	return page;
 }
 
 static vm_fault_t kvm_spapr_tce_fault(struct vm_fault *vmf)
@@ -241,7 +263,10 @@ static vm_fault_t kvm_spapr_tce_fault(struct vm_fault *vmf)
 	if (vmf->pgoff >= kvmppc_tce_pages(stt->size))
 		return VM_FAULT_SIGBUS;
 
-	page = stt->pages[vmf->pgoff];
+	page = kvm_spapr_get_tce_page(stt, vmf->pgoff);
+	if (!page)
+		return VM_FAULT_OOM;
+
 	get_page(page);
 	vmf->page = page;
 	return 0;
@@ -296,7 +321,6 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	struct kvmppc_spapr_tce_table *siter;
 	unsigned long npages, size = args->size;
 	int ret = -ENOMEM;
-	int i;
 
 	if (!args->size || args->page_shift < 12 || args->page_shift > 34 ||
 		(args->offset + args->size > (ULLONG_MAX >> args->page_shift)))
@@ -318,13 +342,8 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	stt->offset = args->offset;
 	stt->size = size;
 	stt->kvm = kvm;
+	mutex_init(&stt->alloc_lock);
 	INIT_LIST_HEAD_RCU(&stt->iommu_tables);
-
-	for (i = 0; i < npages; i++) {
-		stt->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
-		if (!stt->pages[i])
-			goto fail;
-	}
 
 	mutex_lock(&kvm->lock);
 
@@ -351,11 +370,6 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 
 	if (ret >= 0)
 		return ret;
-
- fail:
-	for (i = 0; i < npages; i++)
-		if (stt->pages[i])
-			__free_page(stt->pages[i]);
 
 	kfree(stt);
  fail_acct:
@@ -411,6 +425,36 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	}
 
 	return H_SUCCESS;
+}
+
+/*
+ * Handles TCE requests for emulated devices.
+ * Puts guest TCE values to the table and expects user space to convert them.
+ * Cannot fail so kvmppc_tce_validate must be called before it.
+ */
+static void kvmppc_tce_put(struct kvmppc_spapr_tce_table *stt,
+		unsigned long idx, unsigned long tce)
+{
+	struct page *page;
+	u64 *tbl;
+	unsigned long sttpage;
+
+	idx -= stt->offset;
+	sttpage = idx / TCES_PER_PAGE;
+	page = stt->pages[sttpage];
+
+	if (!page) {
+		/* We allow any TCE, not just with read|write permissions */
+		if (!tce)
+			return;
+
+		page = kvm_spapr_get_tce_page(stt, sttpage);
+		if (!page)
+			return;
+	}
+	tbl = page_to_virt(page);
+
+	tbl[idx % TCES_PER_PAGE] = tce;
 }
 
 static void kvmppc_clear_tce(struct mm_struct *mm, struct iommu_table *tbl,
