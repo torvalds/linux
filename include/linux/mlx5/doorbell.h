@@ -42,10 +42,6 @@
  * PCI so we won't worry about it.
  */
 
-#define MLX5_DECLARE_DOORBELL_LOCK(name)
-#define MLX5_INIT_DOORBELL_LOCK(ptr)    do { } while (0)
-#define MLX5_GET_DOORBELL_LOCK(ptr)      (NULL)
-
 static inline void mlx5_write64(__be32 val[2], void __iomem *dest,
 				spinlock_t *doorbell_lock)
 {
@@ -58,10 +54,6 @@ static inline void mlx5_write64(__be32 val[2], void __iomem *dest,
  * BITS_PER_LONG is 32 -- there's no portable way to do atomic 64-bit
  * MMIO writes.
  */
-
-#define MLX5_DECLARE_DOORBELL_LOCK(name) spinlock_t name;
-#define MLX5_INIT_DOORBELL_LOCK(ptr)     spin_lock_init(ptr)
-#define MLX5_GET_DOORBELL_LOCK(ptr)      (ptr)
 
 static inline void mlx5_write64(__be32 val[2], void __iomem *dest,
 				spinlock_t *doorbell_lock)
