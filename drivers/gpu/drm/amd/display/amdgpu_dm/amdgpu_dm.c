@@ -315,6 +315,32 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	drm_crtc_vblank_put(&amdgpu_crtc->base);
 }
 
+static void dm_vupdate_high_irq(void *interrupt_params)
+{
+	struct common_irq_params *irq_params = interrupt_params;
+	struct amdgpu_device *adev = irq_params->adev;
+	struct amdgpu_crtc *acrtc;
+	struct dm_crtc_state *acrtc_state;
+
+	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VUPDATE);
+
+	if (acrtc) {
+		acrtc_state = to_dm_crtc_state(acrtc->base.state);
+
+		DRM_DEBUG_DRIVER("crtc:%d, vupdate-vrr:%d\n", acrtc->crtc_id,
+				 amdgpu_dm_vrr_active(acrtc_state));
+
+		/* Core vblank handling is done here after end of front-porch in
+		 * vrr mode, as vblank timestamping will give valid results
+		 * while now done after front-porch. This will also deliver
+		 * page-flip completion events that have been queued to us
+		 * if a pageflip happened inside front-porch.
+		 */
+		if (amdgpu_dm_vrr_active(acrtc_state))
+			drm_crtc_handle_vblank(&acrtc->base);
+	}
+}
+
 static void dm_crtc_high_irq(void *interrupt_params)
 {
 	struct common_irq_params *irq_params = interrupt_params;
@@ -325,10 +351,23 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
 
 	if (acrtc) {
-		drm_crtc_handle_vblank(&acrtc->base);
-		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
-
 		acrtc_state = to_dm_crtc_state(acrtc->base.state);
+
+		DRM_DEBUG_DRIVER("crtc:%d, vupdate-vrr:%d\n", acrtc->crtc_id,
+				 amdgpu_dm_vrr_active(acrtc_state));
+
+		/* Core vblank handling at start of front-porch is only possible
+		 * in non-vrr mode, as only there vblank timestamping will give
+		 * valid results while done in front-porch. Otherwise defer it
+		 * to dm_vupdate_high_irq after end of front-porch.
+		 */
+		if (!amdgpu_dm_vrr_active(acrtc_state))
+			drm_crtc_handle_vblank(&acrtc->base);
+
+		/* Following stuff must happen at start of vblank, for crc
+		 * computation and below-the-range btr support in vrr mode.
+		 */
+		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
 
 		if (acrtc_state->stream &&
 		    acrtc_state->vrr_params.supported &&
@@ -1447,6 +1486,27 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 				dm_crtc_high_irq, c_irq_params);
 	}
 
+	/* Use VUPDATE interrupt */
+	for (i = VISLANDS30_IV_SRCID_D1_V_UPDATE_INT; i <= VISLANDS30_IV_SRCID_D6_V_UPDATE_INT; i += 2) {
+		r = amdgpu_irq_add_id(adev, client_id, i, &adev->vupdate_irq);
+		if (r) {
+			DRM_ERROR("Failed to add vupdate irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_vupdate_high_irq, c_irq_params);
+	}
+
 	/* Use GRPH_PFLIP interrupt */
 	for (i = VISLANDS30_IV_SRCID_D1_GRPH_PFLIP;
 			i <= VISLANDS30_IV_SRCID_D6_GRPH_PFLIP; i += 2) {
@@ -1530,6 +1590,34 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 
 		amdgpu_dm_irq_register_interrupt(adev, &int_params,
 				dm_crtc_high_irq, c_irq_params);
+	}
+
+	/* Use VUPDATE_NO_LOCK interrupt on DCN, which seems to correspond to
+	 * the regular VUPDATE interrupt on DCE. We want DC_IRQ_SOURCE_VUPDATEx
+	 * to trigger at end of each vblank, regardless of state of the lock,
+	 * matching DCE behaviour.
+	 */
+	for (i = DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT;
+	     i <= DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT + adev->mode_info.num_crtc - 1;
+	     i++) {
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->vupdate_irq);
+
+		if (r) {
+			DRM_ERROR("Failed to add vupdate irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_vupdate_high_irq, c_irq_params);
 	}
 
 	/* Use GRPH_PFLIP interrupt */
@@ -3224,12 +3312,41 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &state->base;
 }
 
+static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
+{
+	enum dc_irq_source irq_source;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+	int rc;
+
+	irq_source = IRQ_TYPE_VUPDATE + acrtc->otg_inst;
+
+	rc = dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
+
+	DRM_DEBUG_DRIVER("crtc %d - vupdate irq %sabling: r=%d\n",
+			 acrtc->crtc_id, enable ? "en" : "dis", rc);
+	return rc;
+}
 
 static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 {
 	enum dc_irq_source irq_source;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
+	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
+	int rc = 0;
+
+	if (enable) {
+		/* vblank irq on -> Only need vupdate irq in vrr mode */
+		if (amdgpu_dm_vrr_active(acrtc_state))
+			rc = dm_set_vupdate_irq(crtc, true);
+	} else {
+		/* vblank irq off -> vupdate irq off */
+		rc = dm_set_vupdate_irq(crtc, false);
+	}
+
+	if (rc)
+		return rc;
 
 	irq_source = IRQ_TYPE_VBLANK + acrtc->otg_inst;
 	return dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
@@ -4763,7 +4880,11 @@ static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
 		 * While VRR is active, we must not disable vblank irq, as a
 		 * reenable after disable would compute bogus vblank/pflip
 		 * timestamps if it likely happened inside display front-porch.
+		 *
+		 * We also need vupdate irq for the actual core vblank handling
+		 * at end of vblank.
 		 */
+		dm_set_vupdate_irq(new_state->base.crtc, true);
 		drm_crtc_vblank_get(new_state->base.crtc);
 		DRM_DEBUG_DRIVER("%s: crtc=%u VRR off->on: Get vblank ref\n",
 				 __func__, new_state->base.crtc->base.id);
@@ -4771,6 +4892,7 @@ static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
 		/* Transition VRR active -> inactive:
 		 * Allow vblank irq disable again for fixed refresh rate.
 		 */
+		dm_set_vupdate_irq(new_state->base.crtc, false);
 		drm_crtc_vblank_put(new_state->base.crtc);
 		DRM_DEBUG_DRIVER("%s: crtc=%u VRR on->off: Drop vblank ref\n",
 				 __func__, new_state->base.crtc->base.id);
