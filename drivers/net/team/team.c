@@ -38,13 +38,11 @@
  * Helpers
  **********/
 
-#define team_port_exists(dev) (dev->priv_flags & IFF_TEAM_PORT)
-
 static struct team_port *team_port_get_rtnl(const struct net_device *dev)
 {
 	struct team_port *port = rtnl_dereference(dev->rx_handler_data);
 
-	return team_port_exists(dev) ? port : NULL;
+	return netif_is_team_port(dev) ? port : NULL;
 }
 
 /*
@@ -1143,7 +1141,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		return -EINVAL;
 	}
 
-	if (team_port_exists(port_dev)) {
+	if (netif_is_team_port(port_dev)) {
 		NL_SET_ERR_MSG(extack, "Device is already a port of a team device");
 		netdev_err(dev, "Device %s is already a port "
 				"of a team device\n", portname);
