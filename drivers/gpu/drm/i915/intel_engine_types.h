@@ -432,6 +432,7 @@ struct intel_engine_cs {
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 #define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
+#define I915_ENGINE_NEEDS_BREADCRUMB_TASKLET BIT(4)
 	unsigned int flags;
 
 	/*
@@ -513,6 +514,12 @@ static inline bool
 intel_engine_has_semaphores(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_HAS_SEMAPHORES;
+}
+
+static inline bool
+intel_engine_needs_breadcrumb_tasklet(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 }
 
 #define instdone_slice_mask(dev_priv__) \

@@ -1470,7 +1470,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 
 	if (iir & GT_RENDER_USER_INTERRUPT) {
 		intel_engine_breadcrumbs_irq(engine);
-		tasklet |= USES_GUC_SUBMISSION(engine->i915);
+		tasklet |= intel_engine_needs_breadcrumb_tasklet(engine);
 	}
 
 	if (tasklet)

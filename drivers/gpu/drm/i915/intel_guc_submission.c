@@ -1262,10 +1262,12 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 static void guc_submission_park(struct intel_engine_cs *engine)
 {
 	intel_engine_unpin_breadcrumbs_irq(engine);
+	engine->flags &= ~I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 }
 
 static void guc_submission_unpark(struct intel_engine_cs *engine)
 {
+	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 	intel_engine_pin_breadcrumbs_irq(engine);
 }
 
