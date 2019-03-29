@@ -2014,6 +2014,16 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf, u8 *msg)
 		goto err_out;
 	}
 
+	if (info->flags > I40E_MAX_VF_PROMISC_FLAGS) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err_out;
+	}
+
+	if (!i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err_out;
+	}
+
 	/* Multicast promiscuous handling*/
 	if (info->flags & FLAG_VF_MULTICAST_PROMISC)
 		allmulti = true;
@@ -2068,17 +2078,16 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 	struct virtchnl_queue_pair_info *qpi;
 	struct i40e_pf *pf = vf->pf;
 	u16 vsi_id, vsi_queue_id = 0;
+	u16 num_qps_all = 0;
 	i40e_status aq_ret = 0;
 	int i, j = 0, idx = 0;
-
-	vsi_id = qci->vsi_id;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
 
-	if (!i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+	if (!i40e_vc_isvalid_vsi_id(vf, qci->vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2088,10 +2097,27 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
+	if (vf->adq_enabled) {
+		for (i = 0; i < I40E_MAX_VF_VSI; i++)
+			num_qps_all += vf->ch[i].num_qps;
+		if (num_qps_all != qci->num_queue_pairs) {
+			aq_ret = I40E_ERR_PARAM;
+			goto error_param;
+		}
+	}
+
+	vsi_id = qci->vsi_id;
+
 	for (i = 0; i < qci->num_queue_pairs; i++) {
 		qpi = &qci->qpair[i];
 
 		if (!vf->adq_enabled) {
+			if (!i40e_vc_isvalid_queue_id(vf, vsi_id,
+						      qpi->txq.queue_id)) {
+				aq_ret = I40E_ERR_PARAM;
+				goto error_param;
+			}
+
 			vsi_queue_id = qpi->txq.queue_id;
 
 			if (qpi->txq.vsi_id != qci->vsi_id ||
@@ -2102,10 +2128,8 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 			}
 		}
 
-		if (!i40e_vc_isvalid_queue_id(vf, vsi_id, vsi_queue_id)) {
-			aq_ret = I40E_ERR_PARAM;
-			goto error_param;
-		}
+		if (vf->adq_enabled)
+			vsi_id = vf->ch[idx].vsi_id;
 
 		if (i40e_config_vsi_rx_queue(vf, vsi_id, vsi_queue_id,
 					     &qpi->rxq) ||
@@ -2129,7 +2153,6 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 				j++;
 				vsi_queue_id++;
 			}
-			vsi_id = vf->ch[idx].vsi_id;
 		}
 	}
 	/* set vsi num_queue_pairs in use to num configured by VF */
@@ -2188,7 +2211,7 @@ static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg)
 	struct virtchnl_irq_map_info *irqmap_info =
 	    (struct virtchnl_irq_map_info *)msg;
 	struct virtchnl_vector_map *map;
-	u16 vsi_id, vector_id;
+	u16 vsi_id;
 	i40e_status aq_ret = 0;
 	int i;
 
@@ -2197,16 +2220,21 @@ static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
+	if (irqmap_info->num_vectors >
+	    vf->pf->hw.func_caps.num_msix_vectors_vf) {
+		aq_ret = I40E_ERR_PARAM;
+		goto error_param;
+	}
+
 	for (i = 0; i < irqmap_info->num_vectors; i++) {
 		map = &irqmap_info->vecmap[i];
-		vector_id = map->vector_id;
-		vsi_id = map->vsi_id;
 		/* validate msg params */
-		if (!i40e_vc_isvalid_vector_id(vf, vector_id) ||
-		    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+		if (!i40e_vc_isvalid_vector_id(vf, map->vector_id) ||
+		    !i40e_vc_isvalid_vsi_id(vf, map->vsi_id)) {
 			aq_ret = I40E_ERR_PARAM;
 			goto error_param;
 		}
+		vsi_id = map->vsi_id;
 
 		if (i40e_validate_queue_map(vf, vsi_id, map->rxq_map)) {
 			aq_ret = I40E_ERR_PARAM;
@@ -2354,7 +2382,9 @@ static int i40e_vc_disable_queues_msg(struct i40e_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	if ((0 == vqs->rx_queues) && (0 == vqs->tx_queues)) {
+	if ((vqs->rx_queues == 0 && vqs->tx_queues == 0) ||
+	    vqs->rx_queues > I40E_MAX_VF_QUEUES ||
+	    vqs->tx_queues > I40E_MAX_VF_QUEUES) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
