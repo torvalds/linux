@@ -1837,8 +1837,9 @@ add_lease_context(struct TCP_Server_Info *server, struct kvec *iov,
 }
 
 static struct create_durable_v2 *
-create_durable_v2_buf(struct cifs_fid *pfid)
+create_durable_v2_buf(struct cifs_open_parms *oparms)
 {
+	struct cifs_fid *pfid = oparms->fid;
 	struct create_durable_v2 *buf;
 
 	buf = kzalloc(sizeof(struct create_durable_v2), GFP_KERNEL);
@@ -1852,7 +1853,14 @@ create_durable_v2_buf(struct cifs_fid *pfid)
 				(struct create_durable_v2, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
 
-	buf->dcontext.Timeout = 0; /* Should this be configurable by workload */
+	/*
+	 * NB: Handle timeout defaults to 0, which allows server to choose
+	 * (most servers default to 120 seconds) and most clients default to 0.
+	 * This can be overridden at mount ("handletimeout=") if the user wants
+	 * a different persistent (or resilient) handle timeout for all opens
+	 * opens on a particular SMB3 mount.
+	 */
+	buf->dcontext.Timeout = cpu_to_le32(oparms->tcon->handle_timeout);
 	buf->dcontext.Flags = cpu_to_le32(SMB2_DHANDLE_FLAG_PERSISTENT);
 	generate_random_uuid(buf->dcontext.CreateGuid);
 	memcpy(pfid->create_guid, buf->dcontext.CreateGuid, 16);
@@ -1905,7 +1913,7 @@ add_durable_v2_context(struct kvec *iov, unsigned int *num_iovec,
 	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
-	iov[num].iov_base = create_durable_v2_buf(oparms->fid);
+	iov[num].iov_base = create_durable_v2_buf(oparms);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_durable_v2);
