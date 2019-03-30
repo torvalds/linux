@@ -1743,19 +1743,21 @@ EXPORT_SYMBOL(genphy_update_link);
  */
 int genphy_read_status(struct phy_device *phydev)
 {
-	int adv;
-	int err;
-	int lpa;
-	int lpagb = 0;
+	int adv, lpa, lpagb, err;
 
 	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
 	if (err)
 		return err;
 
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
 	linkmode_zero(phydev->lp_advertising);
 
-	if (AUTONEG_ENABLE == phydev->autoneg) {
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->link) {
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 				      phydev->supported) ||
 		    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
@@ -1785,14 +1787,8 @@ int genphy_read_status(struct phy_device *phydev)
 			return lpa;
 
 		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
-
-		phydev->speed = SPEED_UNKNOWN;
-		phydev->duplex = DUPLEX_UNKNOWN;
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
-
 		phy_resolve_aneg_linkmode(phydev);
-	} else {
+	} else if (phydev->autoneg == AUTONEG_DISABLE) {
 		int bmcr = phy_read(phydev, MII_BMCR);
 
 		if (bmcr < 0)
@@ -1809,9 +1805,6 @@ int genphy_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_100;
 		else
 			phydev->speed = SPEED_10;
-
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
 	}
 
 	return 0;
