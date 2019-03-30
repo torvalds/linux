@@ -177,7 +177,7 @@ $(OUTPUT)libbpf.so: $(OUTPUT)libbpf.so.$(LIBBPF_VERSION)
 
 $(OUTPUT)libbpf.so.$(LIBBPF_VERSION): $(BPF_IN)
 	$(QUIET_LINK)$(CC) --shared -Wl,-soname,libbpf.so.$(VERSION) \
-				    -Wl,--version-script=$(VERSION_SCRIPT) $^ -o $@
+				    -Wl,--version-script=$(VERSION_SCRIPT) $^ -lelf -o $@
 	@ln -sf $(@F) $(OUTPUT)libbpf.so
 	@ln -sf $(@F) $(OUTPUT)libbpf.so.$(VERSION)
 
@@ -220,8 +220,9 @@ install_lib: all_cmd
 install_headers:
 	$(call QUIET_INSTALL, headers) \
 		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
-		$(call do_install,libbpf.h,$(prefix)/include/bpf,644);
-		$(call do_install,btf.h,$(prefix)/include/bpf,644);
+		$(call do_install,libbpf.h,$(prefix)/include/bpf,644); \
+		$(call do_install,btf.h,$(prefix)/include/bpf,644); \
+		$(call do_install,xsk.h,$(prefix)/include/bpf,644);
 
 install: install_lib
 
