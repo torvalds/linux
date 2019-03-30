@@ -89,7 +89,8 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 	} while ((pcs_value & MDIO_CTRL1_RESET) && --count);
 
 	if (pcs_value & MDIO_CTRL1_RESET)
-		pr_warn("%s XGBE PHY reset timeout\n", __func__);
+		dev_warn(vdev->device, "%s: XGBE PHY reset timeout\n",
+			 __func__);
 
 	/* disable auto-negotiation */
 	value = xmdio_read(xpcs_regs->ioaddr, MDIO_MMD_AN, MDIO_CTRL1);
@@ -114,7 +115,7 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 		usleep_range(500, 600);
 
 	if (!count)
-		pr_warn("%s MAC SW reset failed\n", __func__);
+		dev_warn(vdev->device, "%s: MAC SW reset failed\n", __func__);
 
 	return 0;
 }
