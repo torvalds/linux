@@ -471,7 +471,7 @@ static int mxs_dcp_aes_enqueue(struct ablkcipher_request *req, int enc, int ecb)
 
 	wake_up_process(sdcp->thread[actx->chan]);
 
-	return -EINPROGRESS;
+	return ret;
 }
 
 static int mxs_dcp_aes_ecb_decrypt(struct ablkcipher_request *req)
@@ -797,7 +797,7 @@ static int dcp_sha_update_fx(struct ahash_request *req, int fini)
 	wake_up_process(sdcp->thread[actx->chan]);
 	mutex_unlock(&actx->mutex);
 
-	return -EINPROGRESS;
+	return ret;
 }
 
 static int dcp_sha_update(struct ahash_request *req)
