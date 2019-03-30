@@ -37,10 +37,9 @@ static inline int ccp_copy_and_save_keypart(u8 **kpbuf, unsigned int *kplen,
 		if (buf[nskip])
 			break;
 	*kplen = sz - nskip;
-	*kpbuf = kzalloc(*kplen, GFP_KERNEL);
+	*kpbuf = kmemdup(buf + nskip, *kplen, GFP_KERNEL);
 	if (!*kpbuf)
 		return -ENOMEM;
-	memcpy(*kpbuf, buf + nskip, *kplen);
 
 	return 0;
 }
