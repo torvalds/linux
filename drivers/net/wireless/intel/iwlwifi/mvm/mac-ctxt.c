@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1573,6 +1573,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 	vif = rcu_dereference(mvm->vif_id_to_mac[mac_id]);
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -1581,7 +1582,6 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 			    csa_vif != vif))
 			goto out_unlock;
 
-		mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
 		csa_id = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
 		if (WARN(csa_id != id_n_color,
 			 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
@@ -1602,6 +1602,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		return;
 	case NL80211_IFTYPE_STATION:
 		iwl_mvm_csa_client_absent(mvm, vif);
+		cancel_delayed_work_sync(&mvmvif->csa_work);
 		ieee80211_chswitch_done(vif, true);
 		break;
 	default:

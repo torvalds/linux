@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,7 @@
  *
  * BSD LICENSE
  *
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,9 @@ void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
 
 	int copy_size = le32_to_cpu(tlv->length) + sizeof(*tlv);
 	int offset_size = copy_size;
+
+	if (le32_to_cpu(header->tlv_version) != 1)
+		return;
 
 	if (WARN_ONCE(apply_point >= IWL_FW_INI_APPLY_NUM,
 		      "Invalid apply point id %d\n", apply_point))
@@ -131,6 +134,9 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 
 		hdr = (void *)&tlv->data[0];
 		apply = le32_to_cpu(hdr->apply_point);
+
+		if (le32_to_cpu(hdr->tlv_version) != 1)
+			continue;
 
 		IWL_DEBUG_FW(trans, "Read TLV %x, apply point %d\n",
 			     le32_to_cpu(tlv->type), apply);

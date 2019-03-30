@@ -272,8 +272,13 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	version of the beacon notification.
  * @IWL_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
  *	BEACON_FILTER_CONFIG_API_S_VER_4.
+ * @IWL_UCODE_TLV_API_REGULATORY_NVM_INFO: This ucode supports v4 of
+ *	REGULATORY_NVM_GET_INFO_RSP_API_S.
  * @IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ: This ucode supports v7 of
  *	LOCATION_RANGE_REQ_CMD_API_S and v6 of LOCATION_RANGE_RESP_NTFY_API_S.
+ * @IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS: This ucode supports v2 of
+ *	SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S and v3 of
+ *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -300,7 +305,9 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_REDUCE_TX_POWER	= (__force iwl_ucode_tlv_api_t)45,
 	IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF	= (__force iwl_ucode_tlv_api_t)46,
 	IWL_UCODE_TLV_API_BEACON_FILTER_V4      = (__force iwl_ucode_tlv_api_t)47,
+	IWL_UCODE_TLV_API_REGULATORY_NVM_INFO   = (__force iwl_ucode_tlv_api_t)48,
 	IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = (__force iwl_ucode_tlv_api_t)49,
+	IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS    = (__force iwl_ucode_tlv_api_t)50,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
@@ -350,6 +357,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD: firmware supports CSA command
  * @IWL_UCODE_TLV_CAPA_ULTRA_HB_CHANNELS: firmware supports ultra high band
  *	(6 GHz).
+ * @IWL_UCODE_TLV_CAPA_CS_MODIFY: firmware supports modify action CSA command
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
@@ -420,6 +428,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD		= (__force iwl_ucode_tlv_capa_t)46,
 	IWL_UCODE_TLV_CAPA_ULTRA_HB_CHANNELS		= (__force iwl_ucode_tlv_capa_t)48,
 	IWL_UCODE_TLV_CAPA_FTM_CALIBRATED		= (__force iwl_ucode_tlv_capa_t)47,
+	IWL_UCODE_TLV_CAPA_CS_MODIFY			= (__force iwl_ucode_tlv_capa_t)49,
 
 	/* set 2 */
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,

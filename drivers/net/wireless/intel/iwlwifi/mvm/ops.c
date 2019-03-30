@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1105,7 +1105,7 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(DATA_PATH_GROUP, RX_NO_DATA_NOTIF))
-		iwl_mvm_rx_monitor_ndp(mvm, napi, rxb, 0);
+		iwl_mvm_rx_monitor_no_data(mvm, napi, rxb, 0);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
@@ -1340,6 +1340,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 			}
 		}
 
+		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
+					false, 0);
 		if (fw_error && mvm->fw_restart > 0)
 			mvm->fw_restart--;
 		set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);

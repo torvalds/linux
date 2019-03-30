@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1728,9 +1728,12 @@ void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
 	iwl_mvm_iter_d0i3_ap_keys(mvm, vif, iwl_mvm_d3_update_keys, &gtkdata);
 }
 
+#define ND_QUERY_BUF_LEN (sizeof(struct iwl_scan_offload_profile_match) * \
+			  IWL_SCAN_MAX_PROFILES)
+
 struct iwl_mvm_nd_query_results {
 	u32 matched_profiles;
-	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
+	u8 matches[ND_QUERY_BUF_LEN];
 };
 
 static int
@@ -1743,6 +1746,7 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 		.flags = CMD_WANT_SKB,
 	};
 	int ret, len;
+	size_t query_len, matches_len;
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret) {
@@ -1750,8 +1754,19 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 		return ret;
 	}
 
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
+		query_len = sizeof(struct iwl_scan_offload_profiles_query);
+		matches_len = sizeof(struct iwl_scan_offload_profile_match) *
+			IWL_SCAN_MAX_PROFILES;
+	} else {
+		query_len = sizeof(struct iwl_scan_offload_profiles_query_v1);
+		matches_len = sizeof(struct iwl_scan_offload_profile_match_v1) *
+			IWL_SCAN_MAX_PROFILES;
+	}
+
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
-	if (len < sizeof(*query)) {
+	if (len < query_len) {
 		IWL_ERR(mvm, "Invalid scan offload profiles query response!\n");
 		ret = -EIO;
 		goto out_free_resp;
@@ -1760,7 +1775,7 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 	query = (void *)cmd.resp_pkt->data;
 
 	results->matched_profiles = le32_to_cpu(query->matched_profiles);
-	memcpy(results->matches, query->matches, sizeof(results->matches));
+	memcpy(results->matches, query->matches, matches_len);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	mvm->last_netdetect_scans = le32_to_cpu(query->n_scans_done);
@@ -1769,6 +1784,57 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 out_free_resp:
 	iwl_free_resp(&cmd);
 	return ret;
+}
+
+static int iwl_mvm_query_num_match_chans(struct iwl_mvm *mvm,
+					 struct iwl_mvm_nd_query_results *query,
+					 int idx)
+{
+	int n_chans = 0, i;
+
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
+		struct iwl_scan_offload_profile_match *matches =
+			(struct iwl_scan_offload_profile_match *)query->matches;
+
+		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; i++)
+			n_chans += hweight8(matches[idx].matching_channels[i]);
+	} else {
+		struct iwl_scan_offload_profile_match_v1 *matches =
+			(struct iwl_scan_offload_profile_match_v1 *)query->matches;
+
+		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1; i++)
+			n_chans += hweight8(matches[idx].matching_channels[i]);
+	}
+
+	return n_chans;
+}
+
+static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
+				    struct iwl_mvm_nd_query_results *query,
+				    struct cfg80211_wowlan_nd_match *match,
+				    int idx)
+{
+	int i;
+
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
+		struct iwl_scan_offload_profile_match *matches =
+			(struct iwl_scan_offload_profile_match *)query->matches;
+
+		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN * 8; i++)
+			if (matches[idx].matching_channels[i / 8] & (BIT(i % 8)))
+				match->channels[match->n_channels++] =
+					mvm->nd_channels[i]->center_freq;
+	} else {
+		struct iwl_scan_offload_profile_match_v1 *matches =
+			(struct iwl_scan_offload_profile_match_v1 *)query->matches;
+
+		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1 * 8; i++)
+			if (matches[idx].matching_channels[i / 8] & (BIT(i % 8)))
+				match->channels[match->n_channels++] =
+					mvm->nd_channels[i]->center_freq;
+	}
 }
 
 static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
@@ -1783,7 +1849,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	struct iwl_wowlan_status *fw_status;
 	unsigned long matched_profiles;
 	u32 reasons = 0;
-	int i, j, n_matches, ret;
+	int i, n_matches, ret;
 
 	fw_status = iwl_mvm_get_wakeup_status(mvm);
 	if (!IS_ERR_OR_NULL(fw_status)) {
@@ -1817,14 +1883,10 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		goto out_report_nd;
 
 	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
-		struct iwl_scan_offload_profile_match *fw_match;
 		struct cfg80211_wowlan_nd_match *match;
 		int idx, n_channels = 0;
 
-		fw_match = &query.matches[i];
-
-		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; j++)
-			n_channels += hweight8(fw_match->matching_channels[j]);
+		n_channels = iwl_mvm_query_num_match_chans(mvm, &query, i);
 
 		match = kzalloc(struct_size(match, channels, n_channels),
 				GFP_KERNEL);
@@ -1844,10 +1906,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		if (mvm->n_nd_channels < n_channels)
 			continue;
 
-		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN * 8; j++)
-			if (fw_match->matching_channels[j / 8] & (BIT(j % 8)))
-				match->channels[match->n_channels++] =
-					mvm->nd_channels[j]->center_freq;
+		iwl_mvm_query_set_freqs(mvm, &query, match, i);
 	}
 
 out_report_nd:
@@ -2030,7 +2089,6 @@ out:
 	 * 2. We are using a unified image but had an error while exiting D3
 	 */
 	set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
-	set_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status);
 	/*
 	 * When switching images we return 1, which causes mac80211
 	 * to do a reconfig with IEEE80211_RECONFIG_TYPE_RESTART.
