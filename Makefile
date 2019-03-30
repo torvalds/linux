@@ -96,56 +96,65 @@ endif
 
 export quiet Q KBUILD_VERBOSE
 
-# kbuild supports saving output files in a separate directory.
-# To locate output files in a separate directory two syntaxes are supported.
-# In both cases the working directory must be the root of the kernel src.
+# Kbuild will save output files in the current working directory.
+# This does not need to match to the root of the kernel source tree.
+#
+# For example, you can do this:
+#
+#  cd /dir/to/store/output/files; make -f /dir/to/kernel/source/Makefile
+#
+# If you want to save output files in a different location, there are
+# two syntaxes to specify it.
+#
 # 1) O=
 # Use "make O=dir/to/store/output/files/"
 #
 # 2) Set KBUILD_OUTPUT
-# Set the environment variable KBUILD_OUTPUT to point to the directory
-# where the output files shall be placed.
-# export KBUILD_OUTPUT=dir/to/store/output/files/
-# make
+# Set the environment variable KBUILD_OUTPUT to point to the output directory.
+# export KBUILD_OUTPUT=dir/to/store/output/files/; make
 #
 # The O= assignment takes precedence over the KBUILD_OUTPUT environment
 # variable.
 
-# KBUILD_SRC is not intended to be used by the regular user (for now),
-# it is set on invocation of make with KBUILD_OUTPUT or O= specified.
-
-# OK, Make called in directory where kernel src resides
-# Do we want to locate output files in a separate directory?
+# Do we want to change the working directory?
 ifeq ("$(origin O)", "command line")
   KBUILD_OUTPUT := $(O)
 endif
 
-ifneq ($(words $(subst :, ,$(CURDIR))), 1)
-  $(error main directory cannot contain spaces nor colons)
+ifneq ($(KBUILD_OUTPUT),)
+# Make's built-in functions such as $(abspath ...), $(realpath ...) cannot
+# expand a shell special character '~'. We use a somewhat tedious way here.
+abs_objtree := $(shell mkdir -p $(KBUILD_OUTPUT) && cd $(KBUILD_OUTPUT) && pwd)
+$(if $(abs_objtree),, \
+     $(error failed to create output directory "$(KBUILD_OUTPUT)"))
+
+# $(realpath ...) resolves symlinks
+abs_objtree := $(realpath $(abs_objtree))
+else
+abs_objtree := $(CURDIR)
+endif # ifneq ($(KBUILD_OUTPUT),)
+
+ifeq ($(abs_objtree),$(CURDIR))
+# Suppress "Entering directory ..." unless we are changing the work directory.
+MAKEFLAGS += --no-print-directory
+else
+need-sub-make := 1
 endif
 
-ifneq ($(KBUILD_OUTPUT),)
-# check that the output directory actually exists
-saved-output := $(KBUILD_OUTPUT)
-KBUILD_OUTPUT := $(shell mkdir -p $(KBUILD_OUTPUT) && cd $(KBUILD_OUTPUT) \
-								&& pwd)
-$(if $(KBUILD_OUTPUT),, \
-     $(error failed to create output directory "$(saved-output)"))
+abs_srctree := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
+$(error source directory cannot contain spaces or colons)
+endif
+
+ifneq ($(abs_srctree),$(abs_objtree))
 # Look for make include files relative to root of kernel src
 #
 # This does not become effective immediately because MAKEFLAGS is re-parsed
-# once after the Makefile is read.  It is OK since we are going to invoke
-# 'sub-make' below.
-MAKEFLAGS += --include-dir=$(CURDIR)
-
+# once after the Makefile is read. We need to invoke sub-make.
+MAKEFLAGS += --include-dir=$(abs_srctree)
 need-sub-make := 1
-else
-
-# Do not print "Entering directory ..." at all for in-tree build.
-MAKEFLAGS += --no-print-directory
-
-endif # ifneq ($(KBUILD_OUTPUT),)
+endif
 
 ifneq ($(filter 3.%,$(MAKE_VERSION)),)
 # 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
@@ -155,6 +164,7 @@ need-sub-make := 1
 $(lastword $(MAKEFILE_LIST)): ;
 endif
 
+export abs_srctree abs_objtree
 export sub_make_done := 1
 
 ifeq ($(need-sub-make),1)
@@ -166,9 +176,7 @@ $(filter-out _all sub-make $(lastword $(MAKEFILE_LIST)), $(MAKECMDGOALS)) _all: 
 
 # Invoke a second make in the output directory, passing relevant variables
 sub-make:
-	$(Q)$(MAKE) \
-	$(if $(KBUILD_OUTPUT),-C $(KBUILD_OUTPUT) KBUILD_SRC=$(CURDIR)) \
-	-f $(CURDIR)/Makefile $(MAKECMDGOALS)
+	$(Q)$(MAKE) -C $(abs_objtree) -f $(abs_srctree)/Makefile $(MAKECMDGOALS)
 
 endif # need-sub-make
 endif # sub_make_done
@@ -213,16 +221,21 @@ ifeq ("$(origin M)", "command line")
   KBUILD_EXTMOD := $(M)
 endif
 
-ifeq ($(KBUILD_SRC),)
+ifeq ($(abs_srctree),$(abs_objtree))
         # building in the source tree
         srctree := .
 else
-        ifeq ($(KBUILD_SRC)/,$(dir $(CURDIR)))
+        ifeq ($(abs_srctree)/,$(dir $(abs_objtree)))
                 # building in a subdirectory of the source tree
                 srctree := ..
         else
-                srctree := $(KBUILD_SRC)
+                srctree := $(abs_srctree)
         endif
+
+	# TODO:
+	# KBUILD_SRC is only used to distinguish in-tree/out-of-tree build.
+	# Replace it with $(srctree) or something.
+	KBUILD_SRC := $(abs_srctree)
 endif
 
 export KBUILD_CHECKSRC KBUILD_EXTMOD KBUILD_SRC
