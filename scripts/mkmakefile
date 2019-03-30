@@ -7,12 +7,6 @@
 # Usage
 # $1 - Kernel src directory
 
-# Only overwrite automatically generated Makefiles
-# (so we do not overwrite kernel Makefile)
-if test -e Makefile && ! grep -q Automatically Makefile
-then
-	exit 0
-fi
 if [ "${quiet}" != "silent_" ]; then
 	echo "  GEN     Makefile"
 fi
