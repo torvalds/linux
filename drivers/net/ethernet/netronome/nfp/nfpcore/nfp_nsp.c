@@ -79,6 +79,8 @@
 #define NFP_VERSIONS_NCSI_OFF	22
 #define NFP_VERSIONS_CFGR_OFF	26
 
+#define NSP_SFF_EEPROM_BLOCK_LEN	8
+
 enum nfp_nsp_cmd {
 	SPCODE_NOOP		= 0, /* No operation */
 	SPCODE_SOFT_RESET	= 1, /* Soft reset the NFP */
@@ -95,6 +97,7 @@ enum nfp_nsp_cmd {
 	SPCODE_FW_STORED	= 16, /* If no FW loaded, load flash app FW */
 	SPCODE_HWINFO_LOOKUP	= 17, /* Lookup HWinfo with overwrites etc. */
 	SPCODE_VERSIONS		= 21, /* Report FW versions */
+	SPCODE_READ_SFF_EEPROM	= 22, /* Read module EEPROM */
 };
 
 struct nfp_nsp_dma_buf {
@@ -964,4 +967,63 @@ const char *nfp_nsp_versions_get(enum nfp_nsp_versions id, bool flash,
 		return ERR_PTR(-EINVAL);
 
 	return (const char *)&buf[buf_off];
+}
+
+static int
+__nfp_nsp_module_eeprom(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	struct nfp_nsp_command_buf_arg module_eeprom = {
+		{
+			.code		= SPCODE_READ_SFF_EEPROM,
+			.option		= size,
+		},
+		.in_buf		= buf,
+		.in_size	= size,
+		.out_buf	= buf,
+		.out_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &module_eeprom);
+}
+
+int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
+			       unsigned int offset, void *data,
+			       unsigned int len, unsigned int *read_len)
+{
+	struct eeprom_buf {
+		u8 metalen;
+		__le16 length;
+		__le16 offset;
+		__le16 readlen;
+		u8 eth_index;
+		u8 data[0];
+	} __packed *buf;
+	int bufsz, ret;
+
+	BUILD_BUG_ON(offsetof(struct eeprom_buf, data) % 8);
+
+	/* Buffer must be large enough and rounded to the next block size. */
+	bufsz = struct_size(buf, data, round_up(len, NSP_SFF_EEPROM_BLOCK_LEN));
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf->metalen =
+		offsetof(struct eeprom_buf, data) / NSP_SFF_EEPROM_BLOCK_LEN;
+	buf->length = cpu_to_le16(len);
+	buf->offset = cpu_to_le16(offset);
+	buf->eth_index = eth_index;
+
+	ret = __nfp_nsp_module_eeprom(state, buf, bufsz);
+
+	*read_len = min_t(unsigned int, len, le16_to_cpu(buf->readlen));
+	if (*read_len)
+		memcpy(data, buf->data, *read_len);
+
+	if (!ret && *read_len < len)
+		ret = -EIO;
+
+	kfree(buf);
+
+	return ret;
 }
