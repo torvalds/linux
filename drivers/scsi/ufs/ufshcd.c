@@ -7115,9 +7115,6 @@ static int ufshcd_setup_vreg(struct ufs_hba *hba, bool on)
 	struct device *dev = hba->dev;
 	struct ufs_vreg_info *info = &hba->vreg_info;
 
-	if (!info)
-		goto out;
-
 	ret = ufshcd_toggle_vreg(dev, info->vcc, on);
 	if (ret)
 		goto out;
@@ -7143,10 +7140,7 @@ static int ufshcd_setup_hba_vreg(struct ufs_hba *hba, bool on)
 {
 	struct ufs_vreg_info *info = &hba->vreg_info;
 
-	if (info)
-		return ufshcd_toggle_vreg(hba->dev, info->vdd_hba, on);
-
-	return 0;
+	return ufshcd_toggle_vreg(hba->dev, info->vdd_hba, on);
 }
 
 static int ufshcd_get_vreg(struct device *dev, struct ufs_vreg *vreg)
@@ -7171,9 +7165,6 @@ static int ufshcd_init_vreg(struct ufs_hba *hba)
 	int ret = 0;
 	struct device *dev = hba->dev;
 	struct ufs_vreg_info *info = &hba->vreg_info;
-
-	if (!info)
-		goto out;
 
 	ret = ufshcd_get_vreg(dev, info->vcc);
 	if (ret)
