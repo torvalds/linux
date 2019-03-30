@@ -1542,7 +1542,7 @@ static void phydm_set_csi_mask_reg(void *dm_void, u32 tone_idx_tmp,
 
 	if (tone_direction == FREQ_POSITIVE) {
 		if (tone_idx_tmp >= (tone_num - 1))
-			tone_idx_tmp = (tone_num - 1);
+			tone_idx_tmp = tone_num - 1;
 
 		byte_offset = (u8)(tone_idx_tmp >> 3);
 		bit_offset = (u8)(tone_idx_tmp & 0x7);
