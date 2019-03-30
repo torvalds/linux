@@ -123,9 +123,6 @@ static inline void bcm2835aux_rd_fifo(struct bcm2835aux_spi *bs)
 	data = bcm2835aux_rd(bs, BCM2835_AUX_SPI_IO);
 	if (bs->rx_buf) {
 		switch (count) {
-		case 4:
-			*bs->rx_buf++ = (data >> 24) & 0xff;
-			/* fallthrough */
 		case 3:
 			*bs->rx_buf++ = (data >> 16) & 0xff;
 			/* fallthrough */
