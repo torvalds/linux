@@ -333,7 +333,7 @@ void rtw_generate_random_ibss(u8 *pibss)
 
 u8 *rtw_get_capability_from_ie(u8 *ie)
 {
-	return (ie + 8 + 2);
+	return ie + 8 + 2;
 }
 
 
@@ -348,7 +348,7 @@ u16 rtw_get_capability(struct wlan_bssid_ex *bss)
 
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
 {
-	return (ie + 8);
+	return ie + 8;
 }
 
 void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
@@ -434,14 +434,14 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst, u8 fea
 	s_cap = le16_to_cpu(tmps);
 	d_cap = le16_to_cpu(tmpd);
 
-	return ((src->Ssid.SsidLength == dst->Ssid.SsidLength) &&
+	return (src->Ssid.SsidLength == dst->Ssid.SsidLength) &&
 		/* 	(src->Configuration.DSConfig == dst->Configuration.DSConfig) && */
 			((!memcmp(src->MacAddress, dst->MacAddress, ETH_ALEN))) &&
 			((!memcmp(src->Ssid.Ssid, dst->Ssid.Ssid, src->Ssid.SsidLength))) &&
 			((s_cap & WLAN_CAPABILITY_IBSS) ==
 			(d_cap & WLAN_CAPABILITY_IBSS)) &&
 			((s_cap & WLAN_CAPABILITY_BSS) ==
-			(d_cap & WLAN_CAPABILITY_BSS)));
+			(d_cap & WLAN_CAPABILITY_BSS));
 
 }
 
