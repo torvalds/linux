@@ -353,7 +353,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 	unsigned int adj_slen = slen;
 	u8 *src = p->in, *dst = p->out;
 	u16 padding = be16_to_cpu(g->padding);
-	int ret, spadding = 0, dpadding = 0;
+	int ret, spadding = 0;
 	ktime_t timeout;
 
 	if (!slen || !required_len)
@@ -413,7 +413,6 @@ usesw:
 		spadding = 0;
 		dst = p->out;
 		dlen = p->oremain;
-		dpadding = 0;
 		if (dlen < required_len) { /* have ignore bytes */
 			dst = ctx->dbounce;
 			dlen = BOUNCE_BUFFER_SIZE;

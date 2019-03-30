@@ -296,7 +296,7 @@ static int nx842_pseries_compress(const unsigned char *in, unsigned int inlen,
 	struct nx842_workmem *workmem;
 	struct nx842_scatterlist slin, slout;
 	struct nx_csbcpb *csbcpb;
-	int ret = 0, max_sync_size;
+	int ret = 0;
 	unsigned long inbuf, outbuf;
 	struct vio_pfo_op op = {
 		.done = NULL,
@@ -319,7 +319,6 @@ static int nx842_pseries_compress(const unsigned char *in, unsigned int inlen,
 		rcu_read_unlock();
 		return -ENODEV;
 	}
-	max_sync_size = local_devdata->max_sync_size;
 	dev = local_devdata->dev;
 
 	/* Init scatterlist */
@@ -427,7 +426,7 @@ static int nx842_pseries_decompress(const unsigned char *in, unsigned int inlen,
 	struct nx842_workmem *workmem;
 	struct nx842_scatterlist slin, slout;
 	struct nx_csbcpb *csbcpb;
-	int ret = 0, max_sync_size;
+	int ret = 0;
 	unsigned long inbuf, outbuf;
 	struct vio_pfo_op op = {
 		.done = NULL,
@@ -451,7 +450,6 @@ static int nx842_pseries_decompress(const unsigned char *in, unsigned int inlen,
 		rcu_read_unlock();
 		return -ENODEV;
 	}
-	max_sync_size = local_devdata->max_sync_size;
 	dev = local_devdata->dev;
 
 	workmem = PTR_ALIGN(wmem, WORKMEM_ALIGN);
