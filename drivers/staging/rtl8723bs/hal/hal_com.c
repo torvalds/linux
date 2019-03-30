@@ -1389,11 +1389,11 @@ bool IsHexDigit(char chTmp)
 u32 MapCharToHexDigit(char chTmp)
 {
 	if (chTmp >= '0' && chTmp <= '9')
-		return (chTmp - '0');
+		return chTmp - '0';
 	else if (chTmp >= 'a' && chTmp <= 'f')
-		return (10 + (chTmp - 'a'));
+		return 10 + (chTmp - 'a');
 	else if (chTmp >= 'A' && chTmp <= 'F')
-		return (10 + (chTmp - 'A'));
+		return 10 + (chTmp - 'A');
 	else
 		return 0;
 }
