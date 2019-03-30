@@ -149,6 +149,7 @@ static const struct sof_panic_msg panic_msg[] = {
 	{SOF_IPC_PANIC_STACK, "stack overflow"},
 	{SOF_IPC_PANIC_IDLE, "can't enter idle"},
 	{SOF_IPC_PANIC_WFI, "invalid wait state"},
+	{SOF_IPC_PANIC_ASSERT, "assertion failed"},
 };
 
 /*

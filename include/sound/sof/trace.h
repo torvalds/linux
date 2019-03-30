@@ -54,6 +54,7 @@ struct sof_ipc_dma_trace_posn {
 #define SOF_IPC_PANIC_STACK			(SOF_IPC_PANIC_MAGIC | 0x8)
 #define SOF_IPC_PANIC_IDLE			(SOF_IPC_PANIC_MAGIC | 0x9)
 #define SOF_IPC_PANIC_WFI			(SOF_IPC_PANIC_MAGIC | 0xa)
+#define SOF_IPC_PANIC_ASSERT			(SOF_IPC_PANIC_MAGIC | 0xb)
 
 /* panic info include filename and line number */
 struct sof_ipc_panic_info {
