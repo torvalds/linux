@@ -51,16 +51,14 @@ static inline void phydm_check_dmval_txagc(struct phy_dm_struct *dm, u32 used,
 				      (power_index << 16) | (power_index << 8) |
 				      (power_index);
 			for (i = 0; i < ODM_RATEVHTSS2MCS9; i += 4)
-				status = status &
-					  phydm_api_set_txagc(
+				status &= phydm_api_set_txagc(
 						  dm, power_index,
 						  (enum odm_rf_radio_path)
 							  dm_value[1],
 						  i, false);
 		} else if (dm->support_ic_type & ODM_RTL8197F) {
 			for (i = 0; i <= ODM_RATEMCS15; i++)
-				status = status &
-					 phydm_api_set_txagc(
+				status &= phydm_api_set_txagc(
 						  dm, power_index,
 						  (enum odm_rf_radio_path)
 							  dm_value[1],
