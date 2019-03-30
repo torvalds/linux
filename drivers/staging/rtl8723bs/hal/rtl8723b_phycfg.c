@@ -827,7 +827,7 @@ static u8 phy_GetSecondaryChnl_8723B(struct adapter *Adapter)
 	}
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("SCMapping: SC Value %x\n", ((SCSettingOf40 << 4) | SCSettingOf20)));
-	return  ((SCSettingOf40 << 4) | SCSettingOf20);
+	return  (SCSettingOf40 << 4) | SCSettingOf20;
 }
 
 static void phy_PostSetBwMode8723B(struct adapter *Adapter)
