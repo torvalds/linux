@@ -506,7 +506,7 @@ static void sprd_request_dma(struct uart_port *port)
 	sp->rx_dma.chn = dma_request_chan(port->dev, "rx");
 	if (IS_ERR(sp->rx_dma.chn)) {
 		dev_err(port->dev, "request RX DMA channel failed, ret = %ld\n",
-			PTR_ERR(sp->tx_dma.chn));
+			PTR_ERR(sp->rx_dma.chn));
 		sp->rx_dma.enable = false;
 	}
 }
