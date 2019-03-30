@@ -144,7 +144,7 @@ __cpp_flags     = $(_cpp_flags)
 # If building the kernel in a separate objtree expand all occurrences
 # of -Idir to -I$(srctree)/dir except for absolute paths (starting with '/').
 ifeq ($(KBUILD_EXTMOD),)
-ifneq ($(KBUILD_SRC),)
+ifneq ($(srctree),.)
 
 # -I$(obj) locates generated .h files
 # $(call addtree,-I$(obj)) locates .h files in srctree, from generated .c files

@@ -448,7 +448,7 @@ USERINCLUDE    := \
 LINUXINCLUDE    := \
 		-I$(srctree)/arch/$(SRCARCH)/include \
 		-I$(objtree)/arch/$(SRCARCH)/include/generated \
-		$(if $(KBUILD_SRC), -I$(srctree)/include) \
+		$(if $(filter .,$(srctree)),,-I$(srctree)/include) \
 		-I$(objtree)/include \
 		$(USERINCLUDE)
 
@@ -509,7 +509,7 @@ PHONY += outputmakefile
 # At the same time when output Makefile generated, generate .gitignore to
 # ignore whole output directory
 outputmakefile:
-ifneq ($(KBUILD_SRC),)
+ifneq ($(srctree),.)
 	$(Q)ln -fsn $(srctree) source
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile $(srctree)
 	$(Q)test -e .gitignore || \
@@ -1089,7 +1089,7 @@ PHONY += prepare archprepare prepare1 prepare3
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
 prepare3: include/config/kernel.release
-ifneq ($(KBUILD_SRC),)
+ifneq ($(srctree),.)
 	@$(kecho) '  Using $(srctree) as source for kernel'
 	$(Q)if [ -f $(srctree)/.config -o -d $(srctree)/include/config ]; then \
 		echo >&2 "  $(srctree) is not clean, please run 'make mrproper'"; \
