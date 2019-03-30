@@ -329,6 +329,10 @@ static int device_process(struct vicodec_ctx *ctx,
 			copy_cap_to_ref(p_dst, ctx->state.info, &ctx->state);
 
 		vb2_set_plane_payload(&dst_vb->vb2_buf, 0, q_dst->sizeimage);
+		if (ntohl(ctx->state.header.flags) & FWHT_FL_I_FRAME)
+			dst_vb->flags |= V4L2_BUF_FLAG_KEYFRAME;
+		else
+			dst_vb->flags |= V4L2_BUF_FLAG_PFRAME;
 	}
 	return ret;
 }
@@ -407,7 +411,6 @@ static void device_run(void *priv)
 	u32 state;
 	struct media_request *src_req;
 
-
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 	src_req = src_buf->vb2_buf.req_obj.req;
@@ -421,7 +424,7 @@ static void device_run(void *priv)
 	else
 		dst_buf->sequence = q_dst->sequence++;
 	dst_buf->flags &= ~V4L2_BUF_FLAG_LAST;
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, !ctx->is_enc);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
 
 	ctx->last_dst_buf = dst_buf;
 
