@@ -550,7 +550,7 @@ static s32 _sdio_local_read(
 	n = RND4(cnt);
 	tmpbuf = rtw_malloc(n);
 	if (!tmpbuf)
-		return (-1);
+		return -1;
 
 	err = _sd_read(intfhdl, addr, n, tmpbuf);
 	if (!err)
@@ -591,7 +591,7 @@ s32 sdio_local_read(
 	n = RND4(cnt);
 	tmpbuf = rtw_malloc(n);
 	if (!tmpbuf)
-		return (-1);
+		return -1;
 
 	err = sd_read(intfhdl, addr, n, tmpbuf);
 	if (!err)
@@ -636,7 +636,7 @@ s32 sdio_local_write(
 
 	tmpbuf = rtw_malloc(cnt);
 	if (!tmpbuf)
-		return (-1);
+		return -1;
 
 	memcpy(tmpbuf, buf, cnt);
 
