@@ -532,6 +532,7 @@ sub check_needs()
 	check_program("dot", 1);
 	check_program("convert", 1);
 	check_program("rsvg-convert", 1) if ($pdf);
+	check_program("latexmk", 1) if ($pdf);
 
 	check_distros();
 
