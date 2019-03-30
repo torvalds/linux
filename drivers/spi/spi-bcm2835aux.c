@@ -36,6 +36,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spinlock.h>
 
+/* define polling limits */
+unsigned int polling_limit_us = 30;
+module_param(polling_limit_us, uint, 0664);
+MODULE_PARM_DESC(polling_limit_us,
+		 "time in us to run a transfer in polling mode - if zero no polling is used\n");
+
 /*
  * spi register defines
  *
@@ -87,10 +93,6 @@
 #define BCM2835_AUX_SPI_STAT_RX_EMPTY	0x00000080
 #define BCM2835_AUX_SPI_STAT_BUSY	0x00000040
 #define BCM2835_AUX_SPI_STAT_BITCOUNT	0x0000003F
-
-/* timeout values */
-#define BCM2835_AUX_SPI_POLLING_LIMIT_US	30
-#define BCM2835_AUX_SPI_POLLING_JIFFIES		2
 
 struct bcm2835aux_spi {
 	void __iomem *regs;
@@ -269,8 +271,8 @@ static int bcm2835aux_spi_transfer_one_poll(struct spi_master *master,
 	bcm2835aux_wr(bs, BCM2835_AUX_SPI_CNTL1, bs->cntl[1]);
 	bcm2835aux_wr(bs, BCM2835_AUX_SPI_CNTL0, bs->cntl[0]);
 
-	/* set the timeout */
-	timeout = jiffies + BCM2835_AUX_SPI_POLLING_JIFFIES;
+	/* set the timeout to at least 2 jiffies */
+	timeout = jiffies + 2 + HZ * polling_limit_us / 1000000;
 
 	/* loop until finished the transfer */
 	while (bs->rx_len) {
@@ -299,8 +301,8 @@ static int bcm2835aux_spi_transfer_one(struct spi_master *master,
 				       struct spi_transfer *tfr)
 {
 	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
-	unsigned long spi_hz, clk_hz, speed;
-	unsigned long spi_used_hz;
+	unsigned long spi_hz, clk_hz, speed, spi_used_hz;
+	unsigned long hz_per_byte, byte_limit;
 
 	/* calculate the registers to handle
 	 *
@@ -344,14 +346,15 @@ static int bcm2835aux_spi_transfer_one(struct spi_master *master,
 	 * of Hz per byte per polling limit.  E.g., we can transfer 1 byte in
 	 * 30 µs per 300,000 Hz of bus clock.
 	 */
-#define HZ_PER_BYTE ((9 * 1000000) / BCM2835_AUX_SPI_POLLING_LIMIT_US)
+	hz_per_byte = polling_limit_us ? (9 * 1000000) / polling_limit_us : 0;
+	byte_limit = hz_per_byte ? spi_used_hz / hz_per_byte : 1;
+
 	/* run in polling mode for short transfers */
-	if (tfr->len < spi_used_hz / HZ_PER_BYTE)
+	if (tfr->len < byte_limit)
 		return bcm2835aux_spi_transfer_one_poll(master, spi, tfr);
 
 	/* run in interrupt mode for all others */
 	return bcm2835aux_spi_transfer_one_irq(master, spi, tfr);
-#undef HZ_PER_BYTE
 }
 
 static int bcm2835aux_spi_prepare_message(struct spi_master *master,
