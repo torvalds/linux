@@ -58,7 +58,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
 */
 u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
-	u32 ReturnValue = 0, OriginalValue, BitShift;
+	u32 OriginalValue, BitShift;
 
 #if (DISABLE_BB_RF == 1)
 	return 0;
@@ -68,9 +68,8 @@ u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 
 	OriginalValue = rtw_read32(Adapter, RegAddr);
 	BitShift = phy_CalculateBitShift(BitMask);
-	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 
-	return ReturnValue;
+	return (OriginalValue & BitMask) >> BitShift;
 
 }
 
@@ -284,18 +283,16 @@ u32 PHY_QueryRFReg_8723B(
 	u32 BitMask
 )
 {
-	u32 Original_Value, Readback_Value, BitShift;
+	u32 Original_Value, BitShift;
 
 #if (DISABLE_BB_RF == 1)
 	return 0;
 #endif
 
 	Original_Value = phy_RFSerialRead_8723B(Adapter, eRFPath, RegAddr);
-
 	BitShift =  phy_CalculateBitShift(BitMask);
-	Readback_Value = (Original_Value & BitMask) >> BitShift;
 
-	return Readback_Value;
+	return (Original_Value & BitMask) >> BitShift;
 }
 
 /**
