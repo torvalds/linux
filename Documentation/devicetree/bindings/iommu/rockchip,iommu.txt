@@ -24,6 +24,10 @@ Optional properties:
 - rockchip,disable-mmu-reset : Don't use the mmu reset operation.
 			       Some mmu instances may produce unexpected results
 			       when the reset operation is used.
+- rk_iommu,disable_reset_quirk  : Same with above, for compatible with previous code
+
+- rockchip,skip-mmu-read       : Some iommu instances are not able to be read, skip
+				 reading operation to make iommu work as normal
 
 Example:
 
