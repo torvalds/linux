@@ -5,8 +5,6 @@
 #define __ASM_CSKY_REGDEF_H
 
 #define syscallid	r7
-#define r11_sig		r11
-
 #define regs_syscallid(regs) regs->regs[3]
 
 /*

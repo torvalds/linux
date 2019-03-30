@@ -99,7 +99,6 @@ ENTRY(csky_\name)
 	mov     a0, sp
 	movi    a1, \is_write
 	jbsr    do_page_fault
-	movi    r11_sig, 0             /* r11 = 0, Not a syscall. */
 	jmpi    ret_from_exception
 .endm
 
@@ -189,7 +188,6 @@ ENTRY(ret_from_fork)
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 	ldw	r8, (r9, TINFO_FLAGS)
-	movi	r11_sig, 1
 	ANDI_R3	r8, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
 	cmpnei	r8, 0
 	bf	3f
@@ -224,12 +222,8 @@ exit_work:
 	/* If thread_info->flag is empty, RESTORE_ALL */
 	cmpnei	r8, 0
 	bf	1b
-	mov	a1, sp
 	mov	a0, r8
-	mov	a2, r11_sig		/* syscall? */
-	btsti	r8, TIF_SIGPENDING	/* delivering a signal? */
-	/* prevent further restarts(set r11 = 0) */
-	clrt	r11_sig
+	mov	a1, sp
 	jbsr	do_notify_resume	/* do signals */
 	br	resume_userspace
 
@@ -239,13 +233,11 @@ work_resched:
 	jmpi	schedule
 
 ENTRY(sys_rt_sigreturn)
-	movi	r11_sig, 0
 	jmpi	do_rt_sigreturn
 
 ENTRY(csky_trap)
 	SAVE_ALL EPC_KEEP
 	psrset	ee
-	movi	r11_sig, 0             /* r11 = 0, Not a syscall. */
 	mov	a0, sp                 /* Push Stack pointer arg */
 	jbsr	trap_c                 /* Call C-level trap handler */
 	jmpi	ret_from_exception
@@ -279,7 +271,6 @@ ENTRY(csky_get_tls)
 ENTRY(csky_irq)
 	SAVE_ALL EPC_KEEP
 	psrset	ee
-	movi	r11_sig, 0		/* r11 = 0, Not a syscall. */
 
 #ifdef CONFIG_PREEMPT
 	mov	r9, sp			/* Get current stack  pointer */
