@@ -481,6 +481,7 @@ skl_wa_827(struct drm_i915_private *dev_priv, int pipe, bool enable)
 {
 	if (enable)
 		I915_WRITE(CLKGATE_DIS_PSL(pipe),
+			   I915_READ(CLKGATE_DIS_PSL(pipe)) |
 			   DUPS1_GATING_DIS | DUPS2_GATING_DIS);
 	else
 		I915_WRITE(CLKGATE_DIS_PSL(pipe),
