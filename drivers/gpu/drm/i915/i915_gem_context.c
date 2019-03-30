@@ -969,10 +969,10 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915,
 	return 0;
 }
 
-static int get_ppgtt(struct i915_gem_context *ctx,
+static int get_ppgtt(struct drm_i915_file_private *file_priv,
+		     struct i915_gem_context *ctx,
 		     struct drm_i915_gem_context_param *args)
 {
-	struct drm_i915_file_private *file_priv = ctx->file_priv;
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
 
@@ -1071,10 +1071,10 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 	return 0;
 }
 
-static int set_ppgtt(struct i915_gem_context *ctx,
+static int set_ppgtt(struct drm_i915_file_private *file_priv,
+		     struct i915_gem_context *ctx,
 		     struct drm_i915_gem_context_param *args)
 {
-	struct drm_i915_file_private *file_priv = ctx->file_priv;
 	struct i915_hw_ppgtt *ppgtt, *old;
 	int err;
 
@@ -1416,7 +1416,8 @@ static int set_sseu(struct i915_gem_context *ctx,
 	return 0;
 }
 
-static int ctx_setparam(struct i915_gem_context *ctx,
+static int ctx_setparam(struct drm_i915_file_private *fpriv,
+			struct i915_gem_context *ctx,
 			struct drm_i915_gem_context_param *args)
 {
 	int ret = 0;
@@ -1485,7 +1486,7 @@ static int ctx_setparam(struct i915_gem_context *ctx,
 		break;
 
 	case I915_CONTEXT_PARAM_VM:
-		ret = set_ppgtt(ctx, args);
+		ret = set_ppgtt(fpriv, ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
@@ -1513,7 +1514,7 @@ static int create_setparam(struct i915_user_extension __user *ext, void *data)
 	if (local.param.ctx_id)
 		return -EINVAL;
 
-	return ctx_setparam(arg->ctx, &local.param);
+	return ctx_setparam(arg->fpriv, arg->ctx, &local.param);
 }
 
 static const i915_user_extension_fn create_extensions[] = {
@@ -1712,7 +1713,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 
 	case I915_CONTEXT_PARAM_VM:
-		ret = get_ppgtt(ctx, args);
+		ret = get_ppgtt(file_priv, ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
@@ -1737,7 +1738,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 	if (!ctx)
 		return -ENOENT;
 
-	ret = ctx_setparam(ctx, args);
+	ret = ctx_setparam(file_priv, ctx, args);
 
 	i915_gem_context_put(ctx);
 	return ret;
