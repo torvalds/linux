@@ -5460,7 +5460,7 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 	tp->cp_cmd |= PktCntrDisable | INTT_1;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
-	RTL_W16(tp, IntrMitigate, 0x5151);
+	RTL_W16(tp, IntrMitigate, 0x5100);
 
 	/* Work around for RxFIFO overflow. */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
