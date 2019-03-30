@@ -361,7 +361,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
 		bch_verbose(c, "starting mark and sweep:");
 		err = "error in recovery";
-		ret = bch2_gc(c, &journal, true);
+		ret = bch2_gc(c, &journal, true, false);
 		if (ret)
 			goto err;
 		bch_verbose(c, "mark and sweep done");

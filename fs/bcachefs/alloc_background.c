@@ -292,8 +292,7 @@ int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
 	}
 
 	percpu_down_write(&c->mark_lock);
-	for_each_member_device(ca, c, i)
-		bch2_dev_usage_from_buckets(c, ca);
+	bch2_dev_usage_from_buckets(c);
 	percpu_up_write(&c->mark_lock);
 
 	mutex_lock(&c->bucket_clock[READ].lock);

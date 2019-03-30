@@ -497,7 +497,7 @@ STORE(__bch2_fs)
 		bch2_coalesce(c);
 
 	if (attr == &sysfs_trigger_gc)
-		bch2_gc(c, NULL, false);
+		bch2_gc(c, NULL, false, false);
 
 	if (attr == &sysfs_trigger_alloc_write) {
 		bool wrote;

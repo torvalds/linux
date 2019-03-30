@@ -132,6 +132,8 @@ void bch2_fs_usage_initialize(struct bch_fs *c)
 
 		switch (e->data_type) {
 		case BCH_DATA_BTREE:
+			usage->btree	+= usage->replicas[i];
+			break;
 		case BCH_DATA_USER:
 			usage->data	+= usage->replicas[i];
 			break;
@@ -226,6 +228,7 @@ static u64 avail_factor(u64 r)
 u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage *fs_usage)
 {
 	return min(fs_usage->hidden +
+		   fs_usage->btree +
 		   fs_usage->data +
 		   reserve_factor(fs_usage->reserved +
 				  fs_usage->online_reserved),
@@ -241,7 +244,8 @@ __bch2_fs_usage_read_short(struct bch_fs *c)
 	ret.capacity = c->capacity -
 		percpu_u64_get(&c->usage[0]->hidden);
 
-	data		= percpu_u64_get(&c->usage[0]->data);
+	data		= percpu_u64_get(&c->usage[0]->data) +
+			  percpu_u64_get(&c->usage[0]->btree);
 	reserved	= percpu_u64_get(&c->usage[0]->reserved) +
 		percpu_u64_get(&c->usage[0]->online_reserved);
 
@@ -386,12 +390,17 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 		bch2_wake_allocator(ca);
 }
 
-void bch2_dev_usage_from_buckets(struct bch_fs *c, struct bch_dev *ca)
+void bch2_dev_usage_from_buckets(struct bch_fs *c)
 {
+	struct bch_dev *ca;
 	struct bucket_mark old = { .v.counter = 0 };
 	struct bch_fs_usage *fs_usage;
 	struct bucket_array *buckets;
 	struct bucket *g;
+	unsigned i;
+	int cpu;
+
+	percpu_u64_set(&c->usage[0]->hidden, 0);
 
 	/*
 	 * This is only called during startup, before there's any multithreaded
@@ -401,11 +410,17 @@ void bch2_dev_usage_from_buckets(struct bch_fs *c, struct bch_dev *ca)
 	fs_usage = this_cpu_ptr(c->usage[0]);
 	preempt_enable();
 
-	buckets = bucket_array(ca);
+	for_each_member_device(ca, c, i) {
+		for_each_possible_cpu(cpu)
+			memset(per_cpu_ptr(ca->usage[0], cpu), 0,
+			       sizeof(*ca->usage[0]));
 
-	for_each_bucket(g, buckets)
-		if (g->mark.data_type)
-			bch2_dev_usage_update(c, ca, fs_usage, old, g->mark, false);
+		buckets = bucket_array(ca);
+
+		for_each_bucket(g, buckets)
+			bch2_dev_usage_update(c, ca, fs_usage,
+					      old, g->mark, false);
+	}
 }
 
 #define bucket_data_cmpxchg(c, ca, fs_usage, g, new, expr)	\
@@ -426,10 +441,17 @@ static inline void update_replicas(struct bch_fs *c,
 	BUG_ON(idx < 0);
 	BUG_ON(!sectors);
 
-	if (r->data_type == BCH_DATA_CACHED)
-		fs_usage->cached	+= sectors;
-	else
+	switch (r->data_type) {
+	case BCH_DATA_BTREE:
+		fs_usage->btree		+= sectors;
+		break;
+	case BCH_DATA_USER:
 		fs_usage->data		+= sectors;
+		break;
+	case BCH_DATA_CACHED:
+		fs_usage->cached	+= sectors;
+		break;
+	}
 	fs_usage->replicas[idx]		+= sectors;
 }
 
