@@ -477,7 +477,7 @@ static const struct intel_limit intel_limits_bxt = {
 };
 
 static void
-skl_wa_clkgate(struct drm_i915_private *dev_priv, int pipe, bool enable)
+skl_wa_827(struct drm_i915_private *dev_priv, int pipe, bool enable)
 {
 	if (enable)
 		I915_WRITE(CLKGATE_DIS_PSL(pipe),
@@ -5540,7 +5540,7 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	/* Display WA 827 */
 	if (needs_nv12_wa(dev_priv, old_crtc_state) &&
 	    !needs_nv12_wa(dev_priv, pipe_config)) {
-		skl_wa_clkgate(dev_priv, crtc->pipe, false);
+		skl_wa_827(dev_priv, crtc->pipe, false);
 	}
 }
 
@@ -5579,7 +5579,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	/* Display WA 827 */
 	if (!needs_nv12_wa(dev_priv, old_crtc_state) &&
 	    needs_nv12_wa(dev_priv, pipe_config)) {
-		skl_wa_clkgate(dev_priv, crtc->pipe, true);
+		skl_wa_827(dev_priv, crtc->pipe, true);
 	}
 
 	/*
