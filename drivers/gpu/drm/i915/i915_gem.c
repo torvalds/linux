@@ -308,7 +308,7 @@ static void __start_cpu_write(struct drm_i915_gem_object *obj)
 		obj->cache_dirty = true;
 }
 
-static void
+void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
 				bool needs_clflush)
@@ -2202,7 +2202,6 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	struct page *page;
 
 	__i915_gem_object_release_shmem(obj, pages, true);
-
 	i915_gem_gtt_finish_pages(obj, pages);
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
