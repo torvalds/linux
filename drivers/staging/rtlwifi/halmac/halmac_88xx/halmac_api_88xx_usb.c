@@ -192,7 +192,6 @@ halmac_cfg_rx_aggregation_88xx_usb(struct halmac_adapter *halmac_adapter,
 u8 halmac_reg_read_8_usb_88xx(struct halmac_adapter *halmac_adapter,
 			      u32 halmac_offset)
 {
-	u8 value8;
 	void *driver_adapter = NULL;
 	struct halmac_api *halmac_api;
 
@@ -205,9 +204,7 @@ u8 halmac_reg_read_8_usb_88xx(struct halmac_adapter *halmac_adapter,
 	driver_adapter = halmac_adapter->driver_adapter;
 	halmac_api = (struct halmac_api *)halmac_adapter->halmac_api;
 
-	value8 = PLATFORM_REG_READ_8(driver_adapter, halmac_offset);
-
-	return value8;
+	return PLATFORM_REG_READ_8(driver_adapter, halmac_offset);
 }
 
 /**
