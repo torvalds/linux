@@ -58,4 +58,3 @@
 #define mmCPU_CA53_CFG_ARM_PMU_1                                     0x441214
 
 #endif /* ASIC_REG_CPU_CA53_CFG_REGS_H_ */
-
