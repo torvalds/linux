@@ -1180,12 +1180,8 @@ unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz)
 
 unsigned int update_MSC_rate(struct ieee80211_ht_cap *pHT_caps)
 {
-	unsigned int mask = 0;
-
-	mask = (pHT_caps->mcs.rx_mask[0] << 12) |
+	return (pHT_caps->mcs.rx_mask[0] << 12) |
 	       (pHT_caps->mcs.rx_mask[1] << 20);
-
-	return mask;
 }
 
 int support_short_GI(struct adapter *padapter, struct ieee80211_ht_cap *pHT_caps)
