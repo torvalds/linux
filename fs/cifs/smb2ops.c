@@ -733,14 +733,12 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	qi_rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
 	if (le32_to_cpu(qi_rsp->OutputBufferLength) < sizeof(struct smb2_file_all_info))
 		goto oshr_exit;
-	rc = smb2_validate_and_copy_iov(
+	if (!smb2_validate_and_copy_iov(
 				le16_to_cpu(qi_rsp->OutputBufferOffset),
 				sizeof(struct smb2_file_all_info),
 				&rsp_iov[1], sizeof(struct smb2_file_all_info),
-				(char *)&tcon->crfid.file_all_info);
-	if (rc)
-		goto oshr_exit;
-	tcon->crfid.file_all_info_is_valid = 1;
+				(char *)&tcon->crfid.file_all_info))
+		tcon->crfid.file_all_info_is_valid = 1;
 
  oshr_exit:
 	mutex_unlock(&tcon->crfid.fid_mutex);
