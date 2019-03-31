@@ -1563,8 +1563,8 @@ static void wake_nocb_gp(struct rcu_data *rdp, bool force)
  * Arrange to wake the GP kthread for this NOCB group at some future
  * time when it is safe to do so.
  */
-static void wake_nocb_leader_defer(struct rcu_data *rdp, int waketype,
-				   const char *reason)
+static void wake_nocb_gp_defer(struct rcu_data *rdp, int waketype,
+			       const char *reason)
 {
 	unsigned long flags;
 
@@ -1660,8 +1660,8 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu,
 					    TPS("WakeEmpty"));
 		} else {
-			wake_nocb_leader_defer(rdp, RCU_NOCB_WAKE,
-					       TPS("WakeEmptyIsDeferred"));
+			wake_nocb_gp_defer(rdp, RCU_NOCB_WAKE,
+					   TPS("WakeEmptyIsDeferred"));
 		}
 		rdp->qlen_last_fqs_check = 0;
 	} else if (len > rdp->qlen_last_fqs_check + qhimark) {
@@ -1671,8 +1671,8 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu,
 					    TPS("WakeOvf"));
 		} else {
-			wake_nocb_leader_defer(rdp, RCU_NOCB_WAKE_FORCE,
-					       TPS("WakeOvfIsDeferred"));
+			wake_nocb_gp_defer(rdp, RCU_NOCB_WAKE_FORCE,
+					   TPS("WakeOvfIsDeferred"));
 		}
 		rdp->qlen_last_fqs_check = LONG_MAX / 2;
 	} else {
