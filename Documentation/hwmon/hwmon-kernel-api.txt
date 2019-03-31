@@ -207,6 +207,19 @@ static const struct hwmon_channel_info *lm75_info[] = {
 	NULL
 };
 
+The HWMON_CHANNEL_INFO() macro can and should be used when possible.
+With this macro, the above example can be simplified to
+
+static const struct hwmon_channel_info *lm75_info[] = {
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
+	NULL
+};
+
+The remaining declarations are as follows.
+
 static const struct hwmon_ops lm75_hwmon_ops = {
 	.is_visible = lm75_is_visible,
 	.read = lm75_read,
