@@ -133,7 +133,6 @@ platform_reg_read_8_sdio(void *driver_adapter,
 			 struct halmac_platform_api *halmac_platform_api,
 			 u32 offset)
 {
-	u8 value8;
 	u32 halmac_offset = offset;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
@@ -146,10 +145,8 @@ platform_reg_read_8_sdio(void *driver_adapter,
 		return status;
 	}
 
-	value8 = halmac_platform_api->SDIO_CMD52_READ(driver_adapter,
-						      halmac_offset);
-
-	return value8;
+	return halmac_platform_api->SDIO_CMD52_READ(driver_adapter,
+						    halmac_offset);
 }
 
 static enum halmac_ret_status
