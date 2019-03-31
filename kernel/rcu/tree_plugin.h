@@ -1524,24 +1524,24 @@ bool rcu_is_nocb_cpu(int cpu)
  * Kick the GP kthread for this NOCB group.  Caller holds ->nocb_lock
  * and this function releases it.
  */
-static void __wake_nocb_leader(struct rcu_data *rdp, bool force,
-			       unsigned long flags)
+static void __wake_nocb_gp(struct rcu_data *rdp, bool force,
+			   unsigned long flags)
 	__releases(rdp->nocb_lock)
 {
-	struct rcu_data *rdp_leader = rdp->nocb_gp_rdp;
+	struct rcu_data *rdp_gp = rdp->nocb_gp_rdp;
 
 	lockdep_assert_held(&rdp->nocb_lock);
-	if (!READ_ONCE(rdp_leader->nocb_gp_kthread)) {
+	if (!READ_ONCE(rdp_gp->nocb_gp_kthread)) {
 		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 		return;
 	}
-	if (rdp_leader->nocb_gp_sleep || force) {
+	if (rdp_gp->nocb_gp_sleep || force) {
 		/* Prior smp_mb__after_atomic() orders against prior enqueue. */
-		WRITE_ONCE(rdp_leader->nocb_gp_sleep, false);
+		WRITE_ONCE(rdp_gp->nocb_gp_sleep, false);
 		del_timer(&rdp->nocb_timer);
 		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 		smp_mb(); /* ->nocb_gp_sleep before swake_up_one(). */
-		swake_up_one(&rdp_leader->nocb_gp_wq);
+		swake_up_one(&rdp_gp->nocb_gp_wq);
 	} else {
 		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 	}
@@ -1556,7 +1556,7 @@ static void wake_nocb_gp(struct rcu_data *rdp, bool force)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
-	__wake_nocb_leader(rdp, force, flags);
+	__wake_nocb_gp(rdp, force, flags);
 }
 
 /*
@@ -1988,7 +1988,7 @@ static void do_nocb_deferred_wakeup_common(struct rcu_data *rdp)
 	}
 	ndw = READ_ONCE(rdp->nocb_defer_wakeup);
 	WRITE_ONCE(rdp->nocb_defer_wakeup, RCU_NOCB_WAKE_NOT);
-	__wake_nocb_leader(rdp, ndw == RCU_NOCB_WAKE_FORCE, flags);
+	__wake_nocb_gp(rdp, ndw == RCU_NOCB_WAKE_FORCE, flags);
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("DeferredWake"));
 }
 
