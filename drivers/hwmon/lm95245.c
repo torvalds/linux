@@ -545,32 +545,16 @@ static const struct regmap_config lm95245_regmap_config = {
 	.use_single_write = true,
 };
 
-static const u32 lm95245_chip_config[] = {
-	HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info lm95245_chip = {
-	.type = hwmon_chip,
-	.config = lm95245_chip_config,
-};
-
-static const u32 lm95245_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_CRIT_ALARM,
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST | HWMON_T_CRIT |
-		HWMON_T_CRIT_HYST | HWMON_T_FAULT | HWMON_T_MAX_ALARM |
-		HWMON_T_CRIT_ALARM | HWMON_T_TYPE | HWMON_T_OFFSET,
-	0
-};
-
-static const struct hwmon_channel_info lm95245_temp = {
-	.type = hwmon_temp,
-	.config = lm95245_temp_config,
-};
-
 static const struct hwmon_channel_info *lm95245_info[] = {
-	&lm95245_chip,
-	&lm95245_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_CRIT_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_FAULT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_TYPE | HWMON_T_OFFSET),
 	NULL
 };
 
