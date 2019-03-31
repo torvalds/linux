@@ -456,7 +456,6 @@ static u32 halbtc_get_wifi_link_status(struct btc_coexist *btcoexist)
 	 */
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	struct rtl_mac *mac = rtl_mac(rtlpriv);
-	u32 ret_val = 0;
 	u32 port_connected_status = 0, num_of_connected_port = 0;
 
 	if (mac->opmode == NL80211_IFTYPE_STATION &&
@@ -471,9 +470,7 @@ static u32 halbtc_get_wifi_link_status(struct btc_coexist *btcoexist)
 	}
 	/* TODO: P2P Connected Status */
 
-	ret_val = (num_of_connected_port << 16) | port_connected_status;
-
-	return ret_val;
+	return (num_of_connected_port << 16) | port_connected_status;
 }
 
 static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
