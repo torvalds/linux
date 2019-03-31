@@ -165,7 +165,6 @@ halmac_cfg_rx_aggregation_88xx_sdio(struct halmac_adapter *halmac_adapter,
 u8 halmac_reg_read_8_sdio_88xx(struct halmac_adapter *halmac_adapter,
 			       u32 halmac_offset)
 {
-	u8 value8;
 	void *driver_adapter = NULL;
 	struct halmac_api *halmac_api;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
@@ -190,9 +189,7 @@ u8 halmac_reg_read_8_sdio_88xx(struct halmac_adapter *halmac_adapter,
 		return status;
 	}
 
-	value8 = PLATFORM_SDIO_CMD52_READ(driver_adapter, halmac_offset);
-
-	return value8;
+	return PLATFORM_SDIO_CMD52_READ(driver_adapter, halmac_offset);
 }
 
 /**
