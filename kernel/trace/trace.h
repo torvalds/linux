@@ -1884,6 +1884,10 @@ extern ssize_t trace_parse_run_command(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos,
 		int (*createfn)(int, char**));
 
+extern unsigned int err_pos(char *cmd, const char *str);
+extern void tracing_log_err(const char *loc, const char *cmd,
+			    const char **errs, u8 type, u8 pos);
+
 /*
  * Normal trace_printk() and friends allocates special buffers
  * to do the manipulation, as well as saves the print formats
