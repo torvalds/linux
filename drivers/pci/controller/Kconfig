@@ -220,7 +220,7 @@ config PCIE_ROCKCHIP_HOST
 
 config ROCKCHIP_PCIE_DMA_OBJ
 	bool "Rockchip PCIe uDMA transfer support"
-	depends on PCIE_ROCKCHIP_HOST
+	depends on PCIE_ROCKCHIP_HOST || PCIE_DW_ROCKCHIP
 	default n
 	help
 	  Say y to enable p2p DMA transfer between PCIe components.
