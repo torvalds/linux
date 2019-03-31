@@ -996,7 +996,7 @@ static void streebog_add512(const struct streebog_uint512 *x,
 
 static void streebog_g(struct streebog_uint512 *h,
 		       const struct streebog_uint512 *N,
-		       const u8 *m)
+		       const struct streebog_uint512 *m)
 {
 	struct streebog_uint512 Ki, data;
 	unsigned int i;
@@ -1005,7 +1005,7 @@ static void streebog_g(struct streebog_uint512 *h,
 
 	/* Starting E() */
 	Ki = data;
-	streebog_xlps(&Ki, (const struct streebog_uint512 *)&m[0], &data);
+	streebog_xlps(&Ki, m, &data);
 
 	for (i = 0; i < 11; i++)
 		streebog_round(i, &Ki, &data);
@@ -1015,16 +1015,19 @@ static void streebog_g(struct streebog_uint512 *h,
 	/* E() done */
 
 	streebog_xor(&data, h, &data);
-	streebog_xor(&data, (const struct streebog_uint512 *)&m[0], h);
+	streebog_xor(&data, m, h);
 }
 
 static void streebog_stage2(struct streebog_state *ctx, const u8 *data)
 {
-	streebog_g(&ctx->h, &ctx->N, data);
+	struct streebog_uint512 m;
+
+	memcpy(&m, data, sizeof(m));
+
+	streebog_g(&ctx->h, &ctx->N, &m);
 
 	streebog_add512(&ctx->N, &buffer512, &ctx->N);
-	streebog_add512(&ctx->Sigma, (const struct streebog_uint512 *)data,
-			&ctx->Sigma);
+	streebog_add512(&ctx->Sigma, &m, &ctx->Sigma);
 }
 
 static void streebog_stage3(struct streebog_state *ctx)
@@ -1034,13 +1037,11 @@ static void streebog_stage3(struct streebog_state *ctx)
 	buf.qword[0] = cpu_to_le64(ctx->fillsize << 3);
 	streebog_pad(ctx);
 
-	streebog_g(&ctx->h, &ctx->N, (const u8 *)&ctx->buffer);
+	streebog_g(&ctx->h, &ctx->N, &ctx->m);
 	streebog_add512(&ctx->N, &buf, &ctx->N);
-	streebog_add512(&ctx->Sigma,
-			(const struct streebog_uint512 *)&ctx->buffer[0],
-			&ctx->Sigma);
-	streebog_g(&ctx->h, &buffer0, (const u8 *)&ctx->N);
-	streebog_g(&ctx->h, &buffer0, (const u8 *)&ctx->Sigma);
+	streebog_add512(&ctx->Sigma, &ctx->m, &ctx->Sigma);
+	streebog_g(&ctx->h, &buffer0, &ctx->N);
+	streebog_g(&ctx->h, &buffer0, &ctx->Sigma);
 	memcpy(&ctx->hash, &ctx->h, sizeof(struct streebog_uint512));
 }
 
