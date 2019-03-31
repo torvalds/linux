@@ -1106,6 +1106,6 @@ struct hns_roce_v1_priv {
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
 int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int hns_roce_v1_destroy_qp(struct ib_qp *ibqp);
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
 #endif

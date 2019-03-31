@@ -439,7 +439,7 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	ib_dealloc_pd(pd);
+	ib_dealloc_pd_user(pd, &attrs->driver_udata);
 	pd = NULL;
 err_alloc:
 	kfree(pd);
@@ -643,7 +643,7 @@ err_copy:
 	}
 
 err_dealloc_xrcd:
-	ib_dealloc_xrcd(xrcd);
+	ib_dealloc_xrcd(xrcd, &attrs->driver_udata);
 
 err:
 	uobj_alloc_abort(&obj->uobject, attrs);
@@ -669,9 +669,8 @@ static int ib_uverbs_close_xrcd(struct uverbs_attr_bundle *attrs)
 	return uobj_perform_destroy(UVERBS_OBJECT_XRCD, cmd.xrcd_handle, attrs);
 }
 
-int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject,
-			   struct ib_xrcd *xrcd,
-			   enum rdma_remove_reason why)
+int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
+			   enum rdma_remove_reason why, struct ib_udata *udata)
 {
 	struct inode *inode;
 	int ret;
@@ -681,7 +680,7 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject,
 	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
 		return 0;
 
-	ret = ib_dealloc_xrcd(xrcd);
+	ret = ib_dealloc_xrcd(xrcd, udata);
 
 	if (ib_is_destroy_retryable(ret, why, uobject)) {
 		atomic_inc(&xrcd->usecnt);
@@ -766,7 +765,7 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	ib_dereg_mr(mr);
+	ib_dereg_mr_user(mr, &attrs->driver_udata);
 
 err_put:
 	uobj_put_obj_read(pd);
@@ -2965,7 +2964,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_copy:
-	ib_destroy_wq(wq);
+	ib_destroy_wq(wq, &attrs->driver_udata);
 err_put_cq:
 	uobj_put_obj_read(cq);
 err_put_pd:
@@ -3461,7 +3460,7 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_copy:
-	ib_destroy_srq(srq);
+	ib_destroy_srq_user(srq, &attrs->driver_udata);
 
 err_put:
 	uobj_put_obj_read(pd);

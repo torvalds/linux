@@ -43,8 +43,9 @@ static int uverbs_free_ah(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why,
 			  struct uverbs_attr_bundle *attrs)
 {
-	return rdma_destroy_ah((struct ib_ah *)uobject->object,
-			       RDMA_DESTROY_AH_SLEEPABLE);
+	return rdma_destroy_ah_user((struct ib_ah *)uobject->object,
+				    RDMA_DESTROY_AH_SLEEPABLE,
+				    &attrs->driver_udata);
 }
 
 static int uverbs_free_flow(struct ib_uobject *uobject,
@@ -97,7 +98,7 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 		ib_uverbs_detach_umcast(qp, uqp);
 	}
 
-	ret = ib_destroy_qp(qp);
+	ret = ib_destroy_qp_user(qp, &attrs->driver_udata);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
@@ -133,7 +134,7 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 		container_of(uobject, struct ib_uwq_object, uevent.uobject);
 	int ret;
 
-	ret = ib_destroy_wq(wq);
+	ret = ib_destroy_wq(wq, &attrs->driver_udata);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
@@ -151,7 +152,7 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 	enum ib_srq_type  srq_type = srq->srq_type;
 	int ret;
 
-	ret = ib_destroy_srq(srq);
+	ret = ib_destroy_srq_user(srq, &attrs->driver_udata);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
@@ -180,7 +181,7 @@ static int uverbs_free_xrcd(struct ib_uobject *uobject,
 		return ret;
 
 	mutex_lock(&uobject->context->ufile->device->xrcd_tree_mutex);
-	ret = ib_uverbs_dealloc_xrcd(uobject, xrcd, why);
+	ret = ib_uverbs_dealloc_xrcd(uobject, xrcd, why, &attrs->driver_udata);
 	mutex_unlock(&uobject->context->ufile->device->xrcd_tree_mutex);
 
 	return ret;
@@ -197,7 +198,7 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	ib_dealloc_pd(pd);
+	ib_dealloc_pd_user(pd, &attrs->driver_udata);
 	return 0;
 }
 

@@ -71,14 +71,14 @@ int ocrdma_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 
 int ocrdma_alloc_pd(struct ib_pd *pd, struct ib_ucontext *uctx,
 		    struct ib_udata *udata);
-void ocrdma_dealloc_pd(struct ib_pd *pd);
+void ocrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
 struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 			       const struct ib_cq_init_attr *attr,
 			       struct ib_ucontext *ib_ctx,
 			       struct ib_udata *udata);
 int ocrdma_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
-int ocrdma_destroy_cq(struct ib_cq *);
+int ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 
 struct ib_qp *ocrdma_create_qp(struct ib_pd *,
 			       struct ib_qp_init_attr *attrs,
@@ -90,7 +90,7 @@ int ocrdma_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
 int ocrdma_query_qp(struct ib_qp *,
 		    struct ib_qp_attr *qp_attr,
 		    int qp_attr_mask, struct ib_qp_init_attr *);
-int ocrdma_destroy_qp(struct ib_qp *);
+int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 void ocrdma_del_flush_qp(struct ocrdma_qp *qp);
 
 struct ib_srq *ocrdma_create_srq(struct ib_pd *, struct ib_srq_init_attr *,
@@ -98,17 +98,16 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *, struct ib_srq_init_attr *,
 int ocrdma_modify_srq(struct ib_srq *, struct ib_srq_attr *,
 		      enum ib_srq_attr_mask, struct ib_udata *);
 int ocrdma_query_srq(struct ib_srq *, struct ib_srq_attr *);
-int ocrdma_destroy_srq(struct ib_srq *);
+int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int ocrdma_post_srq_recv(struct ib_srq *, const struct ib_recv_wr *,
 			 const struct ib_recv_wr **bad_recv_wr);
 
-int ocrdma_dereg_mr(struct ib_mr *);
+int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *, int acc);
 struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *, u64 start, u64 length,
 				 u64 virt, int acc, struct ib_udata *);
-struct ib_mr *ocrdma_alloc_mr(struct ib_pd *pd,
-			      enum ib_mr_type mr_type,
-			      u32 max_num_sg);
+struct ib_mr *ocrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			      u32 max_num_sg, struct ib_udata *udata);
 int ocrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		     unsigned int *sg_offset);
 

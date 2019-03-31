@@ -478,7 +478,7 @@ int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 	return 0;
 }
 
-void qedr_dealloc_pd(struct ib_pd *ibpd)
+void qedr_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
@@ -962,7 +962,7 @@ int qedr_resize_cq(struct ib_cq *ibcq, int new_cnt, struct ib_udata *udata)
 #define QEDR_DESTROY_CQ_MAX_ITERATIONS		(10)
 #define QEDR_DESTROY_CQ_ITER_DURATION		(10)
 
-int qedr_destroy_cq(struct ib_cq *ibcq)
+int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibcq->device);
 	struct qed_rdma_destroy_cq_out_params oparams;
@@ -1485,7 +1485,7 @@ err0:
 	return ERR_PTR(-EFAULT);
 }
 
-int qedr_destroy_srq(struct ib_srq *ibsrq)
+int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct qed_rdma_destroy_srq_in_params in_params = {};
 	struct qedr_dev *dev = get_qedr_dev(ibsrq->device);
@@ -2488,7 +2488,7 @@ static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
 	return 0;
 }
 
-int qedr_destroy_qp(struct ib_qp *ibqp)
+int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	struct qedr_dev *dev = qp->dev;
@@ -2556,7 +2556,7 @@ struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	return &ah->ibah;
 }
 
-int qedr_destroy_ah(struct ib_ah *ibah, u32 flags)
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags, struct ib_udata *udata)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 
@@ -2711,7 +2711,7 @@ err0:
 	return ERR_PTR(rc);
 }
 
-int qedr_dereg_mr(struct ib_mr *ib_mr)
+int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct qedr_mr *mr = get_qedr_mr(ib_mr);
 	struct qedr_dev *dev = get_qedr_dev(ib_mr->device);
@@ -2803,8 +2803,8 @@ err0:
 	return ERR_PTR(rc);
 }
 
-struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd,
-			    enum ib_mr_type mr_type, u32 max_num_sg)
+struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
+			    u32 max_num_sg, struct ib_udata *udata)
 {
 	struct qedr_mr *mr;
 

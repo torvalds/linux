@@ -88,7 +88,7 @@ static int iwch_alloc_ucontext(struct ib_ucontext *ucontext,
 	return 0;
 }
 
-static int iwch_destroy_cq(struct ib_cq *ib_cq)
+static int iwch_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct iwch_cq *chp;
 
@@ -175,7 +175,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 
 		mm = kmalloc(sizeof *mm, GFP_KERNEL);
 		if (!mm) {
-			iwch_destroy_cq(&chp->ibcq);
+			iwch_destroy_cq(&chp->ibcq, udata);
 			return ERR_PTR(-ENOMEM);
 		}
 		uresp.cqid = chp->cq.cqid;
@@ -201,7 +201,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		}
 		if (ib_copy_to_udata(udata, &uresp, resplen)) {
 			kfree(mm);
-			iwch_destroy_cq(&chp->ibcq);
+			iwch_destroy_cq(&chp->ibcq, udata);
 			return ERR_PTR(-EFAULT);
 		}
 		insert_mmap(ucontext, mm);
@@ -367,7 +367,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static void iwch_deallocate_pd(struct ib_pd *pd)
+static void iwch_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -398,7 +398,7 @@ static int iwch_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 		struct iwch_alloc_pd_resp resp = {.pdid = php->pdid};
 
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
-			iwch_deallocate_pd(&php->ibpd);
+			iwch_deallocate_pd(&php->ibpd, udata);
 			return -EFAULT;
 		}
 	}
@@ -406,7 +406,7 @@ static int iwch_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 	return 0;
 }
 
-static int iwch_dereg_mr(struct ib_mr *ib_mr)
+static int iwch_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_mr *mhp;
@@ -590,7 +590,7 @@ pbl_done:
 			 uresp.pbl_addr);
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
-			iwch_dereg_mr(&mhp->ibmr);
+			iwch_dereg_mr(&mhp->ibmr, udata);
 			err = -EFAULT;
 			goto err;
 		}
@@ -661,9 +661,8 @@ static int iwch_dealloc_mw(struct ib_mw *mw)
 	return 0;
 }
 
-static struct ib_mr *iwch_alloc_mr(struct ib_pd *pd,
-				   enum ib_mr_type mr_type,
-				   u32 max_num_sg)
+static struct ib_mr *iwch_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+				   u32 max_num_sg, struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -742,7 +741,7 @@ static int iwch_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, iwch_set_page);
 }
 
-static int iwch_destroy_qp(struct ib_qp *ib_qp)
+static int iwch_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_qp *qhp;
@@ -885,14 +884,14 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 
 		mm1 = kmalloc(sizeof *mm1, GFP_KERNEL);
 		if (!mm1) {
-			iwch_destroy_qp(&qhp->ibqp);
+			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-ENOMEM);
 		}
 
 		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
 		if (!mm2) {
 			kfree(mm1);
-			iwch_destroy_qp(&qhp->ibqp);
+			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-ENOMEM);
 		}
 
@@ -909,7 +908,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
 			kfree(mm1);
 			kfree(mm2);
-			iwch_destroy_qp(&qhp->ibqp);
+			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-EFAULT);
 		}
 		mm1->key = uresp.key;

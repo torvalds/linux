@@ -387,7 +387,7 @@ out_box:
 	return ret;
 }
 
-int mlx5_ib_destroy_srq(struct ib_srq *srq)
+int mlx5_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(srq->device);
 	struct mlx5_ib_srq *msrq = to_msrq(srq);

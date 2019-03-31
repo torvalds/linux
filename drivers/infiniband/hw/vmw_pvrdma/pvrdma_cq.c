@@ -210,7 +210,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 		if (ib_copy_to_udata(udata, &cq_resp, sizeof(cq_resp))) {
 			dev_warn(&dev->pdev->dev,
 				 "failed to copy back udata\n");
-			pvrdma_destroy_cq(&cq->ibcq);
+			pvrdma_destroy_cq(&cq->ibcq, udata);
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -245,10 +245,11 @@ static void pvrdma_free_cq(struct pvrdma_dev *dev, struct pvrdma_cq *cq)
 /**
  * pvrdma_destroy_cq - destroy completion queue
  * @cq: the completion queue to destroy.
+ * @udata: user data or null for kernel object
  *
  * @return: 0 for success.
  */
-int pvrdma_destroy_cq(struct ib_cq *cq)
+int pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct pvrdma_cq *vcq = to_vcq(cq);
 	union pvrdma_cmd_req req;

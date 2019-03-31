@@ -905,7 +905,7 @@ struct hns_roce_hw {
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			 int attr_mask, enum ib_qp_state cur_state,
 			 enum ib_qp_state new_state);
-	int (*destroy_qp)(struct ib_qp *ibqp);
+	int (*destroy_qp)(struct ib_qp *ibqp, struct ib_udata *udata);
 	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_qp *hr_qp);
 	int (*post_send)(struct ib_qp *ibqp, const struct ib_send_wr *wr,
@@ -914,8 +914,9 @@ struct hns_roce_hw {
 			 const struct ib_recv_wr **bad_recv_wr);
 	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
-	int (*destroy_cq)(struct ib_cq *ibcq);
+	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
+			struct ib_udata *udata);
+	int (*destroy_cq)(struct ib_cq *ibcq, struct ib_udata *udata);
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
@@ -1109,11 +1110,11 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *pd,
 				 u32 flags,
 				 struct ib_udata *udata);
 int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
-int hns_roce_destroy_ah(struct ib_ah *ah, u32 flags);
+int hns_roce_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
 
 int hns_roce_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 		      struct ib_udata *udata);
-void hns_roce_dealloc_pd(struct ib_pd *pd);
+void hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
 struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
@@ -1123,10 +1124,10 @@ int hns_roce_rereg_user_mr(struct ib_mr *mr, int flags, u64 start, u64 length,
 			   u64 virt_addr, int mr_access_flags, struct ib_pd *pd,
 			   struct ib_udata *udata);
 struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				u32 max_num_sg);
+				u32 max_num_sg, struct ib_udata *udata);
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		       unsigned int *sg_offset);
-int hns_roce_dereg_mr(struct ib_mr *ibmr);
+int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_cmd_mailbox *mailbox,
 		       unsigned long mpt_index);
@@ -1150,7 +1151,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 			enum ib_srq_attr_mask srq_attr_mask,
 			struct ib_udata *udata);
-int hns_roce_destroy_srq(struct ib_srq *ibsrq);
+int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,
@@ -1179,7 +1180,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				    struct ib_ucontext *context,
 				    struct ib_udata *udata);
 
-int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq);
+int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
 void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
 
 int hns_roce_db_map_user(struct hns_roce_ucontext *context,

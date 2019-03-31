@@ -93,10 +93,11 @@ bail:
 /**
  * rvt_dealloc_pd - Free PD
  * @ibpd: Free up PD
+ * @udata: Valid user data or NULL for kernel object
  *
  * Return: always 0
  */
-void rvt_dealloc_pd(struct ib_pd *ibpd)
+void rvt_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rvt_dev_info *dev = ib_to_rvt(ibpd->device);
 

@@ -855,17 +855,17 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 create_lp_qp_failed:
 	for (i -= 1; i >= 0; i--) {
 		hr_qp = free_mr->mr_free_qp[i];
-		if (hns_roce_v1_destroy_qp(&hr_qp->ibqp))
+		if (hns_roce_v1_destroy_qp(&hr_qp->ibqp, NULL))
 			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
 	}
 
-	hns_roce_dealloc_pd(pd);
+	hns_roce_dealloc_pd(pd, NULL);
 
 alloc_pd_failed:
 	kfree(pd);
 
 alloc_mem_failed:
-	if (hns_roce_ib_destroy_cq(cq))
+	if (hns_roce_ib_destroy_cq(cq, NULL))
 		dev_err(dev, "Destroy cq for create_lp_qp failed!\n");
 
 	return ret;
@@ -888,17 +888,17 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 		if (!hr_qp)
 			continue;
 
-		ret = hns_roce_v1_destroy_qp(&hr_qp->ibqp);
+		ret = hns_roce_v1_destroy_qp(&hr_qp->ibqp, NULL);
 		if (ret)
 			dev_err(dev, "Destroy qp %d for mr free failed(%d)!\n",
 				i, ret);
 	}
 
-	ret = hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq);
+	ret = hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq, NULL);
 	if (ret)
 		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
 
-	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd);
+	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
 }
 
 static int hns_roce_db_init(struct hns_roce_dev *hr_dev)
@@ -1096,7 +1096,7 @@ free_work:
 }
 
 static int hns_roce_v1_dereg_mr(struct hns_roce_dev *hr_dev,
-				struct hns_roce_mr *mr)
+				struct hns_roce_mr *mr, struct ib_udata *udata)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_mr_free_work *mr_work;
@@ -3921,7 +3921,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	dev_dbg(dev, "Accomplished destroy QP(0x%lx) work.\n", qpn);
 }
 
-int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
@@ -3998,7 +3998,7 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
-static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq)
+static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);

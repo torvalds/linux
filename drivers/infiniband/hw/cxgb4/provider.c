@@ -190,7 +190,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static void c4iw_deallocate_pd(struct ib_pd *pd)
+static void c4iw_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -224,7 +224,7 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 		struct c4iw_alloc_pd_resp uresp = {.pdid = php->pdid};
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
-			c4iw_deallocate_pd(&php->ibpd);
+			c4iw_deallocate_pd(&php->ibpd, udata);
 			return -EFAULT;
 		}
 	}

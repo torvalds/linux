@@ -342,8 +342,9 @@ error:
 /**
  * i40iw_dealloc_pd - deallocate pd
  * @ibpd: ptr of pd to be deallocated
+ * @udata: user data or null for kernel object
  */
-static void i40iw_dealloc_pd(struct ib_pd *ibpd)
+static void i40iw_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
@@ -413,7 +414,7 @@ static void i40iw_clean_cqes(struct i40iw_qp *iwqp, struct i40iw_cq *iwcq)
  * i40iw_destroy_qp - destroy qp
  * @ibqp: qp's ib pointer also to get to device's qp address
  */
-static int i40iw_destroy_qp(struct ib_qp *ibqp)
+static int i40iw_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct i40iw_qp *iwqp = to_iwqp(ibqp);
 
@@ -744,8 +745,8 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		err_code = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (err_code) {
 			i40iw_pr_err("copy_to_udata failed\n");
-			i40iw_destroy_qp(&iwqp->ibqp);
-			   /* let the completion of the qp destroy free the qp */
+			i40iw_destroy_qp(&iwqp->ibqp, udata);
+			/* let the completion of the qp destroy free the qp */
 			return ERR_PTR(err_code);
 		}
 	}
@@ -1063,8 +1064,9 @@ void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq)
 /**
  * i40iw_destroy_cq - destroy cq
  * @ib_cq: cq pointer
+ * @udata: user data or NULL for kernel object
  */
-static int i40iw_destroy_cq(struct ib_cq *ib_cq)
+static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_device *iwdev;
@@ -1601,10 +1603,10 @@ static int i40iw_hw_alloc_stag(struct i40iw_device *iwdev, struct i40iw_mr *iwmr
  * @pd: ibpd pointer
  * @mr_type: memory for stag registrion
  * @max_num_sg: man number of pages
+ * @udata: user data or NULL for kernel objects
  */
-static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
-				    enum ib_mr_type mr_type,
-				    u32 max_num_sg)
+static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+				    u32 max_num_sg, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
@@ -2038,7 +2040,7 @@ static void i40iw_del_memlist(struct i40iw_mr *iwmr,
  * i40iw_dereg_mr - deregister mr
  * @ib_mr: mr ptr for dereg
  */
-static int i40iw_dereg_mr(struct ib_mr *ib_mr)
+static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct ib_pd *ibpd = ib_mr->pd;
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);

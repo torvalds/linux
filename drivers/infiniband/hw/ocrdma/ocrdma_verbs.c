@@ -680,7 +680,7 @@ exit:
 	return status;
 }
 
-void ocrdma_dealloc_pd(struct ib_pd *ibpd)
+void ocrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
@@ -922,7 +922,7 @@ umem_err:
 	return ERR_PTR(status);
 }
 
-int ocrdma_dereg_mr(struct ib_mr *ib_mr)
+int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ib_mr);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ib_mr->device);
@@ -1076,7 +1076,7 @@ static void ocrdma_flush_cq(struct ocrdma_cq *cq)
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 }
 
-int ocrdma_destroy_cq(struct ib_cq *ibcq)
+int ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_eq *eq = NULL;
@@ -1697,7 +1697,7 @@ void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
 	spin_unlock_irqrestore(&dev->flush_q_lock, flags);
 }
 
-int ocrdma_destroy_qp(struct ib_qp *ibqp)
+int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct ocrdma_pd *pd;
 	struct ocrdma_qp *qp;
@@ -1885,7 +1885,7 @@ int ocrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	return status;
 }
 
-int ocrdma_destroy_srq(struct ib_srq *ibsrq)
+int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	int status;
 	struct ocrdma_srq *srq;
@@ -2931,9 +2931,8 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 	return 0;
 }
 
-struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd,
-			      enum ib_mr_type mr_type,
-			      u32 max_num_sg)
+struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
+			      u32 max_num_sg, struct ib_udata *udata)
 {
 	int status;
 	struct ocrdma_mr *mr;

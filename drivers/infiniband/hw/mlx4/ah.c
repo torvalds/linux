@@ -250,7 +250,7 @@ int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-int mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags)
+int mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 {
 	kfree(to_mah(ah));
 	return 0;

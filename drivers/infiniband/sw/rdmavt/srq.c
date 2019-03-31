@@ -340,7 +340,7 @@ int rvt_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
  *
  * Return always 0
  */
-int rvt_destroy_srq(struct ib_srq *ibsrq)
+int rvt_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_dev_info *dev = ib_to_rvt(ibsrq->device);

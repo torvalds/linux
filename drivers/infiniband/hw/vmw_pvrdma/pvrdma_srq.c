@@ -204,7 +204,7 @@ struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 	/* Copy udata back. */
 	if (ib_copy_to_udata(udata, &srq_resp, sizeof(srq_resp))) {
 		dev_warn(&dev->pdev->dev, "failed to copy back udata\n");
-		pvrdma_destroy_srq(&srq->ibsrq);
+		pvrdma_destroy_srq(&srq->ibsrq, udata);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -246,10 +246,11 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
 /**
  * pvrdma_destroy_srq - destroy shared receive queue
  * @srq: the shared receive queue to destroy
+ * @udata: user data or null for kernel object
  *
  * @return: 0 for success.
  */
-int pvrdma_destroy_srq(struct ib_srq *srq)
+int pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	struct pvrdma_srq *vsrq = to_vsrq(srq);
 	union pvrdma_cmd_req req;

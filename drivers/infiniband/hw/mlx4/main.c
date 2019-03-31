@@ -1195,7 +1195,7 @@ static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 	return 0;
 }
 
-static void mlx4_ib_dealloc_pd(struct ib_pd *pd)
+static void mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
 }
@@ -1243,7 +1243,7 @@ err1:
 	return ERR_PTR(err);
 }
 
-static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd)
+static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	ib_destroy_cq(to_mxrcd(xrcd)->cq);
 	ib_dealloc_pd(to_mxrcd(xrcd)->pd);

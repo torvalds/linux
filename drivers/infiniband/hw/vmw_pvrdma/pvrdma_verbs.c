@@ -460,7 +460,7 @@ int pvrdma_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 		if (ib_copy_to_udata(udata, &pd_resp, sizeof(pd_resp))) {
 			dev_warn(&dev->pdev->dev,
 				 "failed to copy back protection domain\n");
-			pvrdma_dealloc_pd(&pd->ibpd);
+			pvrdma_dealloc_pd(&pd->ibpd, udata);
 			return -EFAULT;
 		}
 	}
@@ -476,10 +476,11 @@ err:
 /**
  * pvrdma_dealloc_pd - deallocate protection domain
  * @pd: the protection domain to be released
+ * @udata: user data or null for kernel object
  *
  * @return: 0 on success, otherwise errno.
  */
-void pvrdma_dealloc_pd(struct ib_pd *pd)
+void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	union pvrdma_cmd_req req = {};
@@ -556,7 +557,7 @@ struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
  *
  * @return: 0 on success.
  */
-int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags)
+int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(ah->device);
 

@@ -485,7 +485,7 @@ out:
 	return err;
 }
 
-int mlx4_ib_destroy_cq(struct ib_cq *cq)
+int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(cq->device);
 	struct mlx4_ib_cq *mcq = to_mcq(cq);

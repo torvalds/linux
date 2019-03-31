@@ -2095,7 +2095,7 @@ out:
 	return ret;
 }
 
-int c4iw_destroy_qp(struct ib_qp *ib_qp)
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;
@@ -2826,7 +2826,7 @@ err_free_srq:
 	return ERR_PTR(ret);
 }
 
-int c4iw_destroy_srq(struct ib_srq *ibsrq)
+int c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_srq *srq;

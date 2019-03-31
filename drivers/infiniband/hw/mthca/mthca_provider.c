@@ -384,7 +384,7 @@ static int mthca_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 	return 0;
 }
 
-static void mthca_dealloc_pd(struct ib_pd *pd)
+static void mthca_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
 }
@@ -411,7 +411,7 @@ static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
 	return &ah->ibah;
 }
 
-static int mthca_ah_destroy(struct ib_ah *ah, u32 flags)
+static int mthca_ah_destroy(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 {
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
 	kfree(ah);
@@ -477,7 +477,7 @@ err_free:
 	return ERR_PTR(err);
 }
 
-static int mthca_destroy_srq(struct ib_srq *srq)
+static int mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	struct mthca_ucontext *context;
 
@@ -607,7 +607,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	return &qp->ibqp;
 }
 
-static int mthca_destroy_qp(struct ib_qp *qp)
+static int mthca_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	if (qp->uobject) {
 		mthca_unmap_user_db(to_mdev(qp->device),
@@ -827,7 +827,7 @@ out:
 	return ret;
 }
 
-static int mthca_destroy_cq(struct ib_cq *cq)
+static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	if (cq->uobject) {
 		mthca_unmap_user_db(to_mdev(cq->device),
@@ -974,7 +974,7 @@ err:
 	return ERR_PTR(err);
 }
 
-static int mthca_dereg_mr(struct ib_mr *mr)
+static int mthca_dereg_mr(struct ib_mr *mr, struct ib_udata *udata)
 {
 	struct mthca_mr *mmr = to_mmr(mr);
 

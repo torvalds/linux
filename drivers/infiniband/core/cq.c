@@ -128,15 +128,17 @@ static void ib_cq_completion_workqueue(struct ib_cq *cq, void *private)
  * @comp_vector:	HCA completion vectors for this CQ
  * @poll_ctx:		context to poll the CQ from.
  * @caller:		module owner name.
+ * @udata:		Valid user data or NULL for kernel object
  *
  * This is the proper interface to allocate a CQ for in-kernel users. A
  * CQ allocated with this interface will automatically be polled from the
  * specified context. The ULP must use wr->wr_cqe instead of wr->wr_id
  * to use this CQ abstraction.
  */
-struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
-			    int nr_cqe, int comp_vector,
-			    enum ib_poll_context poll_ctx, const char *caller)
+struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
+				 int nr_cqe, int comp_vector,
+				 enum ib_poll_context poll_ctx,
+				 const char *caller, struct ib_udata *udata)
 {
 	struct ib_cq_init_attr cq_attr = {
 		.cqe		= nr_cqe,
@@ -193,16 +195,17 @@ out_free_wc:
 	kfree(cq->wc);
 	rdma_restrack_del(&cq->res);
 out_destroy_cq:
-	cq->device->ops.destroy_cq(cq);
+	cq->device->ops.destroy_cq(cq, udata);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(__ib_alloc_cq);
+EXPORT_SYMBOL(__ib_alloc_cq_user);
 
 /**
  * ib_free_cq - free a completion queue
  * @cq:		completion queue to free.
+ * @udata:	User data or NULL for kernel object
  */
-void ib_free_cq(struct ib_cq *cq)
+void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 {
 	int ret;
 
@@ -225,7 +228,7 @@ void ib_free_cq(struct ib_cq *cq)
 
 	kfree(cq->wc);
 	rdma_restrack_del(&cq->res);
-	ret = cq->device->ops.destroy_cq(cq);
+	ret = cq->device->ops.destroy_cq(cq, udata);
 	WARN_ON_ONCE(ret);
 }
-EXPORT_SYMBOL(ib_free_cq);
+EXPORT_SYMBOL(ib_free_cq_user);

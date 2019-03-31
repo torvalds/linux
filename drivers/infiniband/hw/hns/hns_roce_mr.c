@@ -1282,14 +1282,14 @@ free_cmd_mbox:
 	return ret;
 }
 
-int hns_roce_dereg_mr(struct ib_mr *ibmr)
+int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 	int ret = 0;
 
 	if (hr_dev->hw->dereg_mr) {
-		ret = hr_dev->hw->dereg_mr(hr_dev, mr);
+		ret = hr_dev->hw->dereg_mr(hr_dev, mr, udata);
 	} else {
 		hns_roce_mr_free(hr_dev, mr);
 
@@ -1303,7 +1303,7 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr)
 }
 
 struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				u32 max_num_sg)
+				u32 max_num_sg, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct device *dev = hr_dev->dev;

@@ -299,12 +299,13 @@ done:
 /**
  * rvt_destroy_cq - destroy a completion queue
  * @ibcq: the completion queue to destroy.
+ * @udata: user data or NULL for kernel object
  *
  * Called by ib_destroy_cq() in the generic verbs code.
  *
  * Return: always 0
  */
-int rvt_destroy_cq(struct ib_cq *ibcq)
+int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;

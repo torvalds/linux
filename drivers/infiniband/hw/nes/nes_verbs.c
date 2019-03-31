@@ -52,7 +52,7 @@ atomic_t qps_created;
 atomic_t sw_qps_destroyed;
 
 static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev);
-static int nes_dereg_mr(struct ib_mr *ib_mr);
+static int nes_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 
 /**
  * nes_alloc_mw
@@ -306,9 +306,8 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 /*
  * nes_alloc_mr
  */
-static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
-				  enum ib_mr_type mr_type,
-				  u32 max_num_sg)
+static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
+				  u32 max_num_sg, struct ib_udata *udata)
 {
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);
@@ -386,7 +385,7 @@ static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
 	return ibmr;
 
 err:
-	nes_dereg_mr(ibmr);
+	nes_dereg_mr(ibmr, udata);
 
 	return ERR_PTR(-ENOMEM);
 }
@@ -700,7 +699,7 @@ static int nes_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 /**
  * nes_dealloc_pd
  */
-static void nes_dealloc_pd(struct ib_pd *ibpd)
+static void nes_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct nes_ucontext *nesucontext;
 	struct nes_pd *nespd = to_nespd(ibpd);
@@ -1298,7 +1297,7 @@ static void nes_clean_cq(struct nes_qp *nesqp, struct nes_cq *nescq)
 /**
  * nes_destroy_qp
  */
-static int nes_destroy_qp(struct ib_qp *ibqp)
+static int nes_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
 	struct nes_ucontext *nes_ucontext;
@@ -1626,7 +1625,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 /**
  * nes_destroy_cq
  */
-static int nes_destroy_cq(struct ib_cq *ib_cq)
+static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct nes_cq *nescq;
 	struct nes_device *nesdev;
@@ -2377,7 +2376,7 @@ reg_user_mr_err:
 /**
  * nes_dereg_mr
  */
-static int nes_dereg_mr(struct ib_mr *ib_mr)
+static int nes_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct nes_mr *nesmr = to_nesmr(ib_mr);
 	struct nes_vnic *nesvnic = to_nesvnic(ib_mr->device);

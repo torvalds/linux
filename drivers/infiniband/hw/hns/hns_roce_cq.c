@@ -444,14 +444,14 @@ err_cq:
 }
 EXPORT_SYMBOL_GPL(hns_roce_ib_create_cq);
 
-int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq)
+int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
 	int ret = 0;
 
 	if (hr_dev->hw->destroy_cq) {
-		ret = hr_dev->hw->destroy_cq(ib_cq);
+		ret = hr_dev->hw->destroy_cq(ib_cq, udata);
 	} else {
 		hns_roce_free_cq(hr_dev, hr_cq);
 		hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);

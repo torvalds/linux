@@ -45,7 +45,7 @@ static int uverbs_free_dm(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	return dm->device->ops.dealloc_dm(dm);
+	return dm->device->ops.dealloc_dm(dm, attrs);
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(

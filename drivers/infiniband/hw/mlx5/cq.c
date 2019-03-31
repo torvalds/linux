@@ -996,8 +996,7 @@ err_create:
 	return ERR_PTR(err);
 }
 
-
-int mlx5_ib_destroy_cq(struct ib_cq *cq)
+int mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(cq->device);
 	struct mlx5_ib_cq *mcq = to_mcq(cq);

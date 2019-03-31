@@ -44,7 +44,7 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 		container_of(uobject, struct ib_ucq_object, uobject);
 	int ret;
 
-	ret = ib_destroy_cq(cq);
+	ret = ib_destroy_cq_user(cq, &attrs->driver_udata);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
