@@ -207,13 +207,12 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 
 	for (i = 0; i != array_len; i++) {
 		attr->uobjects[i] = uverbs_get_uobject_from_file(
-			spec->u2.objs_arr.obj_type, pbundle->bundle.ufile,
-			spec->u2.objs_arr.access, idr_vals[i]);
+			spec->u2.objs_arr.obj_type, spec->u2.objs_arr.access,
+			idr_vals[i], &pbundle->bundle);
 		if (IS_ERR(attr->uobjects[i])) {
 			ret = PTR_ERR(attr->uobjects[i]);
 			break;
 		}
-		pbundle->bundle.context = attr->uobjects[i]->context;
 	}
 
 	attr->len = i;
@@ -325,13 +324,10 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		 * IDR implementation today rejects negative IDs
 		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
-					spec->u.obj.obj_type,
-					pbundle->bundle.ufile,
-					spec->u.obj.access,
-					uattr->data_s64);
+			spec->u.obj.obj_type, spec->u.obj.access,
+			uattr->data_s64, &pbundle->bundle);
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
-		pbundle->bundle.context = o_attr->uobject->context;
 		__set_bit(attr_bkey, pbundle->uobj_finalize);
 
 		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {

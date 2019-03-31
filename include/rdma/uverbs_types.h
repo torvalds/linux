@@ -131,11 +131,13 @@ struct uverbs_obj_idr_type {
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 					   struct ib_uverbs_file *ufile, s64 id,
-					   enum rdma_lookup_mode mode);
+					   enum rdma_lookup_mode mode,
+					   struct uverbs_attr_bundle *attrs);
 void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 			     enum rdma_lookup_mode mode);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
-					    struct ib_uverbs_file *ufile);
+					    struct ib_uverbs_file *ufile,
+					    struct uverbs_attr_bundle *attrs);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj);
 

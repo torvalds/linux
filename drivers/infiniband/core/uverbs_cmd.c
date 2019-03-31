@@ -175,7 +175,7 @@ static int uverbs_request_finish(struct uverbs_req_iter *iter)
 }
 
 static struct ib_uverbs_completion_event_file *
-_ib_uverbs_lookup_comp_file(s32 fd, const struct uverbs_attr_bundle *attrs)
+_ib_uverbs_lookup_comp_file(s32 fd, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = ufd_get_read(UVERBS_OBJECT_COMP_CHANNEL,
 					       fd, attrs);

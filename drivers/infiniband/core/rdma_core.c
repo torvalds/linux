@@ -224,14 +224,13 @@ out_unlock:
  * uverbs_put_destroy.
  */
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
-				      u32 id,
-				      const struct uverbs_attr_bundle *attrs)
+				      u32 id, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 	int ret;
 
 	uobj = rdma_lookup_get_uobject(obj, attrs->ufile, id,
-				       UVERBS_LOOKUP_DESTROY);
+				       UVERBS_LOOKUP_DESTROY, attrs);
 	if (IS_ERR(uobj))
 		return uobj;
 
@@ -249,7 +248,7 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
  * (negative errno on failure). For use by callers that do not need the uobj.
  */
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   const struct uverbs_attr_bundle *attrs)
+			   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 
@@ -393,7 +392,8 @@ lookup_get_fd_uobject(const struct uverbs_api_object *obj,
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 					   struct ib_uverbs_file *ufile, s64 id,
-					   enum rdma_lookup_mode mode)
+					   enum rdma_lookup_mode mode,
+					   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 	int ret;
@@ -431,44 +431,14 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 	ret = uverbs_try_lock_object(uobj, mode);
 	if (ret)
 		goto free;
+	if (attrs)
+		attrs->context = uobj->context;
 
 	return uobj;
 free:
 	uobj->uapi_object->type_class->lookup_put(uobj, mode);
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
-}
-struct ib_uobject *_uobj_get_read(enum uverbs_default_objects type,
-				  u32 object_id,
-				  struct uverbs_attr_bundle *attrs)
-{
-	struct ib_uobject *uobj;
-
-	uobj = rdma_lookup_get_uobject(uobj_get_type(attrs, type), attrs->ufile,
-				       object_id, UVERBS_LOOKUP_READ);
-	if (IS_ERR(uobj))
-		return uobj;
-
-	attrs->context = uobj->context;
-
-	return uobj;
-}
-
-struct ib_uobject *_uobj_get_write(enum uverbs_default_objects type,
-				   u32 object_id,
-				   struct uverbs_attr_bundle *attrs)
-{
-	struct ib_uobject *uobj;
-
-	uobj = rdma_lookup_get_uobject(uobj_get_type(attrs, type), attrs->ufile,
-				       object_id, UVERBS_LOOKUP_WRITE);
-
-	if (IS_ERR(uobj))
-		return uobj;
-
-	attrs->context = uobj->context;
-
-	return uobj;
 }
 
 static struct ib_uobject *
@@ -526,7 +496,8 @@ alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
 }
 
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
-					    struct ib_uverbs_file *ufile)
+					    struct ib_uverbs_file *ufile,
+					    struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *ret;
 
@@ -546,6 +517,8 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 		up_read(&ufile->hw_destroy_rwsem);
 		return ret;
 	}
+	if (attrs)
+		attrs->context = ret->context;
 	return ret;
 }
 
@@ -967,26 +940,25 @@ const struct uverbs_obj_type_class uverbs_fd_class = {
 EXPORT_SYMBOL(uverbs_fd_class);
 
 struct ib_uobject *
-uverbs_get_uobject_from_file(u16 object_id,
-			     struct ib_uverbs_file *ufile,
-			     enum uverbs_obj_access access, s64 id)
+uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
+			     s64 id, struct uverbs_attr_bundle *attrs)
 {
 	const struct uverbs_api_object *obj =
-		uapi_get_object(ufile->device->uapi, object_id);
+		uapi_get_object(attrs->ufile->device->uapi, object_id);
 
 	switch (access) {
 	case UVERBS_ACCESS_READ:
-		return rdma_lookup_get_uobject(obj, ufile, id,
-					       UVERBS_LOOKUP_READ);
+		return rdma_lookup_get_uobject(obj, attrs->ufile, id,
+					       UVERBS_LOOKUP_READ, attrs);
 	case UVERBS_ACCESS_DESTROY:
 		/* Actual destruction is done inside uverbs_handle_method */
-		return rdma_lookup_get_uobject(obj, ufile, id,
-					       UVERBS_LOOKUP_DESTROY);
+		return rdma_lookup_get_uobject(obj, attrs->ufile, id,
+					       UVERBS_LOOKUP_DESTROY, attrs);
 	case UVERBS_ACCESS_WRITE:
-		return rdma_lookup_get_uobject(obj, ufile, id,
-					       UVERBS_LOOKUP_WRITE);
+		return rdma_lookup_get_uobject(obj, attrs->ufile, id,
+					       UVERBS_LOOKUP_WRITE, attrs);
 	case UVERBS_ACCESS_NEW:
-		return rdma_alloc_begin_uobject(obj, ufile);
+		return rdma_alloc_begin_uobject(obj, attrs->ufile, attrs);
 	default:
 		WARN_ON(true);
 		return ERR_PTR(-EOPNOTSUPP);
