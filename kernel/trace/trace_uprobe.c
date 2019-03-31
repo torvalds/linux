@@ -457,13 +457,19 @@ static int trace_uprobe_create(int argc, const char **argv)
 		return -ECANCELED;
 	}
 
+	trace_probe_log_init("trace_uprobe", argc, argv);
+	trace_probe_log_set_index(1);	/* filename is the 2nd argument */
+
 	*arg++ = '\0';
 	ret = kern_path(filename, LOOKUP_FOLLOW, &path);
 	if (ret) {
+		trace_probe_log_err(0, FILE_NOT_FOUND);
 		kfree(filename);
+		trace_probe_log_clear();
 		return ret;
 	}
 	if (!d_is_reg(path.dentry)) {
+		trace_probe_log_err(0, NO_REGULAR_FILE);
 		ret = -EINVAL;
 		goto fail_address_parse;
 	}
@@ -472,9 +478,16 @@ static int trace_uprobe_create(int argc, const char **argv)
 	rctr = strchr(arg, '(');
 	if (rctr) {
 		rctr_end = strchr(rctr, ')');
-		if (rctr > rctr_end || *(rctr_end + 1) != 0) {
+		if (!rctr_end) {
 			ret = -EINVAL;
-			pr_info("Invalid reference counter offset.\n");
+			rctr_end = rctr + strlen(rctr);
+			trace_probe_log_err(rctr_end - filename,
+					    REFCNT_OPEN_BRACE);
+			goto fail_address_parse;
+		} else if (rctr_end[1] != '\0') {
+			ret = -EINVAL;
+			trace_probe_log_err(rctr_end + 1 - filename,
+					    BAD_REFCNT_SUFFIX);
 			goto fail_address_parse;
 		}
 
@@ -482,22 +495,23 @@ static int trace_uprobe_create(int argc, const char **argv)
 		*rctr_end = '\0';
 		ret = kstrtoul(rctr, 0, &ref_ctr_offset);
 		if (ret) {
-			pr_info("Invalid reference counter offset.\n");
+			trace_probe_log_err(rctr - filename, BAD_REFCNT);
 			goto fail_address_parse;
 		}
 	}
 
 	/* Parse uprobe offset. */
 	ret = kstrtoul(arg, 0, &offset);
-	if (ret)
+	if (ret) {
+		trace_probe_log_err(arg - filename, BAD_UPROBE_OFFS);
 		goto fail_address_parse;
-
-	argc -= 2;
-	argv += 2;
+	}
 
 	/* setup a probe */
+	trace_probe_log_set_index(0);
 	if (event) {
-		ret = traceprobe_parse_event_name(&event, &group, buf);
+		ret = traceprobe_parse_event_name(&event, &group, buf,
+						  event - argv[0]);
 		if (ret)
 			goto fail_address_parse;
 	} else {
@@ -519,6 +533,9 @@ static int trace_uprobe_create(int argc, const char **argv)
 		kfree(tail);
 	}
 
+	argc -= 2;
+	argv += 2;
+
 	tu = alloc_trace_uprobe(group, event, argc, is_return);
 	if (IS_ERR(tu)) {
 		ret = PTR_ERR(tu);
@@ -539,6 +556,7 @@ static int trace_uprobe_create(int argc, const char **argv)
 			goto error;
 		}
 
+		trace_probe_log_set_index(i + 2);
 		ret = traceprobe_parse_probe_arg(&tu->tp, i, tmp,
 					is_return ? TPARG_FL_RETURN : 0);
 		kfree(tmp);
@@ -547,19 +565,19 @@ static int trace_uprobe_create(int argc, const char **argv)
 	}
 
 	ret = register_trace_uprobe(tu);
-	if (ret)
-		goto error;
-	return 0;
+	if (!ret)
+		goto out;
 
 error:
 	free_trace_uprobe(tu);
+out:
+	trace_probe_log_clear();
 	return ret;
 
 fail_address_parse:
+	trace_probe_log_clear();
 	path_put(&path);
 	kfree(filename);
-
-	pr_info("Failed to parse address or file.\n");
 
 	return ret;
 }

@@ -280,8 +280,8 @@ extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
-extern int traceprobe_parse_event_name(const char **pevent,
-				       const char **pgroup, char *buf);
+int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
+				char *buf, int offset);
 
 extern int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return);
 
@@ -298,3 +298,76 @@ extern void destroy_local_trace_uprobe(struct trace_event_call *event_call);
 #endif
 extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 					size_t offset, struct trace_probe *tp);
+
+#undef ERRORS
+#define ERRORS	\
+	C(FILE_NOT_FOUND,	"Failed to find the given file"),	\
+	C(NO_REGULAR_FILE,	"Not a regular file"),			\
+	C(BAD_REFCNT,		"Invalid reference counter offset"),	\
+	C(REFCNT_OPEN_BRACE,	"Reference counter brace is not closed"), \
+	C(BAD_REFCNT_SUFFIX,	"Reference counter has wrong suffix"),	\
+	C(BAD_UPROBE_OFFS,	"Invalid uprobe offset"),		\
+	C(MAXACT_NO_KPROBE,	"Maxactive is not for kprobe"),		\
+	C(BAD_MAXACT,		"Invalid maxactive number"),		\
+	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
+	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\
+	C(BAD_RETPROBE,		"Retprobe address must be an function entry"), \
+	C(NO_GROUP_NAME,	"Group name is not specified"),		\
+	C(GROUP_TOO_LONG,	"Group name is too long"),		\
+	C(BAD_GROUP_NAME,	"Group name must follow the same rules as C identifiers"), \
+	C(NO_EVENT_NAME,	"Event name is not specified"),		\
+	C(EVENT_TOO_LONG,	"Event name is too long"),		\
+	C(BAD_EVENT_NAME,	"Event name must follow the same rules as C identifiers"), \
+	C(RETVAL_ON_PROBE,	"$retval is not available on probe"),	\
+	C(BAD_STACK_NUM,	"Invalid stack number"),		\
+	C(BAD_ARG_NUM,		"Invalid argument number"),		\
+	C(BAD_VAR,		"Invalid $-valiable specified"),	\
+	C(BAD_REG_NAME,		"Invalid register name"),		\
+	C(BAD_MEM_ADDR,		"Invalid memory address"),		\
+	C(FILE_ON_KPROBE,	"File offset is not available with kprobe"), \
+	C(BAD_FILE_OFFS,	"Invalid file offset value"),		\
+	C(SYM_ON_UPROBE,	"Symbol is not available with uprobe"),	\
+	C(TOO_MANY_OPS,		"Dereference is too much nested"), 	\
+	C(DEREF_NEED_BRACE,	"Dereference needs a brace"),		\
+	C(BAD_DEREF_OFFS,	"Invalid dereference offset"),		\
+	C(DEREF_OPEN_BRACE,	"Dereference brace is not closed"),	\
+	C(COMM_CANT_DEREF,	"$comm can not be dereferenced"),	\
+	C(BAD_FETCH_ARG,	"Invalid fetch argument"),		\
+	C(ARRAY_NO_CLOSE,	"Array is not closed"),			\
+	C(BAD_ARRAY_SUFFIX,	"Array has wrong suffix"),		\
+	C(BAD_ARRAY_NUM,	"Invalid array size"),			\
+	C(ARRAY_TOO_BIG,	"Array number is too big"),		\
+	C(BAD_TYPE,		"Unknown type is specified"),		\
+	C(BAD_STRING,		"String accepts only memory argument"),	\
+	C(BAD_BITFIELD,		"Invalid bitfield"),			\
+	C(ARG_NAME_TOO_LONG,	"Argument name is too long"),		\
+	C(NO_ARG_NAME,		"Argument name is not specified"),	\
+	C(BAD_ARG_NAME,		"Argument name must follow the same rules as C identifiers"), \
+	C(USED_ARG_NAME,	"This argument name is already used"),	\
+	C(ARG_TOO_LONG,		"Argument expression is too long"),	\
+	C(NO_ARG_BODY,		"No argument expression"),		\
+	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
+	C(FAIL_REG_PROBE,	"Failed to register probe event"),
+
+#undef C
+#define C(a, b)		TP_ERR_##a
+
+/* Define TP_ERR_ */
+enum { ERRORS };
+
+/* Error text is defined in trace_probe.c */
+
+struct trace_probe_log {
+	const char	*subsystem;
+	const char	**argv;
+	int		argc;
+	int		index;
+};
+
+void trace_probe_log_init(const char *subsystem, int argc, const char **argv);
+void trace_probe_log_set_index(int index);
+void trace_probe_log_clear(void);
+void __trace_probe_log_err(int offset, int err);
+
+#define trace_probe_log_err(offs, err)	\
+	__trace_probe_log_err(offs, TP_ERR_##err)
