@@ -4702,6 +4702,7 @@ static const char readme_msg[] =
 	"  trace_pipe\t\t- A consuming read to see the contents of the buffer\n"
 	"  current_tracer\t- function and latency tracers\n"
 	"  available_tracers\t- list of configured tracers for current_tracer\n"
+	"  error_log\t- error log for failed commands (that support it)\n"
 	"  buffer_size_kb\t- view and modify size of per cpu buffer\n"
 	"  buffer_total_size_kb  - view total size of all cpu buffers\n\n"
 	"  trace_clock\t\t-change the clock used to order events\n"
