@@ -1231,35 +1231,6 @@ static int smu_v11_0_get_metrics_table(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
-						  enum amd_pp_sensors sensor,
-						  uint32_t *value)
-{
-	int ret = 0;
-	SmuMetrics_t metrics;
-
-	if (!value)
-		return -EINVAL;
-
-	ret = smu_v11_0_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		*value = metrics.AverageGfxActivity;
-		break;
-	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		*value = metrics.AverageUclkActivity;
-		break;
-	default:
-		pr_err("Invalid sensor for retrieving clock activity\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int smu_v11_0_thermal_get_temperature(struct smu_context *smu,
 					     enum amd_pp_sensors sensor,
 					     uint32_t *value)
@@ -1303,23 +1274,6 @@ static int smu_v11_0_thermal_get_temperature(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v11_0_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	int ret = 0;
-	SmuMetrics_t metrics;
-
-	if (!value)
-		return -EINVAL;
-
-	ret = smu_v11_0_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	*value = metrics.CurrSocketPower << 8;
-
-	return 0;
-}
-
 static uint16_t convert_to_vddc(uint8_t vid)
 {
 	return (uint16_t) ((6200 - (vid * 25)) / SMU11_VOLTAGE_SCALE);
@@ -1354,9 +1308,9 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		ret = smu_v11_0_get_current_activity_percent(smu,
-							     sensor,
-							     (uint32_t *)data);
+		ret = smu_get_current_activity_percent(smu,
+						       sensor,
+						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
@@ -1374,7 +1328,7 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = smu_v11_0_get_gpu_power(smu, (uint32_t *)data);
+		ret = smu_get_gpu_power(smu, (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:

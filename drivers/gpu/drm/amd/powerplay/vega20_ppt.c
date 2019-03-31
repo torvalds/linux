@@ -2987,6 +2987,54 @@ static int vega20_get_fan_speed_percent(struct smu_context *smu,
 	return ret;
 }
 
+static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics,
+			       false);
+	if (ret)
+		return ret;
+
+	*value = metrics.CurrSocketPower << 8;
+
+	return 0;
+}
+
+static int vega20_get_current_activity_percent(struct smu_context *smu,
+					       enum amd_pp_sensors sensor,
+					       uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
+			       (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*value = metrics.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*value = metrics.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
 	.alloc_dpm_context = vega20_allocate_dpm_context,
@@ -3032,6 +3080,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.is_dpm_running = vega20_is_dpm_running,
 	.set_thermal_fan_table = vega20_set_thermal_fan_table,
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
+	.get_gpu_power = vega20_get_gpu_power,
+	.get_current_activity_percent = vega20_get_current_activity_percent,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
