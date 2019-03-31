@@ -1,5 +1,5 @@
-#ifndef __SMU11_DRIVER_IF_H__
-#define __SMU11_DRIVER_IF_H__
+#ifndef __SMU11_DRIVER_IF_NAVI10_H__
+#define __SMU11_DRIVER_IF_NAVI10_H__
 
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 

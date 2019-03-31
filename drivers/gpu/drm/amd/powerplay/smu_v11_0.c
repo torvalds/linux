@@ -27,7 +27,6 @@
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "smu_v11_0.h"
-#include "smu_11_0_driver_if.h"
 #include "soc15_common.h"
 #include "atom.h"
 #include "vega20_ppt.h"
@@ -1738,6 +1737,9 @@ set_fan_speed_rpm_failed:
 	mutex_unlock(&(smu->mutex));
 	return ret;
 }
+
+#define XGMI_STATE_D0 1
+#define XGMI_STATE_D3 0
 
 static int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 				     uint32_t pstate)
