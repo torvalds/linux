@@ -2960,6 +2960,33 @@ static bool vega20_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
+static int vega20_set_thermal_fan_table(struct smu_context *smu)
+{
+	int ret;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetFanTemperatureTarget,
+			(uint32_t)pptable->FanTargetTemperature);
+
+	return ret;
+}
+
+static int vega20_get_fan_speed_percent(struct smu_context *smu,
+					uint32_t *speed)
+{
+	int ret = 0;
+	uint32_t percent = 0;
+	uint32_t current_rpm;
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	ret = smu_get_current_rpm(smu, &current_rpm);
+	percent = current_rpm * 100 / pptable->FanMaximumRpm;
+	*speed = percent > 100 ? 100 : percent;
+
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
 	.alloc_dpm_context = vega20_allocate_dpm_context,
@@ -3003,6 +3030,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.set_ppfeature_status = vega20_set_ppfeature_status,
 	.get_ppfeature_status = vega20_get_ppfeature_status,
 	.is_dpm_running = vega20_is_dpm_running,
+	.set_thermal_fan_table = vega20_set_thermal_fan_table,
+	.get_fan_speed_percent = vega20_get_fan_speed_percent,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

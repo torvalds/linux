@@ -569,6 +569,8 @@ struct pptable_funcs {
 	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
 	bool (*is_dpm_running)(struct smu_context *smu);
 	void (*tables_init)(struct smu_context *smu, struct smu_table *tables);
+	int (*set_thermal_fan_table)(struct smu_context *smu);
+	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 };
 
 struct smu_funcs
@@ -643,7 +645,6 @@ struct smu_funcs
 	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
-	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
@@ -757,6 +758,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->od_edit_dpm_table ? (smu)->ppt_funcs->od_edit_dpm_table((smu), (type), (input), (size)) : 0)
 #define smu_tables_init(smu, tab) \
 	((smu)->ppt_funcs->tables_init ? (smu)->ppt_funcs->tables_init((smu), (tab)) : 0)
+#define smu_set_thermal_fan_table(smu) \
+	((smu)->ppt_funcs->set_thermal_fan_table ? (smu)->ppt_funcs->set_thermal_fan_table((smu)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
@@ -794,7 +797,7 @@ struct smu_funcs
 #define smu_set_fan_control_mode(smu, value) \
 	((smu)->funcs->set_fan_control_mode ? (smu)->funcs->set_fan_control_mode((smu), (value)) : 0)
 #define smu_get_fan_speed_percent(smu, speed) \
-	((smu)->funcs->get_fan_speed_percent ? (smu)->funcs->get_fan_speed_percent((smu), (speed)) : 0)
+	((smu)->ppt_funcs->get_fan_speed_percent ? (smu)->ppt_funcs->get_fan_speed_percent((smu), (speed)) : 0)
 #define smu_set_fan_speed_percent(smu, speed) \
 	((smu)->funcs->set_fan_speed_percent ? (smu)->funcs->set_fan_speed_percent((smu), (speed)) : 0)
 

@@ -1166,18 +1166,6 @@ static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v11_0_set_thermal_fan_table(struct smu_context *smu)
-{
-	int ret;
-	struct smu_table_context *table_context = &smu->smu_table;
-	PPTable_t *pptable = table_context->driver_pptable;
-
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetFanTemperatureTarget,
-			(uint32_t)pptable->FanTargetTemperature);
-
-	return ret;
-}
-
 static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1205,7 +1193,7 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 		ret = smu_v11_0_enable_thermal_alert(smu);
 		if (ret)
 			return ret;
-		ret = smu_v11_0_set_thermal_fan_table(smu);
+		ret = smu_set_thermal_fan_table(smu);
 		if (ret)
 			return ret;
 	}
@@ -1742,22 +1730,6 @@ smu_v11_0_get_fan_control_mode(struct smu_context *smu)
 }
 
 static int
-smu_v11_0_get_fan_speed_percent(struct smu_context *smu,
-					   uint32_t *speed)
-{
-	int ret = 0;
-	uint32_t percent = 0;
-	uint32_t current_rpm;
-	PPTable_t *pptable = smu->smu_table.driver_pptable;
-
-	ret = smu_v11_0_get_current_rpm(smu, &current_rpm);
-	percent = current_rpm * 100 / pptable->FanMaximumRpm;
-	*speed = percent > 100 ? 100 : percent;
-
-	return ret;
-}
-
-static int
 smu_v11_0_smc_fan_control(struct smu_context *smu, bool start)
 {
 	int ret = 0;
@@ -1935,7 +1907,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_current_rpm = smu_v11_0_get_current_rpm,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
-	.get_fan_speed_percent = smu_v11_0_get_fan_speed_percent,
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
 	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
