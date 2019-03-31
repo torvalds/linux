@@ -194,35 +194,11 @@ static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
 	return 0;
 }
 
-/*-----------------------------------------------------------------------*/
-
-/* device probe and removal */
-
-/* chip configuration */
-
-static const u32 lm75_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info lm75_chip = {
-	.type = hwmon_chip,
-	.config = lm75_chip_config,
-};
-
-static const u32 lm75_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST,
-	0
-};
-
-static const struct hwmon_channel_info lm75_temp = {
-	.type = hwmon_temp,
-	.config = lm75_temp_config,
-};
-
 static const struct hwmon_channel_info *lm75_info[] = {
-	&lm75_chip,
-	&lm75_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
 	NULL
 };
 
