@@ -926,8 +926,6 @@ void odm_refresh_basic_rate_mask(void *dm_void) {}
 
 u8 phydm_rate_order_compute(void *dm_void, u8 rate_idx)
 {
-	u8 rate_order = 0;
-
 	if (rate_idx >= ODM_RATEVHTSS4MCS0) {
 		rate_idx -= ODM_RATEVHTSS4MCS0;
 		/**/
@@ -950,9 +948,8 @@ u8 phydm_rate_order_compute(void *dm_void, u8 rate_idx)
 		rate_idx -= ODM_RATEMCS8;
 		/**/
 	}
-	rate_order = rate_idx;
 
-	return rate_order;
+	return rate_idx;
 }
 
 static void phydm_ra_common_info_update(void *dm_void)
