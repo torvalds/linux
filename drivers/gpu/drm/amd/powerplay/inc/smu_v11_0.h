@@ -40,6 +40,8 @@
 #define TEMP_RANGE_MIN			(0)
 #define TEMP_RANGE_MAX			(80 * 1000)
 
+#define SMU11_TOOL_SIZE			0x19000
+
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = index
 

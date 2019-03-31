@@ -568,6 +568,7 @@ struct pptable_funcs {
 	int (*set_ppfeature_status)(struct smu_context *smu, uint64_t ppfeatures);
 	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
 	bool (*is_dpm_running)(struct smu_context *smu);
+	void (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 };
 
 struct smu_funcs
@@ -754,6 +755,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_od_percentage ? (smu)->ppt_funcs->set_od_percentage((smu), (type), (value)) : 0)
 #define smu_od_edit_dpm_table(smu, type, input, size) \
 	((smu)->ppt_funcs->od_edit_dpm_table ? (smu)->ppt_funcs->od_edit_dpm_table((smu), (type), (input), (size)) : 0)
+#define smu_tables_init(smu, tab) \
+	((smu)->ppt_funcs->tables_init ? (smu)->ppt_funcs->tables_init((smu), (tab)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \

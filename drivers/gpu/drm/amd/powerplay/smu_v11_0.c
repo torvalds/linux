@@ -45,7 +45,6 @@
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi10_smc.bin");
 
-#define SMU11_TOOL_SIZE		0x19000
 #define SMU11_THERMAL_MINIMUM_ALERT_TEMP      0
 #define SMU11_THERMAL_MAXIMUM_ALERT_TEMP      255
 
@@ -410,20 +409,7 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 
 	smu_table->tables = tables;
 
-	SMU_TABLE_INIT(tables, TABLE_PPTABLE, sizeof(PPTable_t),
-		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, TABLE_WATERMARKS, sizeof(Watermarks_t),
-		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
-		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, TABLE_OVERDRIVE, sizeof(OverDriveTable_t),
-		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, TABLE_PMSTATUSLOG, SMU11_TOOL_SIZE, PAGE_SIZE,
-		       AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, TABLE_ACTIVITY_MONITOR_COEFF,
-		       sizeof(DpmActivityMonitorCoeffInt_t),
-		       PAGE_SIZE,
-		       AMDGPU_GEM_DOMAIN_VRAM);
+	smu_tables_init(smu, tables);
 
 	ret = smu_v11_0_init_dpm_context(smu);
 	if (ret)
