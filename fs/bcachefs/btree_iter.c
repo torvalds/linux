@@ -1705,7 +1705,7 @@ void bch2_trans_preload_iters(struct btree_trans *trans)
 
 static int btree_trans_iter_alloc(struct btree_trans *trans)
 {
-	unsigned idx = ffz(trans->iters_linked);
+	unsigned idx = __ffs64(~trans->iters_linked);
 
 	if (idx < trans->nr_iters)
 		goto got_slot;
@@ -1871,17 +1871,17 @@ void *bch2_trans_kmalloc(struct btree_trans *trans,
 
 int bch2_trans_unlock(struct btree_trans *trans)
 {
-	unsigned iters = trans->iters_linked;
+	u64 iters = trans->iters_linked;
 	int ret = 0;
 
 	while (iters) {
-		unsigned idx = __ffs(iters);
+		unsigned idx = __ffs64(iters);
 		struct btree_iter *iter = &trans->iters[idx];
 
 		ret = ret ?: btree_iter_err(iter);
 
 		__bch2_btree_iter_unlock(iter);
-		iters ^= 1 << idx;
+		iters ^= 1ULL << idx;
 	}
 
 	return ret;
