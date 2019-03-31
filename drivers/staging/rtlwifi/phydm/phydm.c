@@ -49,7 +49,7 @@ static void odm_update_power_training_state(struct phy_dm_struct *dm);
 /*Y = 10*log(X)*/
 s32 odm_pwdb_conversion(s32 X, u32 total_bit, u32 decimal_bit)
 {
-	s32 Y, integer = 0, decimal = 0;
+	s32 integer = 0, decimal = 0;
 	u32 i;
 
 	if (X == 0)
@@ -66,9 +66,7 @@ s32 odm_pwdb_conversion(s32 X, u32 total_bit, u32 decimal_bit)
 		}
 	}
 
-	Y = 3 * (integer - decimal_bit) + decimal; /* 10*log(x)=3*log2(x), */
-
-	return Y;
+	return 3 * (integer - decimal_bit) + decimal; /* 10*log(x)=3*log2(x), */;
 }
 
 s32 odm_sign_conversion(s32 value, u32 total_bit)
@@ -1240,7 +1238,6 @@ u32 odm_convert_to_db(u32 value)
 {
 	u8 i;
 	u8 j;
-	u32 dB;
 
 	value = value & 0xFFFF;
 
@@ -1257,16 +1254,13 @@ u32 odm_convert_to_db(u32 value)
 			break;
 	}
 
-	dB = (i << 3) + j + 1;
-
-	return dB;
+	return (i << 3) + j + 1;
 }
 
 u32 odm_convert_to_linear(u32 value)
 {
 	u8 i;
 	u8 j;
-	u32 linear;
 
 	/* 1dB~96dB */
 
@@ -1275,9 +1269,7 @@ u32 odm_convert_to_linear(u32 value)
 	i = (u8)((value - 1) >> 3);
 	j = (u8)(value - 1) - (i << 3);
 
-	linear = db_invert_table[i][j];
-
-	return linear;
+	return db_invert_table[i][j];
 }
 
 /*
