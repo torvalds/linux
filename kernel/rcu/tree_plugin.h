@@ -1551,7 +1551,7 @@ static void __wake_nocb_leader(struct rcu_data *rdp, bool force,
  * Kick the GP kthread for this NOCB group, but caller has not
  * acquired locks.
  */
-static void wake_nocb_leader(struct rcu_data *rdp, bool force)
+static void wake_nocb_gp(struct rcu_data *rdp, bool force)
 {
 	unsigned long flags;
 
@@ -1656,7 +1656,7 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 	if (old_rhpp == &rdp->nocb_head) {
 		if (!irqs_disabled_flags(flags)) {
 			/* ... if queue was empty ... */
-			wake_nocb_leader(rdp, false);
+			wake_nocb_gp(rdp, false);
 			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu,
 					    TPS("WakeEmpty"));
 		} else {
@@ -1667,7 +1667,7 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 	} else if (len > rdp->qlen_last_fqs_check + qhimark) {
 		/* ... or if many callbacks queued. */
 		if (!irqs_disabled_flags(flags)) {
-			wake_nocb_leader(rdp, true);
+			wake_nocb_gp(rdp, true);
 			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu,
 					    TPS("WakeOvf"));
 		} else {
