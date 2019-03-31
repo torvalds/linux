@@ -77,29 +77,11 @@ static umode_t ltq_is_visible(const void *_data, enum hwmon_sensor_types type,
 	}
 }
 
-static const u32 ltq_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0
-};
-
-static const struct hwmon_channel_info ltq_chip = {
-	.type = hwmon_chip,
-	.config = ltq_chip_config,
-};
-
-static const u32 ltq_temp_config[] = {
-	HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ltq_temp = {
-	.type = hwmon_temp,
-	.config = ltq_temp_config,
-};
-
 static const struct hwmon_channel_info *ltq_info[] = {
-	&ltq_chip,
-	&ltq_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT),
 	NULL
 };
 
