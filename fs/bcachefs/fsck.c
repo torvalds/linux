@@ -128,18 +128,21 @@ static struct inode_walker inode_walker_init(void)
 	};
 }
 
-static int walk_inode(struct bch_fs *c, struct inode_walker *w, u64 inum)
+static int walk_inode(struct btree_trans *trans,
+		      struct inode_walker *w, u64 inum)
 {
-	w->first_this_inode	= inum != w->cur_inum;
-	w->cur_inum		= inum;
-
-	if (w->first_this_inode) {
-		int ret = bch2_inode_find_by_inum(c, inum, &w->inode);
+	if (inum != w->cur_inum) {
+		int ret = bch2_inode_find_by_inum_trans(trans, inum,
+							&w->inode);
 
 		if (ret && ret != -ENOENT)
 			return ret;
 
-		w->have_inode = !ret;
+		w->have_inode	= !ret;
+		w->cur_inum	= inum;
+		w->first_this_inode = true;
+	} else {
+		w->first_this_inode = false;
 	}
 
 	return 0;
@@ -445,12 +448,15 @@ static int check_extents(struct bch_fs *c)
 	int ret = 0;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	bch_verbose(c, "checking extents");
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
-			   POS(BCACHEFS_ROOT_INO, 0), 0, k) {
-		ret = walk_inode(c, &w, k.k->p.inode);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   POS(BCACHEFS_ROOT_INO, 0), 0);
+retry:
+	for_each_btree_key_continue(iter, 0, k) {
+		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
 
@@ -515,6 +521,8 @@ static int check_extents(struct bch_fs *c)
 	}
 err:
 fsck_err:
+	if (ret == -EINTR)
+		goto retry;
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -537,21 +545,20 @@ static int check_dirents(struct bch_fs *c)
 	bch_verbose(c, "checking dirents");
 
 	bch2_trans_init(&trans, c);
-
 	bch2_trans_preload_iters(&trans);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
-				   POS(BCACHEFS_ROOT_INO, 0), 0);
 
 	hash_check_init(&h);
 
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
+				   POS(BCACHEFS_ROOT_INO, 0), 0);
+retry:
 	for_each_btree_key_continue(iter, 0, k) {
 		struct bkey_s_c_dirent d;
 		struct bch_inode_unpacked target;
 		bool have_target;
 		u64 d_inum;
 
-		ret = walk_inode(c, &w, k.k->p.inode);
+		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
 
@@ -620,7 +627,7 @@ static int check_dirents(struct bch_fs *c)
 			continue;
 		}
 
-		ret = bch2_inode_find_by_inum(c, d_inum, &target);
+		ret = bch2_inode_find_by_inum_trans(&trans, d_inum, &target);
 		if (ret && ret != -ENOENT)
 			break;
 
@@ -671,6 +678,9 @@ static int check_dirents(struct bch_fs *c)
 	hash_stop_chain(&trans, &h);
 err:
 fsck_err:
+	if (ret == -EINTR)
+		goto retry;
+
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -689,17 +699,16 @@ static int check_xattrs(struct bch_fs *c)
 
 	bch_verbose(c, "checking xattrs");
 
-	bch2_trans_init(&trans, c);
+	hash_check_init(&h);
 
+	bch2_trans_init(&trans, c);
 	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_XATTRS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
-
-	hash_check_init(&h);
-
+retry:
 	for_each_btree_key_continue(iter, 0, k) {
-		ret = walk_inode(c, &w, k.k->p.inode);
+		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
 
@@ -722,6 +731,8 @@ static int check_xattrs(struct bch_fs *c)
 	}
 err:
 fsck_err:
+	if (ret == -EINTR)
+		goto retry;
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -905,6 +916,7 @@ static int check_directory_structure(struct bch_fs *c,
 	int ret = 0;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	bch_verbose(c, "checking directory structure");
 
@@ -919,9 +931,8 @@ restart_dfs:
 	}
 
 	ret = path_down(&path, BCACHEFS_ROOT_INO);
-	if (ret) {
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	while (path.nr) {
 next:
@@ -983,14 +994,19 @@ up:
 		path.nr--;
 	}
 
-	for_each_btree_key(&trans, iter, BTREE_ID_INODES, POS_MIN, 0, k) {
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS_MIN, 0);
+retry:
+	for_each_btree_key_continue(iter, 0, k) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
 		if (!S_ISDIR(le16_to_cpu(bkey_s_c_to_inode(k).v->bi_mode)))
 			continue;
 
-		if (!bch2_empty_dir(c, k.k->p.inode))
+		ret = bch2_empty_dir_trans(&trans, k.k->p.inode);
+		if (ret == -EINTR)
+			goto retry;
+		if (!ret)
 			continue;
 
 		if (fsck_err_on(!inode_bitmap_test(&dirs_done, k.k->p.inode), c,
@@ -1018,15 +1034,12 @@ up:
 		memset(&path, 0, sizeof(path));
 		goto restart_dfs;
 	}
-
-out:
-	kfree(dirs_done.bits);
-	kfree(path.entries);
-	return ret;
 err:
 fsck_err:
 	ret = bch2_trans_exit(&trans) ?: ret;
-	goto out;
+	kfree(dirs_done.bits);
+	kfree(path.entries);
+	return ret;
 }
 
 struct nlink {
@@ -1070,6 +1083,7 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 	int ret;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	inc_link(c, links, range_start, range_end, BCACHEFS_ROOT_INO, false);
 
@@ -1327,6 +1341,7 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 	u64 nlinks_pos;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES,
 				   POS(range_start, 0), 0);
@@ -1426,6 +1441,7 @@ static int check_inodes_fast(struct bch_fs *c)
 	int ret = 0, ret2;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES,
 				   POS_MIN, 0);

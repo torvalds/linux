@@ -444,31 +444,32 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 	return ret;
 }
 
-int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
-			    struct bch_inode_unpacked *inode)
+int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
+				  struct bch_inode_unpacked *inode)
 {
-	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = -ENOENT;
 
-	bch2_trans_init(&trans, c);
+	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
+			POS(inode_nr, 0), BTREE_ITER_SLOTS);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_INODES,
-			   POS(inode_nr, 0), BTREE_ITER_SLOTS, k) {
-		switch (k.k->type) {
-		case KEY_TYPE_inode:
-			ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
-			break;
-		default:
-			/* hole, not found */
-			break;
-		}
+	k = bch2_btree_iter_peek_slot(iter);
+	if (k.k->type == KEY_TYPE_inode)
+		ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
 
-		break;
-	}
+	bch2_trans_iter_put(trans, iter);
 
-	return bch2_trans_exit(&trans) ?: ret;
+	return ret;
+}
+
+int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
+			    struct bch_inode_unpacked *inode)
+{
+	return bch2_trans_do(c, NULL, 0,
+		bch2_inode_find_by_inum_trans(&trans, inode_nr, inode));
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG

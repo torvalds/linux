@@ -329,17 +329,18 @@ out:
 	return inum;
 }
 
-int bch2_empty_dir(struct bch_fs *c, u64 dir_inum)
+int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 {
-	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
+	iter = bch2_trans_get_iter(trans, BTREE_ID_DIRENTS,
+				   POS(dir_inum, 0), 0);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS,
-			   POS(dir_inum, 0), 0, k) {
+	for_each_btree_key_continue(iter, 0, k) {
 		if (k.k->p.inode > dir_inum)
 			break;
 
@@ -348,9 +349,15 @@ int bch2_empty_dir(struct bch_fs *c, u64 dir_inum)
 			break;
 		}
 	}
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_put(trans, iter);
 
 	return ret;
+}
+
+int bch2_empty_dir(struct bch_fs *c, u64 dir_inum)
+{
+	return bch2_trans_do(c, NULL, 0,
+		bch2_empty_dir_trans(&trans, dir_inum));
 }
 
 int bch2_readdir(struct bch_fs *c, struct file *file,

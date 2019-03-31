@@ -60,8 +60,9 @@ int bch2_inode_create(struct bch_fs *, struct bch_inode_unpacked *,
 
 int bch2_inode_rm(struct bch_fs *, u64);
 
-int bch2_inode_find_by_inum(struct bch_fs *, u64,
-			   struct bch_inode_unpacked *);
+int bch2_inode_find_by_inum_trans(struct btree_trans *, u64,
+				  struct bch_inode_unpacked *);
+int bch2_inode_find_by_inum(struct bch_fs *, u64, struct bch_inode_unpacked *);
 
 static inline struct bch_io_opts bch2_inode_opts_get(struct bch_inode_unpacked *inode)
 {

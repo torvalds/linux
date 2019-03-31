@@ -55,6 +55,7 @@ int bch2_dirent_rename(struct btree_trans *,
 u64 bch2_dirent_lookup(struct bch_fs *, u64, const struct bch_hash_info *,
 		       const struct qstr *);
 
+int bch2_empty_dir_trans(struct btree_trans *, u64);
 int bch2_empty_dir(struct bch_fs *, u64);
 int bch2_readdir(struct bch_fs *, struct file *, struct dir_context *);
 
