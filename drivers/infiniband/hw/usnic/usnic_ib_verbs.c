@@ -447,8 +447,7 @@ int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 	return 0;
 }
 
-int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-		      struct ib_udata *udata)
+int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct usnic_ib_pd *pd = to_upd(ibpd);
 	void *umem_pd;
@@ -590,7 +589,6 @@ out_unlock:
 
 struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
 				 const struct ib_cq_init_attr *attr,
-				 struct ib_ucontext *context,
 				 struct ib_udata *udata)
 {
 	struct ib_cq *cq;

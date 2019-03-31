@@ -131,8 +131,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		err = mlx4_ib_db_map_user(ucontext, udata, ucmd.db_addr,
-					  &srq->db);
+		err = mlx4_ib_db_map_user(udata, ucmd.db_addr, &srq->db);
 		if (err)
 			goto err_mtt;
 	} else {

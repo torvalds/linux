@@ -106,7 +106,6 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 
 static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 				    const struct ib_cq_init_attr *attr,
-				    struct ib_ucontext *ib_context,
 				    struct ib_udata *udata)
 {
 	int entries = attr->cqe;
@@ -114,7 +113,6 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	struct iwch_cq *chp;
 	struct iwch_create_cq_resp uresp;
 	struct iwch_create_cq_req ureq;
-	struct iwch_ucontext *ucontext = NULL;
 	static int warned;
 	size_t resplen;
 
@@ -127,8 +125,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	if (!chp)
 		return ERR_PTR(-ENOMEM);
 
-	if (ib_context) {
-		ucontext = to_iwch_ucontext(ib_context);
+	if (udata) {
 		if (!t3a_device(rhp)) {
 			if (ib_copy_from_udata(&ureq, udata, sizeof (ureq))) {
 				kfree(chp);
@@ -154,7 +151,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	entries = roundup_pow_of_two(entries);
 	chp->cq.size_log2 = ilog2(entries);
 
-	if (cxio_create_cq(&rhp->rdev, &chp->cq, !ucontext)) {
+	if (cxio_create_cq(&rhp->rdev, &chp->cq, !udata)) {
 		kfree(chp);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -170,8 +167,10 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (ucontext) {
+	if (udata) {
 		struct iwch_mm_entry *mm;
+		struct iwch_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct iwch_ucontext, ibucontext);
 
 		mm = kmalloc(sizeof *mm, GFP_KERNEL);
 		if (!mm) {
@@ -378,8 +377,7 @@ static void iwch_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 	cxio_hal_put_pdid(rhp->rdev.rscp, php->pdid);
 }
 
-static int iwch_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
-			    struct ib_udata *udata)
+static int iwch_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct iwch_pd *php = to_iwch_pd(pd);
 	struct ib_device *ibdev = pd->device;
@@ -394,7 +392,7 @@ static int iwch_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 
 	php->pdid = pdid;
 	php->rhp = rhp;
-	if (context) {
+	if (udata) {
 		struct iwch_alloc_pd_resp resp = {.pdid = php->pdid};
 
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {

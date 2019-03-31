@@ -168,7 +168,6 @@ static void send_complete(struct work_struct *work)
  * rvt_create_cq - create a completion queue
  * @ibdev: the device this completion queue is attached to
  * @attr: creation attributes
- * @context: unused by the QLogic_IB driver
  * @udata: user data for libibverbs.so
  *
  * Called by ib_create_cq() in the generic verbs code.
@@ -178,7 +177,6 @@ static void send_complete(struct work_struct *work)
  */
 struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *context,
 			    struct ib_udata *udata)
 {
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
@@ -232,7 +230,7 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
 
-		cq->ip = rvt_create_mmap_info(rdi, sz, context, wc);
+		cq->ip = rvt_create_mmap_info(rdi, sz, udata, wc);
 		if (!cq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wc;

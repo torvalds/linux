@@ -730,7 +730,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	/* Reserved cq for loop qp */
 	cq_init_attr.cqe		= HNS_ROCE_MIN_WQE_NUM * 2;
 	cq_init_attr.comp_vector	= 0;
-	cq = hns_roce_ib_create_cq(&hr_dev->ib_dev, &cq_init_attr, NULL, NULL);
+	cq = hns_roce_ib_create_cq(&hr_dev->ib_dev, &cq_init_attr, NULL);
 	if (IS_ERR(cq)) {
 		dev_err(dev, "Create cq for reserved loop qp failed!");
 		return -ENOMEM;
@@ -749,7 +749,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 		goto alloc_mem_failed;
 
 	pd->device  = ibdev;
-	ret = hns_roce_alloc_pd(pd, NULL, NULL);
+	ret = hns_roce_alloc_pd(pd, NULL);
 	if (ret)
 		goto alloc_pd_failed;
 

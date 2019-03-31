@@ -42,6 +42,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include <linux/qed/common_hsi.h>
 #include "qedr_hsi_rdma.h"
@@ -436,8 +437,7 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 				  vma->vm_page_prot);
 }
 
-int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-		  struct ib_udata *udata)
+int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ibdev = ibpd->device;
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
@@ -446,7 +446,7 @@ int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 	int rc;
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Function called from: %s\n",
-		 (udata && context) ? "User Lib" : "Kernel");
+		 udata ? "User Lib" : "Kernel");
 
 	if (!dev->rdma_ctx) {
 		DP_ERR(dev, "invalid RDMA context\n");
@@ -459,10 +459,12 @@ int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 
 	pd->pd_id = pd_id;
 
-	if (udata && context) {
+	if (udata) {
 		struct qedr_alloc_pd_uresp uresp = {
 			.pd_id = pd_id,
 		};
+		struct qedr_ucontext *context = rdma_udata_to_drv_context(
+			udata, struct qedr_ucontext, ibucontext);
 
 		rc = qedr_ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (rc) {
@@ -471,7 +473,7 @@ int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 			return rc;
 		}
 
-		pd->uctx = get_qedr_ucontext(context);
+		pd->uctx = context;
 		pd->uctx->pd = pd;
 	}
 
@@ -816,9 +818,10 @@ int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_ctx, struct ib_udata *udata)
+			     struct ib_udata *udata)
 {
-	struct qedr_ucontext *ctx = get_qedr_ucontext(ib_ctx);
+	struct qedr_ucontext *ctx = rdma_udata_to_drv_context(
+		udata, struct qedr_ucontext, ibucontext);
 	struct qed_rdma_destroy_cq_out_params destroy_oparams;
 	struct qed_rdma_destroy_cq_in_params destroy_iparams;
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
@@ -906,7 +909,7 @@ struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 	cq->sig = QEDR_CQ_MAGIC_NUMBER;
 	spin_lock_init(&cq->cq_lock);
 
-	if (ib_ctx) {
+	if (udata) {
 		rc = qedr_copy_cq_uresp(dev, cq, udata);
 		if (rc)
 			goto err3;

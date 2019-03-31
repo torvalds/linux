@@ -49,6 +49,7 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "pvrdma.h"
 
@@ -93,7 +94,6 @@ int pvrdma_req_notify_cq(struct ib_cq *ibcq,
  * pvrdma_create_cq - create completion queue
  * @ibdev: the device
  * @attr: completion queue attributes
- * @context: user context
  * @udata: user data
  *
  * @return: ib_cq completion queue pointer on success,
@@ -101,7 +101,6 @@ int pvrdma_req_notify_cq(struct ib_cq *ibcq,
  */
 struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 			       const struct ib_cq_init_attr *attr,
-			       struct ib_ucontext *context,
 			       struct ib_udata *udata)
 {
 	int entries = attr->cqe;
@@ -116,6 +115,8 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	struct pvrdma_cmd_create_cq_resp *resp = &rsp.create_cq_resp;
 	struct pvrdma_create_cq_resp cq_resp = {0};
 	struct pvrdma_create_cq ucmd;
+	struct pvrdma_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct pvrdma_ucontext, ibucontext);
 
 	BUILD_BUG_ON(sizeof(struct pvrdma_cqe) != 64);
 
@@ -133,7 +134,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	}
 
 	cq->ibcq.cqe = entries;
-	cq->is_kernel = !context;
+	cq->is_kernel = !udata;
 
 	if (!cq->is_kernel) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
@@ -185,8 +186,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_CREATE_CQ;
 	cmd->nchunks = npages;
-	cmd->ctx_handle = (context) ?
-		(u64)to_vucontext(context)->ctx_handle : 0;
+	cmd->ctx_handle = context ? context->ctx_handle : 0;
 	cmd->cqe = entries;
 	cmd->pdir_dma = cq->pdir.dir_dma;
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_CQ_RESP);
@@ -204,7 +204,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
 	if (!cq->is_kernel) {
-		cq->uar = &(to_vucontext(context)->uar);
+		cq->uar = &context->uar;
 
 		/* Copy udata back. */
 		if (ib_copy_to_udata(udata, &cq_resp, sizeof(cq_resp))) {

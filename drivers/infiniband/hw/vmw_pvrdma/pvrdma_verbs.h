@@ -398,8 +398,7 @@ int pvrdma_modify_port(struct ib_device *ibdev, u8 port,
 int pvrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
 void pvrdma_dealloc_ucontext(struct ib_ucontext *context);
-int pvrdma_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
-		    struct ib_udata *udata);
+int pvrdma_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 void pvrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
@@ -412,7 +411,6 @@ int pvrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		     int sg_nents, unsigned int *sg_offset);
 struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 			       const struct ib_cq_init_attr *attr,
-			       struct ib_ucontext *context,
 			       struct ib_udata *udata);
 int pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);

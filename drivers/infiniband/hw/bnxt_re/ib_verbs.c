@@ -576,14 +576,12 @@ void bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 				      &pd->qplib_pd);
 }
 
-int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *ucontext,
-		     struct ib_udata *udata)
+int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ibdev = ibpd->device;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	struct bnxt_re_ucontext *ucntx = container_of(ucontext,
-						      struct bnxt_re_ucontext,
-						      ib_uctx);
+	struct bnxt_re_ucontext *ucntx = rdma_udata_to_drv_context(
+		udata, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_re_pd *pd = container_of(ibpd, struct bnxt_re_pd, ib_pd);
 	int rc;
 
@@ -2589,7 +2587,6 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 
 struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
-				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
@@ -2616,12 +2613,10 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	if (entries > dev_attr->max_cq_wqes + 1)
 		entries = dev_attr->max_cq_wqes + 1;
 
-	if (context) {
+	if (udata) {
 		struct bnxt_re_cq_req req;
-		struct bnxt_re_ucontext *uctx = container_of
-						(context,
-						 struct bnxt_re_ucontext,
-						 ib_uctx);
+		struct bnxt_re_ucontext *uctx = rdma_udata_to_drv_context(
+			udata, struct bnxt_re_ucontext, ib_uctx);
 		if (ib_copy_from_udata(&req, udata, sizeof(req))) {
 			rc = -EFAULT;
 			goto fail;
@@ -2672,7 +2667,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	atomic_inc(&rdev->cq_count);
 	spin_lock_init(&cq->cq_lock);
 
-	if (context) {
+	if (udata) {
 		struct bnxt_re_cq_resp resp;
 
 		resp.cqid = cq->qplib_cq.id;
@@ -2690,7 +2685,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	return &cq->ib_cq;
 
 c2fail:
-	if (context)
+	if (udata)
 		ib_umem_release(cq->umem);
 fail:
 	kfree(cq->cql);

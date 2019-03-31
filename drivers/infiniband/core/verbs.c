@@ -269,7 +269,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	pd->res.type = RDMA_RESTRACK_PD;
 	rdma_restrack_set_task(&pd->res, caller);
 
-	ret = device->ops.alloc_pd(pd, NULL, NULL);
+	ret = device->ops.alloc_pd(pd, NULL);
 	if (ret) {
 		kfree(pd);
 		return ERR_PTR(ret);
@@ -1911,7 +1911,7 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 {
 	struct ib_cq *cq;
 
-	cq = device->ops.create_cq(device, cq_attr, NULL, NULL);
+	cq = device->ops.create_cq(device, cq_attr, NULL);
 
 	if (!IS_ERR(cq)) {
 		cq->device        = device;
@@ -2142,7 +2142,7 @@ struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
 	if (!device->ops.alloc_xrcd)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	xrcd = device->ops.alloc_xrcd(device, NULL, NULL);
+	xrcd = device->ops.alloc_xrcd(device, NULL);
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
 		xrcd->inode = NULL;

@@ -1041,11 +1041,11 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err_mtt;
 
 		if (qp_has_rq(init_attr)) {
-			err = mlx4_ib_db_map_user(
-				context, udata,
-				(src == MLX4_IB_QP_SRC) ? ucmd.qp.db_addr :
+			err = mlx4_ib_db_map_user(udata,
+						  (src == MLX4_IB_QP_SRC) ?
+							  ucmd.qp.db_addr :
 							  ucmd.wq.db_addr,
-				&qp->db);
+						  &qp->db);
 			if (err)
 				goto err_mtt;
 		}

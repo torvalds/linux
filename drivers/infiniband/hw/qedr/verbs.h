@@ -47,13 +47,11 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
 void qedr_dealloc_ucontext(struct ib_ucontext *uctx);
 
 int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
-int qedr_alloc_pd(struct ib_pd *pd, struct ib_ucontext *uctx,
-		  struct ib_udata *udata);
+int qedr_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 void qedr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_ctx,
 			     struct ib_udata *udata);
 int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);

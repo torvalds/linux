@@ -147,7 +147,7 @@ struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
 	struct ib_cq *cq;
 	int ret = -ENOMEM;
 
-	cq = dev->ops.create_cq(dev, &cq_attr, NULL, NULL);
+	cq = dev->ops.create_cq(dev, &cq_attr, NULL);
 	if (IS_ERR(cq))
 		return cq;
 

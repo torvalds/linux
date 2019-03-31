@@ -47,6 +47,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "ocrdma.h"
 #include "ocrdma_hw.h"
@@ -367,6 +368,16 @@ static int ocrdma_get_pd_num(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 	return status;
 }
 
+/*
+ * NOTE:
+ *
+ * ocrdma_ucontext must be used here because this function is also
+ * called from ocrdma_alloc_ucontext where ib_udata does not have
+ * valid ib_ucontext pointer. ib_uverbs_get_context does not call
+ * uobj_{alloc|get_xxx} helpers which are used to store the
+ * ib_ucontext in uverbs_attr_bundle wrapping the ib_udata. so
+ * ib_udata does NOT imply valid ib_ucontext here!
+ */
 static int _ocrdma_alloc_pd(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
 			    struct ocrdma_ucontext *uctx,
 			    struct ib_udata *udata)
@@ -593,7 +604,6 @@ int ocrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 }
 
 static int ocrdma_copy_pd_uresp(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
-				struct ib_ucontext *ib_ctx,
 				struct ib_udata *udata)
 {
 	int status;
@@ -601,7 +611,8 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
 	u64 dpp_page_addr = 0;
 	u32 db_page_size;
 	struct ocrdma_alloc_pd_uresp rsp;
-	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ib_ctx);
+	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
+		udata, struct ocrdma_ucontext, ibucontext);
 
 	memset(&rsp, 0, sizeof(rsp));
 	rsp.id = pd->id;
@@ -639,18 +650,17 @@ dpp_map_err:
 	return status;
 }
 
-int ocrdma_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-		    struct ib_udata *udata)
+int ocrdma_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ibdev = ibpd->device;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_pd *pd;
-	struct ocrdma_ucontext *uctx = NULL;
 	int status;
 	u8 is_uctx_pd = false;
+	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
+		udata, struct ocrdma_ucontext, ibucontext);
 
-	if (udata && context) {
-		uctx = get_ocrdma_ucontext(context);
+	if (udata) {
 		pd = ocrdma_get_ucontext_pd(uctx);
 		if (pd) {
 			is_uctx_pd = true;
@@ -664,8 +674,8 @@ int ocrdma_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 		goto exit;
 
 pd_mapping:
-	if (udata && context) {
-		status = ocrdma_copy_pd_uresp(dev, pd, context, udata);
+	if (udata) {
+		status = ocrdma_copy_pd_uresp(dev, pd, udata);
 		if (status)
 			goto err;
 	}
@@ -946,12 +956,16 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 }
 
 static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
-				struct ib_udata *udata,
-				struct ib_ucontext *ib_ctx)
+				struct ib_udata *udata)
 {
 	int status;
-	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ib_ctx);
+	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
+		udata, struct ocrdma_ucontext, ibucontext);
 	struct ocrdma_create_cq_uresp uresp;
+
+	/* this must be user flow! */
+	if (!udata)
+		return -EINVAL;
 
 	memset(&uresp, 0, sizeof(uresp));
 	uresp.cq_id = cq->id;
@@ -983,13 +997,13 @@ err:
 
 struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 			       const struct ib_cq_init_attr *attr,
-			       struct ib_ucontext *ib_ctx,
 			       struct ib_udata *udata)
 {
 	int entries = attr->cqe;
 	struct ocrdma_cq *cq;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
-	struct ocrdma_ucontext *uctx = NULL;
+	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
+		udata, struct ocrdma_ucontext, ibucontext);
 	u16 pd_id = 0;
 	int status;
 	struct ocrdma_create_cq_ureq ureq;
@@ -1011,18 +1025,16 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&cq->sq_head);
 	INIT_LIST_HEAD(&cq->rq_head);
 
-	if (ib_ctx) {
-		uctx = get_ocrdma_ucontext(ib_ctx);
+	if (udata)
 		pd_id = uctx->cntxt_pd->id;
-	}
 
 	status = ocrdma_mbx_create_cq(dev, cq, entries, ureq.dpp_cq, pd_id);
 	if (status) {
 		kfree(cq);
 		return ERR_PTR(status);
 	}
-	if (ib_ctx) {
-		status = ocrdma_copy_cq_uresp(dev, cq, udata, ib_ctx);
+	if (udata) {
+		status = ocrdma_copy_cq_uresp(dev, cq, udata);
 		if (status)
 			goto ctx_err;
 	}

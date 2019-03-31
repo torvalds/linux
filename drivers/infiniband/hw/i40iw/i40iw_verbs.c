@@ -291,18 +291,15 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
 /**
  * i40iw_alloc_pd - allocate protection domain
  * @pd: PD pointer
- * @context: user context created during alloc
  * @udata: user data
  */
-static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
-			  struct ib_udata *udata)
+static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_alloc_pd_resp uresp;
 	struct i40iw_sc_pd *sc_pd;
-	struct i40iw_ucontext *ucontext;
 	u32 pd_id = 0;
 	int err;
 
@@ -318,8 +315,9 @@ static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 
 	sc_pd = &iwpd->sc_pd;
 
-	if (context) {
-		ucontext = to_ucontext(context);
+	if (udata) {
+		struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct i40iw_ucontext, ibucontext);
 		dev->iw_pd_ops->pd_init(dev, sc_pd, pd_id, ucontext->abi_ver);
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.pd_id = pd_id;
@@ -1091,12 +1089,10 @@ static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
  * i40iw_create_cq - create cq
  * @ibdev: device pointer from stack
  * @attr: attributes for cq
- * @context: user context created during alloc
  * @udata: user data
  */
 static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 				     const struct ib_cq_init_attr *attr,
-				     struct ib_ucontext *context,
 				     struct ib_udata *udata)
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
@@ -1146,14 +1142,14 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	info.ceq_id_valid = true;
 	info.ceqe_mask = 1;
 	info.type = I40IW_CQ_TYPE_IWARP;
-	if (context) {
-		struct i40iw_ucontext *ucontext;
+	if (udata) {
+		struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct i40iw_ucontext, ibucontext);
 		struct i40iw_create_cq_req req;
 		struct i40iw_cq_mr *cqmr;
 
 		memset(&req, 0, sizeof(req));
 		iwcq->user_mode = true;
-		ucontext = to_ucontext(context);
 		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req))) {
 			err_code = -EFAULT;
 			goto cq_free_resources;
@@ -1223,7 +1219,7 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 		goto cq_free_resources;
 	}
 
-	if (context) {
+	if (udata) {
 		struct i40iw_create_cq_resp resp;
 
 		memset(&resp, 0, sizeof(resp));

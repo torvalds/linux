@@ -176,8 +176,7 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	return 0;
 }
 
-static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-			struct ib_udata *udata)
+static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
@@ -305,8 +304,6 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_ucontext *ucontext =
-		rdma_udata_to_drv_context(udata, struct rxe_ucontext, ibuc);
 	struct rxe_srq *srq;
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
@@ -330,7 +327,7 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 	srq->pd = pd;
 
-	err = rxe_srq_from_init(rxe, srq, init, &ucontext->ibuc, uresp);
+	err = rxe_srq_from_init(rxe, srq, init, udata, uresp);
 	if (err)
 		goto err2;
 
@@ -366,7 +363,7 @@ static int rxe_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	if (err)
 		goto err1;
 
-	err = rxe_srq_from_attr(rxe, srq, attr, mask, &ucmd);
+	err = rxe_srq_from_attr(rxe, srq, attr, mask, &ucmd, udata);
 	if (err)
 		goto err1;
 
@@ -799,7 +796,6 @@ err1:
 
 static struct ib_cq *rxe_create_cq(struct ib_device *dev,
 				   const struct ib_cq_init_attr *attr,
-				   struct ib_ucontext *context,
 				   struct ib_udata *udata)
 {
 	int err;
@@ -826,8 +822,8 @@ static struct ib_cq *rxe_create_cq(struct ib_device *dev,
 		goto err1;
 	}
 
-	err = rxe_cq_from_init(rxe, cq, attr->cqe, attr->comp_vector,
-			       context, uresp);
+	err = rxe_cq_from_init(rxe, cq, attr->cqe, attr->comp_vector, udata,
+			       uresp);
 	if (err)
 		goto err2;
 
@@ -866,7 +862,7 @@ static int rxe_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	if (err)
 		goto err1;
 
-	err = rxe_cq_resize_queue(cq, cqe, uresp);
+	err = rxe_cq_resize_queue(cq, cqe, uresp, udata);
 	if (err)
 		goto err1;
 

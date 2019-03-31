@@ -957,8 +957,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	size_t sg_list_sz;
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
-	struct rvt_ucontext *ucontext = rdma_udata_to_drv_context(
-		udata, struct rvt_ucontext, ibucontext);
 	void *priv = NULL;
 	size_t sqsize;
 
@@ -1131,8 +1129,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		} else {
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
-			qp->ip = rvt_create_mmap_info(rdi, s,
-						      &ucontext->ibucontext,
+			qp->ip = rvt_create_mmap_info(rdi, s, udata,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);

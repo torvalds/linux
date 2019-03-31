@@ -994,7 +994,6 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
 	int entries = attr->cqe;
@@ -1003,10 +1002,11 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	struct c4iw_cq *chp;
 	struct c4iw_create_cq ucmd;
 	struct c4iw_create_cq_resp uresp;
-	struct c4iw_ucontext *ucontext = NULL;
 	int ret, wr_len;
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
+	struct c4iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct c4iw_ucontext, ibucontext);
 
 	pr_debug("ib_dev %p entries %d\n", ibdev, entries);
 	if (attr->flags)
@@ -1017,8 +1017,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	if (vector >= rhp->rdev.lldi.nciq)
 		return ERR_PTR(-EINVAL);
 
-	if (ib_context) {
-		ucontext = to_c4iw_ucontext(ib_context);
+	if (udata) {
 		if (udata->inlen < sizeof(ucmd))
 			ucontext->is_32b_cqe = 1;
 	}
@@ -1070,7 +1069,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
-	if (ucontext)
+	if (udata)
 		memsize = roundup(memsize, PAGE_SIZE);
 
 	chp->cq.size = hwentries;

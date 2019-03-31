@@ -57,8 +57,7 @@ void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev)
 	hns_roce_bitmap_cleanup(&hr_dev->pd_bitmap);
 }
 
-int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-		      struct ib_udata *udata)
+int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ib_dev = ibpd->device;
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
@@ -72,7 +71,7 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 		return ret;
 	}
 
-	if (context) {
+	if (udata) {
 		struct hns_roce_ib_alloc_pd_resp uresp = {.pdn = pd->pdn};
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {

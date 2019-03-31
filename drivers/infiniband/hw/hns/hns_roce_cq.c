@@ -302,7 +302,6 @@ static void hns_roce_ib_free_cq_buf(struct hns_roce_dev *hr_dev,
 
 struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				    const struct ib_cq_init_attr *attr,
-				    struct ib_ucontext *context,
 				    struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
@@ -314,6 +313,8 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	int vector = attr->comp_vector;
 	int cq_entries = attr->cqe;
 	int ret;
+	struct hns_roce_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct hns_roce_ucontext, ibucontext);
 
 	if (cq_entries < 1 || cq_entries > hr_dev->caps.max_cqes) {
 		dev_err(dev, "Creat CQ failed. entries=%d, max=%d\n",
@@ -332,7 +333,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	hr_cq->ib_cq.cqe = cq_entries - 1;
 	spin_lock_init(&hr_cq->lock);
 
-	if (context) {
+	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "Failed to copy_from_udata.\n");
 			ret = -EFAULT;
@@ -350,8 +351,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    (udata->outlen >= sizeof(resp))) {
-			ret = hns_roce_db_map_user(to_hr_ucontext(context),
-						   udata, ucmd.db_addr,
+			ret = hns_roce_db_map_user(context, udata, ucmd.db_addr,
 						   &hr_cq->db);
 			if (ret) {
 				dev_err(dev, "cq record doorbell map failed!\n");
@@ -362,7 +362,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 		}
 
 		/* Get user space parameters */
-		uar = &to_hr_ucontext(context)->uar;
+		uar = &context->uar;
 	} else {
 		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
 			ret = hns_roce_alloc_db(hr_dev, &hr_cq->db, 1);
@@ -401,7 +401,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	 * problems if tptr is set to zero here, so we initialze it in user
 	 * space.
 	 */
-	if (!context && hr_cq->tptr_addr)
+	if (!udata && hr_cq->tptr_addr)
 		*hr_cq->tptr_addr = 0;
 
 	/* Get created cq handler and carry out event */
@@ -409,7 +409,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	hr_cq->event = hns_roce_ib_cq_event;
 	hr_cq->cq_depth = cq_entries;
 
-	if (context) {
+	if (udata) {
 		resp.cqn = hr_cq->cqn;
 		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
 		if (ret)
@@ -422,21 +422,20 @@ err_cqc:
 	hns_roce_free_cq(hr_dev, hr_cq);
 
 err_dbmap:
-	if (context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+	if (udata && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 	    (udata->outlen >= sizeof(resp)))
-		hns_roce_db_unmap_user(to_hr_ucontext(context),
-				       &hr_cq->db);
+		hns_roce_db_unmap_user(context, &hr_cq->db);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
-	if (context)
+	if (udata)
 		ib_umem_release(hr_cq->umem);
 	else
 		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
 					hr_cq->ib_cq.cqe);
 
 err_db:
-	if (!context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
+	if (!udata && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
 		hns_roce_free_db(hr_dev, &hr_cq->db);
 
 err_cq:
