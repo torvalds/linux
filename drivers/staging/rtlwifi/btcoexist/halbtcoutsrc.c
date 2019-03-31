@@ -33,7 +33,7 @@ static const char *const gl_btc_wifi_freq_string[] = {
 
 static bool halbtc_is_bt_coexist_available(struct btc_coexist *btcoexist)
 {
-	if (!btcoexist->binded || NULL == btcoexist->adapter)
+	if (!btcoexist->binded || !btcoexist->adapter)
 		return false;
 
 	return true;
