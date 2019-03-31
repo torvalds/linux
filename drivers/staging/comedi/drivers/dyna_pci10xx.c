@@ -54,7 +54,7 @@ static int dyna_pci10xx_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = inw_p(dev->iobase);
-	if (status & (1 << 15))
+	if (status & BIT(15))
 		return 0;
 	return -EBUSY;
 }

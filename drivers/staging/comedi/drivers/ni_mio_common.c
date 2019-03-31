@@ -4800,7 +4800,7 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 	if (data) {
 		*data = ni_ao_win_inw(dev, NI67XX_CAL_DATA_REG);
 		/* cs5529 returns 16 bit signed data in bipolar mode */
-		*data ^= (1 << 15);
+		*data ^= BIT(15);
 	}
 	return 0;
 }
@@ -6209,7 +6209,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_INTERNAL;
 		/*  one channel for each analog output channel */
 		s->n_chan = board->n_aochan;
-		s->maxdata = (1 << 16) - 1;
+		s->maxdata = BIT(16) - 1;
 		s->range_table = &range_unknown;	/* XXX */
 		s->insn_read = cs5529_ai_insn_read;
 		s->insn_config = NULL;
