@@ -451,20 +451,12 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return -ENODEV;
 }
 
-static const u32 jc42_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX | HWMON_T_CRIT |
-	HWMON_T_MAX_HYST | HWMON_T_CRIT_HYST |
-	HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info jc42_temp = {
-	.type = hwmon_temp,
-	.config = jc42_temp_config,
-};
-
 static const struct hwmon_channel_info *jc42_info[] = {
-	&jc42_temp,
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM),
 	NULL
 };
 
