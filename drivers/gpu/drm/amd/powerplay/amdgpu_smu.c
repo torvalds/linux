@@ -127,18 +127,18 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 	return ret;
 }
 
-int smu_update_table(struct smu_context *smu, uint32_t table_index,
+int smu_update_table(struct smu_context *smu, enum smu_table_id table_index,
 		     void *table_data, bool drv2smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *table = NULL;
 	int ret = 0;
-	int table_id = table_index & 0xffff;
+	int table_id = smu_table_get_index(smu, table_index);
 
 	if (!table_data || table_id >= smu_table->table_count)
 		return -EINVAL;
 
-	table = &smu_table->tables[table_id];
+	table = &smu_table->tables[table_index];
 
 	if (drv2smu)
 		memcpy(table->cpu_addr, table_data, table->size);
@@ -154,7 +154,7 @@ int smu_update_table(struct smu_context *smu, uint32_t table_index,
 	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
 					  SMU_MSG_TransferTableDram2Smu :
 					  SMU_MSG_TransferTableSmu2Dram,
-					  table_index);
+					  table_id);
 	if (ret)
 		return ret;
 

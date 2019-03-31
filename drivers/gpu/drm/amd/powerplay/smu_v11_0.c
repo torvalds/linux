@@ -707,15 +707,17 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	ret = smu_update_table(smu, TABLE_PPTABLE, table_context->driver_pptable, true);
+	ret = smu_update_table(smu, SMU_TABLE_PPTABLE,
+			       table_context->driver_pptable, true);
 
 	return ret;
 }
 
 static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
 {
-	return smu_update_table(smu, TABLE_WATERMARKS,
-				smu->smu_table.tables[TABLE_WATERMARKS].cpu_addr, true);
+	return smu_update_table(smu, SMU_TABLE_WATERMARKS,
+				smu->smu_table.tables[SMU_TABLE_WATERMARKS].cpu_addr,
+				true);
 }
 
 static int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
@@ -746,7 +748,7 @@ static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 {
 	int ret = 0;
-	struct smu_table *tool_table = &smu->smu_table.tables[TABLE_PMSTATUSLOG];
+	struct smu_table *tool_table = &smu->smu_table.tables[SMU_TABLE_PMSTATUSLOG];
 
 	if (tool_table->mc_address) {
 		ret = smu_send_smc_msg_with_param(smu,
@@ -1226,7 +1228,7 @@ static int smu_v11_0_get_metrics_table(struct smu_context *smu,
 	int ret = 0;
 
 	if (!smu->metrics_time || time_after(jiffies, smu->metrics_time + HZ / 1000)) {
-		ret = smu_update_table(smu, TABLE_SMU_METRICS,
+		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
 				(void *)metrics_table, false);
 		if (ret) {
 			pr_info("Failed to export SMU metrics table!\n");
@@ -1521,7 +1523,7 @@ smu_v11_0_set_watermarks_for_clock_ranges(struct smu_context *smu, struct
 					  *clock_ranges)
 {
 	int ret = 0;
-	struct smu_table *watermarks = &smu->smu_table.tables[TABLE_WATERMARKS];
+	struct smu_table *watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
 	Watermarks_t *table = watermarks->cpu_addr;
 
 	if (!smu->disable_watermark &&
@@ -1665,7 +1667,8 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 		if (!table_context->overdrive_table)
 			return -ENOMEM;
 
-		ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, false);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
+				       table_context->overdrive_table, false);
 		if (ret) {
 			pr_err("Failed to export over drive table!\n");
 			return ret;
@@ -1674,7 +1677,8 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 		smu_set_default_od8_settings(smu);
 	}
 
-	ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, true);
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
+			       table_context->overdrive_table, true);
 	if (ret) {
 		pr_err("Failed to import over drive table!\n");
 		return ret;
@@ -1690,7 +1694,7 @@ static int smu_v11_0_update_od8_settings(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret;
 
-	ret = smu_update_table(smu, TABLE_OVERDRIVE,
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
 			       table_context->overdrive_table, false);
 	if (ret) {
 		pr_err("Failed to export over drive table!\n");
@@ -1699,7 +1703,7 @@ static int smu_v11_0_update_od8_settings(struct smu_context *smu,
 
 	smu_update_specified_od8_value(smu, index, value);
 
-	ret = smu_update_table(smu, TABLE_OVERDRIVE,
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
 			       table_context->overdrive_table, true);
 	if (ret) {
 		pr_err("Failed to import over drive table!\n");
