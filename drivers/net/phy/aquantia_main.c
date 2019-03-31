@@ -69,6 +69,18 @@
 #define MDIO_AN_RX_VEND_STAT3			0xe832
 #define MDIO_AN_RX_VEND_STAT3_AFR		BIT(0)
 
+/* MDIO_MMD_C22EXT */
+#define MDIO_C22EXT_STAT_SGMII_RX_GOOD_FRAMES		0xd292
+#define MDIO_C22EXT_STAT_SGMII_RX_BAD_FRAMES		0xd294
+#define MDIO_C22EXT_STAT_SGMII_RX_FALSE_CARRIER		0xd297
+#define MDIO_C22EXT_STAT_SGMII_TX_GOOD_FRAMES		0xd313
+#define MDIO_C22EXT_STAT_SGMII_TX_BAD_FRAMES		0xd315
+#define MDIO_C22EXT_STAT_SGMII_TX_FALSE_CARRIER		0xd317
+#define MDIO_C22EXT_STAT_SGMII_TX_COLLISIONS		0xd318
+#define MDIO_C22EXT_STAT_SGMII_TX_LINE_COLLISIONS	0xd319
+#define MDIO_C22EXT_STAT_SGMII_TX_FRAME_ALIGN_ERR	0xd31a
+#define MDIO_C22EXT_STAT_SGMII_TX_RUNT_FRAMES		0xd31b
+
 /* Vendor specific 1, MDIO_MMD_VEND1 */
 #define VEND1_GLOBAL_FW_ID			0x0020
 #define VEND1_GLOBAL_FW_ID_MAJOR		GENMASK(15, 8)
@@ -107,6 +119,88 @@
 #define VEND1_GLOBAL_INT_VEND_MASK_GLOBAL1	BIT(2)
 #define VEND1_GLOBAL_INT_VEND_MASK_GLOBAL2	BIT(1)
 #define VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3	BIT(0)
+
+struct aqr107_hw_stat {
+	const char *name;
+	int reg;
+	int size;
+};
+
+#define SGMII_STAT(n, r, s) { n, MDIO_C22EXT_STAT_SGMII_ ## r, s }
+static const struct aqr107_hw_stat aqr107_hw_stats[] = {
+	SGMII_STAT("sgmii_rx_good_frames",	    RX_GOOD_FRAMES,	26),
+	SGMII_STAT("sgmii_rx_bad_frames",	    RX_BAD_FRAMES,	26),
+	SGMII_STAT("sgmii_rx_false_carrier_events", RX_FALSE_CARRIER,	 8),
+	SGMII_STAT("sgmii_tx_good_frames",	    TX_GOOD_FRAMES,	26),
+	SGMII_STAT("sgmii_tx_bad_frames",	    TX_BAD_FRAMES,	26),
+	SGMII_STAT("sgmii_tx_false_carrier_events", TX_FALSE_CARRIER,	 8),
+	SGMII_STAT("sgmii_tx_collisions",	    TX_COLLISIONS,	 8),
+	SGMII_STAT("sgmii_tx_line_collisions",	    TX_LINE_COLLISIONS,	 8),
+	SGMII_STAT("sgmii_tx_frame_alignment_err",  TX_FRAME_ALIGN_ERR,	16),
+	SGMII_STAT("sgmii_tx_runt_frames",	    TX_RUNT_FRAMES,	22),
+};
+#define AQR107_SGMII_STAT_SZ ARRAY_SIZE(aqr107_hw_stats)
+
+struct aqr107_priv {
+	u64 sgmii_stats[AQR107_SGMII_STAT_SZ];
+};
+
+static int aqr107_get_sset_count(struct phy_device *phydev)
+{
+	return AQR107_SGMII_STAT_SZ;
+}
+
+static void aqr107_get_strings(struct phy_device *phydev, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < AQR107_SGMII_STAT_SZ; i++)
+		strscpy(data + i * ETH_GSTRING_LEN, aqr107_hw_stats[i].name,
+			ETH_GSTRING_LEN);
+}
+
+static u64 aqr107_get_stat(struct phy_device *phydev, int index)
+{
+	const struct aqr107_hw_stat *stat = aqr107_hw_stats + index;
+	int len_l = min(stat->size, 16);
+	int len_h = stat->size - len_l;
+	u64 ret;
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_C22EXT, stat->reg);
+	if (val < 0)
+		return U64_MAX;
+
+	ret = val & GENMASK(len_l - 1, 0);
+	if (len_h) {
+		val = phy_read_mmd(phydev, MDIO_MMD_C22EXT, stat->reg + 1);
+		if (val < 0)
+			return U64_MAX;
+
+		ret += (val & GENMASK(len_h - 1, 0)) << 16;
+	}
+
+	return ret;
+}
+
+static void aqr107_get_stats(struct phy_device *phydev,
+			     struct ethtool_stats *stats, u64 *data)
+{
+	struct aqr107_priv *priv = phydev->priv;
+	u64 val;
+	int i;
+
+	for (i = 0; i < AQR107_SGMII_STAT_SZ; i++) {
+		val = aqr107_get_stat(phydev, i);
+		if (val == U64_MAX)
+			phydev_err(phydev, "Reading HW Statistics failed for %s\n",
+				   aqr107_hw_stats[i].name);
+		else
+			priv->sgmii_stats[i] += val;
+
+		data[i] = priv->sgmii_stats[i];
+	}
+}
 
 static int aqr_config_aneg(struct phy_device *phydev)
 {
@@ -490,6 +584,16 @@ static int aqr107_resume(struct phy_device *phydev)
 				  MDIO_CTRL1_LPOWER);
 }
 
+static int aqr107_probe(struct phy_device *phydev)
+{
+	phydev->priv = devm_kzalloc(&phydev->mdio.dev,
+				    sizeof(struct aqr107_priv), GFP_KERNEL);
+	if (!phydev->priv)
+		return -ENOMEM;
+
+	return aqr_hwmon_probe(phydev);
+}
+
 static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ1202),
@@ -536,7 +640,7 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQR107",
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
-	.probe		= aqr_hwmon_probe,
+	.probe		= aqr107_probe,
 	.config_init	= aqr107_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
@@ -546,6 +650,9 @@ static struct phy_driver aqr_driver[] = {
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr107_suspend,
 	.resume		= aqr107_resume,
+	.get_sset_count	= aqr107_get_sset_count,
+	.get_strings	= aqr107_get_strings,
+	.get_stats	= aqr107_get_stats,
 	.link_change_notify = aqr107_link_change_notify,
 },
 {
@@ -553,7 +660,7 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQCS109",
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
-	.probe		= aqr_hwmon_probe,
+	.probe		= aqr107_probe,
 	.config_init	= aqcs109_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
@@ -563,6 +670,9 @@ static struct phy_driver aqr_driver[] = {
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr107_suspend,
 	.resume		= aqr107_resume,
+	.get_sset_count	= aqr107_get_sset_count,
+	.get_strings	= aqr107_get_strings,
+	.get_stats	= aqr107_get_stats,
 	.link_change_notify = aqr107_link_change_notify,
 },
 {
