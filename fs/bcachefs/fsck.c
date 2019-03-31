@@ -1240,12 +1240,10 @@ static int check_inode(struct btree_trans *trans,
 			return ret;
 	}
 
-	if (u.bi_flags & BCH_INODE_UNLINKED) {
-		fsck_err_on(c->sb.clean, c,
-			    "filesystem marked clean, "
-			    "but inode %llu unlinked",
-			    u.bi_inum);
-
+	if (u.bi_flags & BCH_INODE_UNLINKED &&
+	    (!c->sb.clean ||
+	     fsck_err(c, "filesystem marked clean, but inode %llu unlinked",
+		      u.bi_inum))) {
 		bch_verbose(c, "deleting inode %llu", u.bi_inum);
 
 		ret = bch2_inode_rm(c, u.bi_inum);
@@ -1255,12 +1253,10 @@ static int check_inode(struct btree_trans *trans,
 		return ret;
 	}
 
-	if (u.bi_flags & BCH_INODE_I_SIZE_DIRTY) {
-		fsck_err_on(c->sb.clean, c,
-			    "filesystem marked clean, "
-			    "but inode %llu has i_size dirty",
-			    u.bi_inum);
-
+	if (u.bi_flags & BCH_INODE_I_SIZE_DIRTY &&
+	    (!c->sb.clean ||
+	     fsck_err(c, "filesystem marked clean, but inode %llu has i_size dirty",
+		      u.bi_inum))) {
 		bch_verbose(c, "truncating inode %llu", u.bi_inum);
 
 		/*
@@ -1285,13 +1281,11 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
-	if (u.bi_flags & BCH_INODE_I_SECTORS_DIRTY) {
+	if (u.bi_flags & BCH_INODE_I_SECTORS_DIRTY &&
+	    (!c->sb.clean ||
+	     fsck_err(c, "filesystem marked clean, but inode %llu has i_sectors dirty",
+		      u.bi_inum))) {
 		s64 sectors;
-
-		fsck_err_on(c->sb.clean, c,
-			    "filesystem marked clean, "
-			    "but inode %llu has i_sectors dirty",
-			    u.bi_inum);
 
 		bch_verbose(c, "recounting sectors for inode %llu",
 			    u.bi_inum);
