@@ -458,37 +458,19 @@ static const struct regmap_config max6621_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(max6621_regmap_default),
 };
 
-static u32 max6621_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0
-};
-
-static const struct hwmon_channel_info max6621_chip = {
-	.type = hwmon_chip,
-	.config = max6621_chip_config,
-};
-
-static const u32 max6621_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_LABEL,
-	0
-};
-
-static const struct hwmon_channel_info max6621_temp = {
-	.type = hwmon_temp,
-	.config = max6621_temp_config,
-};
-
 static const struct hwmon_channel_info *max6621_info[] = {
-	&max6621_chip,
-	&max6621_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL),
 	NULL
 };
 
