@@ -675,11 +675,12 @@ static int smu_v11_0_parse_pptable(struct smu_context *smu)
 	int ret;
 
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_table *table = &table_context->tables[SMU_TABLE_PPTABLE];
 
 	if (table_context->driver_pptable)
 		return -EINVAL;
 
-	table_context->driver_pptable = kzalloc(sizeof(PPTable_t), GFP_KERNEL);
+	table_context->driver_pptable = kzalloc(table->size, GFP_KERNEL);
 
 	if (!table_context->driver_pptable)
 		return -ENOMEM;
@@ -1649,6 +1650,7 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 					      bool initialize)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_table *table = &table_context->tables[SMU_TABLE_OVERDRIVE];
 	int ret;
 
 	/**
@@ -1662,7 +1664,7 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 		if (table_context->overdrive_table)
 			return -EINVAL;
 
-		table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
+		table_context->overdrive_table = kzalloc(table->size, GFP_KERNEL);
 
 		if (!table_context->overdrive_table)
 			return -ENOMEM;
