@@ -575,6 +575,8 @@ struct pptable_funcs {
 	int (*get_current_activity_percent)(struct smu_context *smu,
 					    enum amd_pp_sensors sensor,
 					    uint32_t *value);
+	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
+				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 };
 
 struct smu_funcs
@@ -863,6 +865,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_ppfeature_status ? (smu)->ppt_funcs->set_ppfeature_status((smu), (ppfeatures)) : -EINVAL)
 #define smu_get_ppfeature_status(smu, buf) \
 	((smu)->ppt_funcs->get_ppfeature_status ? (smu)->ppt_funcs->get_ppfeature_status((smu), (buf)) : -EINVAL)
+#define smu_set_watermarks_table(smu, tab, clock_ranges) \
+	((smu)->ppt_funcs->set_watermarks_table ? (smu)->ppt_funcs->set_watermarks_table((smu), (tab), (clock_ranges)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

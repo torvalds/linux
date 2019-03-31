@@ -3035,6 +3035,66 @@ static int vega20_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_set_watermarks_table(struct smu_context *smu,
+				       void *watermarks, struct
+				       dm_pp_wm_sets_with_clock_ranges_soc15
+				       *clock_ranges)
+{
+	int i;
+	Watermarks_t *table = watermarks;
+
+	if (!table || !clock_ranges)
+		return -EINVAL;
+
+	if (clock_ranges->num_wm_dmif_sets > 4 ||
+	    clock_ranges->num_wm_mcif_sets > 4)
+		return -EINVAL;
+
+	for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
+		table->WatermarkRow[1][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].MinUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].MaxUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].WmSetting = (uint8_t)
+				clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+	}
+
+	for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
+		table->WatermarkRow[0][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].MinUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].MaxUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].WmSetting = (uint8_t)
+				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
 	.alloc_dpm_context = vega20_allocate_dpm_context,
@@ -3082,6 +3142,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
 	.get_gpu_power = vega20_get_gpu_power,
 	.get_current_activity_percent = vega20_get_current_activity_percent,
+	.set_watermarks_table = vega20_set_watermarks_table,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
