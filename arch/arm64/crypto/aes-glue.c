@@ -707,7 +707,7 @@ static int cbcmac_final(struct shash_desc *desc, u8 *out)
 	struct mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct mac_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	mac_do_update(&tctx->key, NULL, 0, ctx->dg, 1, 0);
+	mac_do_update(&tctx->key, NULL, 0, ctx->dg, (ctx->len != 0), 0);
 
 	memcpy(out, ctx->dg, AES_BLOCK_SIZE);
 
