@@ -1399,8 +1399,8 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
 							    ctx, credits);
 		if (err2) {
-			trace_mlxsw_sp_acl_tcam_vregion_rehash_dis(mlxsw_sp,
-								   vregion);
+			trace_mlxsw_sp_acl_tcam_vregion_rehash_rollback_failed(mlxsw_sp,
+									       vregion);
 			dev_err(mlxsw_sp->bus_info->dev, "Failed to rollback during vregion migration fail\n");
 			/* Let the rollback to be continued later on. */
 		}
