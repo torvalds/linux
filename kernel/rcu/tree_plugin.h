@@ -1889,7 +1889,7 @@ static int rcu_nocb_gp_kthread(void *arg)
  * This function returns true ("keep waiting") until callbacks appear and
  * then false ("stop waiting") when callbacks finally do appear.
  */
-static bool nocb_follower_wait(struct rcu_data *rdp)
+static bool nocb_cb_wait(struct rcu_data *rdp)
 {
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("FollowerSleep"));
 	swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
@@ -1922,7 +1922,7 @@ static int rcu_nocb_cb_kthread(void *arg)
 	/* Each pass through this loop invokes one batch of callbacks */
 	for (;;) {
 		/* Wait for callbacks. */
-		while (nocb_follower_wait(rdp))
+		while (nocb_cb_wait(rdp))
 			continue;
 
 		/* Pull the ready-to-invoke callbacks onto local list. */
