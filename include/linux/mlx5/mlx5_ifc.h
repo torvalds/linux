@@ -6897,14 +6897,14 @@ struct mlx5_ifc_create_tis_in_bits {
 
 struct mlx5_ifc_create_tir_out_bits {
 	u8         status[0x8];
-	u8         reserved_at_8[0x18];
+	u8         icm_address_63_40[0x18];
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x8];
+	u8         icm_address_39_32[0x8];
 	u8         tirn[0x18];
 
-	u8         reserved_at_60[0x20];
+	u8         icm_address_31_0[0x20];
 };
 
 struct mlx5_ifc_create_tir_in_bits {
