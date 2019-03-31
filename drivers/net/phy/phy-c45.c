@@ -262,12 +262,19 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 {
 	int val;
 
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->lp_advertising,
+			 val & MDIO_AN_STAT1_LPABLE);
+
 	/* Read the link partner's base page advertisement */
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_LPA);
 	if (val < 0)
 		return val;
 
-	mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, val);
+	mii_adv_mod_linkmode_adv_t(phydev->lp_advertising, val);
 	phydev->pause = val & LPA_PAUSE_CAP ? 1 : 0;
 	phydev->asym_pause = val & LPA_PAUSE_ASYM ? 1 : 0;
 
