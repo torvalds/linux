@@ -189,7 +189,8 @@ err_out:
 }
 
 static int flow_matcher_cleanup(struct ib_uobject *uobject,
-				enum rdma_remove_reason why)
+				enum rdma_remove_reason why,
+				struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_flow_matcher *obj = uobject->object;
 	int ret;

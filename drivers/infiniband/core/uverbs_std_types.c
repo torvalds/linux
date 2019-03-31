@@ -40,14 +40,16 @@
 #include "uverbs.h"
 
 static int uverbs_free_ah(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why)
+			  enum rdma_remove_reason why,
+			  struct uverbs_attr_bundle *attrs)
 {
 	return rdma_destroy_ah((struct ib_ah *)uobject->object,
 			       RDMA_DESTROY_AH_SLEEPABLE);
 }
 
 static int uverbs_free_flow(struct ib_uobject *uobject,
-			    enum rdma_remove_reason why)
+			    enum rdma_remove_reason why,
+			    struct uverbs_attr_bundle *attrs)
 {
 	struct ib_flow *flow = (struct ib_flow *)uobject->object;
 	struct ib_uflow_object *uflow =
@@ -66,13 +68,15 @@ static int uverbs_free_flow(struct ib_uobject *uobject,
 }
 
 static int uverbs_free_mw(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why)
+			  enum rdma_remove_reason why,
+			  struct uverbs_attr_bundle *attrs)
 {
 	return uverbs_dealloc_mw((struct ib_mw *)uobject->object);
 }
 
 static int uverbs_free_qp(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why)
+			  enum rdma_remove_reason why,
+			  struct uverbs_attr_bundle *attrs)
 {
 	struct ib_qp *qp = uobject->object;
 	struct ib_uqp_object *uqp =
@@ -105,7 +109,8 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 }
 
 static int uverbs_free_rwq_ind_tbl(struct ib_uobject *uobject,
-				   enum rdma_remove_reason why)
+				   enum rdma_remove_reason why,
+				   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_rwq_ind_table *rwq_ind_tbl = uobject->object;
 	struct ib_wq **ind_tbl = rwq_ind_tbl->ind_tbl;
@@ -120,7 +125,8 @@ static int uverbs_free_rwq_ind_tbl(struct ib_uobject *uobject,
 }
 
 static int uverbs_free_wq(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why)
+			  enum rdma_remove_reason why,
+			  struct uverbs_attr_bundle *attrs)
 {
 	struct ib_wq *wq = uobject->object;
 	struct ib_uwq_object *uwq =
@@ -136,7 +142,8 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 }
 
 static int uverbs_free_srq(struct ib_uobject *uobject,
-			   enum rdma_remove_reason why)
+			   enum rdma_remove_reason why,
+			   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_srq *srq = uobject->object;
 	struct ib_uevent_object *uevent =
@@ -160,7 +167,8 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 }
 
 static int uverbs_free_xrcd(struct ib_uobject *uobject,
-			    enum rdma_remove_reason why)
+			    enum rdma_remove_reason why,
+			    struct uverbs_attr_bundle *attrs)
 {
 	struct ib_xrcd *xrcd = uobject->object;
 	struct ib_uxrcd_object *uxrcd =
@@ -179,7 +187,8 @@ static int uverbs_free_xrcd(struct ib_uobject *uobject,
 }
 
 static int uverbs_free_pd(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why)
+			  enum rdma_remove_reason why,
+			  struct uverbs_attr_bundle *attrs)
 {
 	struct ib_pd *pd = uobject->object;
 	int ret;

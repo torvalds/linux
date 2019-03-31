@@ -104,18 +104,20 @@ static inline void uobj_put_write(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
-static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj)
+static inline int __must_check
+uobj_alloc_commit(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs)
 {
-	int ret = rdma_alloc_commit_uobject(uobj);
+	int ret = rdma_alloc_commit_uobject(uobj, attrs);
 
 	if (ret)
 		return ret;
 	return 0;
 }
 
-static inline void uobj_alloc_abort(struct ib_uobject *uobj)
+static inline void uobj_alloc_abort(struct ib_uobject *uobj,
+				    struct uverbs_attr_bundle *attrs)
 {
-	rdma_alloc_abort_uobject(uobj);
+	rdma_alloc_abort_uobject(uobj, attrs);
 }
 
 static inline struct ib_uobject *

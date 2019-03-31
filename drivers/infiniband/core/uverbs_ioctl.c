@@ -222,7 +222,7 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 
 static int uverbs_free_idrs_array(const struct uverbs_api_attr *attr_uapi,
 				  struct uverbs_objs_arr_attr *attr,
-				  bool commit)
+				  bool commit, struct uverbs_attr_bundle *attrs)
 {
 	const struct uverbs_attr_spec *spec = &attr_uapi->spec;
 	int current_ret;
@@ -230,8 +230,9 @@ static int uverbs_free_idrs_array(const struct uverbs_api_attr *attr_uapi,
 	size_t i;
 
 	for (i = 0; i != attr->len; i++) {
-		current_ret = uverbs_finalize_object(
-			attr->uobjects[i], spec->u2.objs_arr.access, commit);
+		current_ret = uverbs_finalize_object(attr->uobjects[i],
+						     spec->u2.objs_arr.access,
+						     commit, attrs);
 		if (!ret)
 			ret = current_ret;
 	}
@@ -457,7 +458,7 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 		struct uverbs_obj_attr *destroy_attr =
 			&pbundle->bundle.attrs[destroy_bkey].obj_attr;
 
-		ret = uobj_destroy(destroy_attr->uobject);
+		ret = uobj_destroy(destroy_attr->uobject, &pbundle->bundle);
 		if (ret)
 			return ret;
 		__clear_bit(destroy_bkey, pbundle->uobj_finalize);
@@ -508,7 +509,8 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 
 		current_ret = uverbs_finalize_object(
 			attr->obj_attr.uobject,
-			attr->obj_attr.attr_elm->spec.u.obj.access, commit);
+			attr->obj_attr.attr_elm->spec.u.obj.access, commit,
+			&pbundle->bundle);
 		if (!ret)
 			ret = current_ret;
 	}
@@ -531,7 +533,8 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 
 		if (attr_uapi->spec.type == UVERBS_ATTR_TYPE_IDRS_ARRAY) {
 			current_ret = uverbs_free_idrs_array(
-				attr_uapi, &attr->objs_arr_attr, commit);
+				attr_uapi, &attr->objs_arr_attr, commit,
+				&pbundle->bundle);
 			if (!ret)
 				ret = current_ret;
 		}
