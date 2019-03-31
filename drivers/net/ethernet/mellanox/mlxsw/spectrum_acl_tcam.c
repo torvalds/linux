@@ -1256,11 +1256,8 @@ mlxsw_sp_acl_tcam_vchunk_migrate_start(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_chunk *new_chunk;
 
 	new_chunk = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
-	if (IS_ERR(new_chunk)) {
-		if (ctx->this_is_rollback)
-			vchunk->vregion->failed_rollback = true;
+	if (IS_ERR(new_chunk))
 		return PTR_ERR(new_chunk);
-	}
 	vchunk->chunk2 = vchunk->chunk;
 	vchunk->chunk = new_chunk;
 	ctx->current_vchunk = vchunk;
