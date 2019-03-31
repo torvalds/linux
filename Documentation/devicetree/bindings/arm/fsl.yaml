@@ -51,6 +51,13 @@ properties:
           - const: i2se,duckbill-2
           - const: fsl,imx28
 
+      - description: i.MX50 based Boards
+        items:
+          - enum:
+              - fsl,imx50-evk
+              - kobo,aura
+          - const: fsl,imx50
+
       - description: i.MX51 Babbage Board
         items:
           - enum:
