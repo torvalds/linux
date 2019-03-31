@@ -32,6 +32,7 @@
 
 #include <linux/platform_device.h>
 #include <rdma/ib_umem.h>
+#include <rdma/uverbs_ioctl.h>
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
@@ -456,12 +457,15 @@ int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 		hns_roce_free_cq(hr_dev, hr_cq);
 		hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
 
-		if (ib_cq->uobject) {
+		if (udata) {
 			ib_umem_release(hr_cq->umem);
 
 			if (hr_cq->db_en == 1)
 				hns_roce_db_unmap_user(
-					to_hr_ucontext(ib_cq->uobject->context),
+					rdma_udata_to_drv_context(
+						udata,
+						struct hns_roce_ucontext,
+						ibucontext),
 					&hr_cq->db);
 		} else {
 			/* Free the buff of stored cq */

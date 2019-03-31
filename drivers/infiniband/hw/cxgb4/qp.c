@@ -2838,8 +2838,8 @@ int c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	pr_debug("%s id %d\n", __func__, srq->wq.qid);
 
 	xa_erase_irq(&rhp->qps, srq->wq.qid);
-	ucontext = ibsrq->uobject ?
-		to_c4iw_ucontext(ibsrq->uobject->context) : NULL;
+	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
+					     ibucontext);
 	free_srq_queue(srq, ucontext ? &ucontext->uctx : &rhp->rdev.uctx,
 		       srq->wr_waitp);
 	c4iw_free_srq_idx(&rhp->rdev, srq->idx);

@@ -670,17 +670,18 @@ static int ib_uverbs_close_xrcd(struct uverbs_attr_bundle *attrs)
 }
 
 int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
-			   enum rdma_remove_reason why, struct ib_udata *udata)
+			   enum rdma_remove_reason why,
+			   struct uverbs_attr_bundle *attrs)
 {
 	struct inode *inode;
 	int ret;
-	struct ib_uverbs_device *dev = uobject->context->ufile->device;
+	struct ib_uverbs_device *dev = attrs->ufile->device;
 
 	inode = xrcd->inode;
 	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
 		return 0;
 
-	ret = ib_dealloc_xrcd(xrcd, udata);
+	ret = ib_dealloc_xrcd(xrcd, &attrs->driver_udata);
 
 	if (ib_is_destroy_retryable(ret, why, uobject)) {
 		atomic_inc(&xrcd->usecnt);

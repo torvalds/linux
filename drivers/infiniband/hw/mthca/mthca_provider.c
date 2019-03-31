@@ -479,10 +479,12 @@ err_free:
 
 static int mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
-	struct mthca_ucontext *context;
-
-	if (srq->uobject) {
-		context = to_mucontext(srq->uobject->context);
+	if (udata) {
+		struct mthca_ucontext *context =
+			rdma_udata_to_drv_context(
+				udata,
+				struct mthca_ucontext,
+				ibucontext);
 
 		mthca_unmap_user_db(to_mdev(srq->device), &context->uar,
 				    context->db_tab, to_msrq(srq)->db_index);
@@ -609,14 +611,20 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 
 static int mthca_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
-	if (qp->uobject) {
+	if (udata) {
+		struct mthca_ucontext *context =
+			rdma_udata_to_drv_context(
+				udata,
+				struct mthca_ucontext,
+				ibucontext);
+
 		mthca_unmap_user_db(to_mdev(qp->device),
-				    &to_mucontext(qp->uobject->context)->uar,
-				    to_mucontext(qp->uobject->context)->db_tab,
+				    &context->uar,
+				    context->db_tab,
 				    to_mqp(qp)->sq.db_index);
 		mthca_unmap_user_db(to_mdev(qp->device),
-				    &to_mucontext(qp->uobject->context)->uar,
-				    to_mucontext(qp->uobject->context)->db_tab,
+				    &context->uar,
+				    context->db_tab,
 				    to_mqp(qp)->rq.db_index);
 	}
 	mthca_free_qp(to_mdev(qp->device), to_mqp(qp));
@@ -829,14 +837,20 @@ out:
 
 static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
-	if (cq->uobject) {
+	if (udata) {
+		struct mthca_ucontext *context =
+			rdma_udata_to_drv_context(
+				udata,
+				struct mthca_ucontext,
+				ibucontext);
+
 		mthca_unmap_user_db(to_mdev(cq->device),
-				    &to_mucontext(cq->uobject->context)->uar,
-				    to_mucontext(cq->uobject->context)->db_tab,
+				    &context->uar,
+				    context->db_tab,
 				    to_mcq(cq)->arm_db_index);
 		mthca_unmap_user_db(to_mdev(cq->device),
-				    &to_mucontext(cq->uobject->context)->uar,
-				    to_mucontext(cq->uobject->context)->db_tab,
+				    &context->uar,
+				    context->db_tab,
 				    to_mcq(cq)->set_ci_db_index);
 	}
 	mthca_free_cq(to_mdev(cq->device), to_mcq(cq));

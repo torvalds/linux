@@ -280,8 +280,13 @@ int mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 	mlx4_srq_free(dev->dev, &msrq->msrq);
 	mlx4_mtt_cleanup(dev->dev, &msrq->mtt);
 
-	if (srq->uobject) {
-		mlx4_ib_db_unmap_user(to_mucontext(srq->uobject->context), &msrq->db);
+	if (udata) {
+		mlx4_ib_db_unmap_user(
+			rdma_udata_to_drv_context(
+				udata,
+				struct mlx4_ib_ucontext,
+				ibucontext),
+			&msrq->db);
 		ib_umem_release(msrq->umem);
 	} else {
 		kvfree(msrq->wrid);

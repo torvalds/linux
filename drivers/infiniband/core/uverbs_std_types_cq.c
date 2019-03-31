@@ -49,7 +49,7 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 		return ret;
 
 	ib_uverbs_release_ucq(
-		uobject->context->ufile,
+		attrs->ufile,
 		ev_queue ? container_of(ev_queue,
 					struct ib_uverbs_completion_event_file,
 					ev_queue) :

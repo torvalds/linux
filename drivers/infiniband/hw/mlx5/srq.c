@@ -194,9 +194,15 @@ err_db:
 	return err;
 }
 
-static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
+static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
+			     struct ib_udata *udata)
 {
-	mlx5_ib_db_unmap_user(to_mucontext(pd->uobject->context), &srq->db);
+	mlx5_ib_db_unmap_user(
+		rdma_udata_to_drv_context(
+			udata,
+			struct mlx5_ib_ucontext,
+			ibucontext),
+		&srq->db);
 	ib_umem_release(srq->umem);
 }
 
@@ -327,7 +333,7 @@ err_core:
 
 err_usr_kern_srq:
 	if (udata)
-		destroy_srq_user(pd, srq);
+		destroy_srq_user(pd, srq, udata);
 	else
 		destroy_srq_kernel(dev, srq);
 
@@ -395,7 +401,12 @@ int mlx5_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 	mlx5_cmd_destroy_srq(dev, &msrq->msrq);
 
 	if (srq->uobject) {
-		mlx5_ib_db_unmap_user(to_mucontext(srq->uobject->context), &msrq->db);
+		mlx5_ib_db_unmap_user(
+			rdma_udata_to_drv_context(
+				udata,
+				struct mlx5_ib_ucontext,
+				ibucontext),
+			&msrq->db);
 		ib_umem_release(msrq->umem);
 	} else {
 		destroy_srq_kernel(dev, msrq);

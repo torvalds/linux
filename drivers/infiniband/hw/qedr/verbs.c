@@ -986,7 +986,7 @@ int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 
 	dev->ops->common->chain_free(dev->cdev, &cq->pbl);
 
-	if (ibcq->uobject && ibcq->uobject->context) {
+	if (udata) {
 		qedr_free_pbl(dev, &cq->q.pbl_info, cq->q.pbl_tbl);
 		ib_umem_release(cq->q.umem);
 	}
@@ -2470,7 +2470,8 @@ err:
 	return rc;
 }
 
-static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
+static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp,
+				  struct ib_udata *udata)
 {
 	int rc = 0;
 
@@ -2480,7 +2481,7 @@ static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
 			return rc;
 	}
 
-	if (qp->ibqp.uobject && qp->ibqp.uobject->context)
+	if (udata)
 		qedr_cleanup_user(dev, qp);
 	else
 		qedr_cleanup_kernel(dev, qp);
@@ -2532,7 +2533,7 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	if (qp->qp_type == IB_QPT_GSI)
 		qedr_destroy_gsi_qp(dev);
 
-	qedr_free_qp_resources(dev, qp);
+	qedr_free_qp_resources(dev, qp, udata);
 
 	if (atomic_dec_and_test(&qp->refcnt) &&
 	    rdma_protocol_iwarp(&dev->ibdev, 1)) {

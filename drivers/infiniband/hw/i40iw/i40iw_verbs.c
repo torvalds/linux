@@ -2060,9 +2060,12 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	if (iwmr->type != IW_MEMREG_TYPE_MEM) {
 		/* region is released. only test for userness. */
 		if (iwmr->region) {
-			struct i40iw_ucontext *ucontext;
+			struct i40iw_ucontext *ucontext =
+				rdma_udata_to_drv_context(
+					udata,
+					struct i40iw_ucontext,
+					ibucontext);
 
-			ucontext = to_ucontext(ibpd->uobject->context);
 			i40iw_del_memlist(iwmr, ucontext);
 		}
 		if (iwpbl->pbl_allocated && iwmr->type != IW_MEMREG_TYPE_QP)

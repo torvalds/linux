@@ -707,8 +707,12 @@ static void nes_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 
-	if ((ibpd->uobject) && (ibpd->uobject->context)) {
-		nesucontext = to_nesucontext(ibpd->uobject->context);
+	if (udata) {
+		nesucontext =
+			rdma_udata_to_drv_context(
+				udata,
+				struct nes_ucontext,
+				ibucontext);
 		nes_debug(NES_DBG_PD, "Clearing bit %u from allocated doorbells\n",
 				nespd->mmap_db_index);
 		clear_bit(nespd->mmap_db_index, nesucontext->allocated_doorbells);
@@ -1337,8 +1341,12 @@ static int nes_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	}
 
 	if (nesqp->user_mode) {
-		if ((ibqp->uobject)&&(ibqp->uobject->context)) {
-			nes_ucontext = to_nesucontext(ibqp->uobject->context);
+		if (udata) {
+			nes_ucontext =
+				rdma_udata_to_drv_context(
+					udata,
+					struct nes_ucontext,
+					ibucontext);
 			clear_bit(nesqp->mmap_sq_db_index, nes_ucontext->allocated_wqs);
 			nes_ucontext->mmap_nesqp[nesqp->mmap_sq_db_index] = NULL;
 			if (nes_ucontext->first_free_wq > nesqp->mmap_sq_db_index) {

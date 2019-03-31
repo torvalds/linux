@@ -648,7 +648,7 @@ int usnic_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 
 	usnic_dbg("va 0x%lx length 0x%zx\n", mr->umem->va, mr->umem->length);
 
-	usnic_uiom_reg_release(mr->umem, ibmr->uobject->context);
+	usnic_uiom_reg_release(mr->umem);
 	kfree(mr);
 	return 0;
 }

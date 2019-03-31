@@ -2329,7 +2329,10 @@ int mlx5_ib_dealloc_dm(struct ib_dm *ibdm, struct uverbs_attr_bundle *attrs)
 	page_idx = (dm->dev_addr - pci_resource_start(memic->dev->pdev, 0) -
 		    MLX5_CAP64_DEV_MEM(memic->dev, memic_bar_start_addr)) >>
 		    PAGE_SHIFT;
-	bitmap_clear(to_mucontext(ibdm->uobject->context)->dm_pages,
+	bitmap_clear(rdma_udata_to_drv_context(
+			&attrs->driver_udata,
+			struct mlx5_ib_ucontext,
+			ibucontext)->dm_pages,
 		     page_idx,
 		     DIV_ROUND_UP(act_size, PAGE_SIZE));
 

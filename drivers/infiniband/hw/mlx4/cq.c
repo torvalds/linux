@@ -38,6 +38,7 @@
 
 #include "mlx4_ib.h"
 #include <rdma/mlx4-abi.h>
+#include <rdma/uverbs_ioctl.h>
 
 static void mlx4_ib_cq_comp(struct mlx4_cq *cq)
 {
@@ -493,8 +494,13 @@ int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 	mlx4_cq_free(dev->dev, &mcq->mcq);
 	mlx4_mtt_cleanup(dev->dev, &mcq->buf.mtt);
 
-	if (cq->uobject) {
-		mlx4_ib_db_unmap_user(to_mucontext(cq->uobject->context), &mcq->db);
+	if (udata) {
+		mlx4_ib_db_unmap_user(
+			rdma_udata_to_drv_context(
+				udata,
+				struct mlx4_ib_ucontext,
+				ibucontext),
+			&mcq->db);
 		ib_umem_release(mcq->umem);
 	} else {
 		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe);

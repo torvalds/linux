@@ -760,8 +760,8 @@ static int iwch_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
 
-	ucontext = ib_qp->uobject ? to_iwch_ucontext(ib_qp->uobject->context)
-				  : NULL;
+	ucontext = rdma_udata_to_drv_context(udata, struct iwch_ucontext,
+					     ibucontext);
 	cxio_destroy_qp(&rhp->rdev, &qhp->wq,
 			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
 
