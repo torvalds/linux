@@ -458,44 +458,26 @@ static umode_t ina3221_is_visible(const void *drvdata,
 	}
 }
 
-static const u32 ina3221_in_config[] = {
-	/* 0: dummy, skipped in is_visible */
-	HWMON_I_INPUT,
-	/* 1-3: input voltage Channels */
-	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
-	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
-	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
-	/* 4-6: shunt voltage Channels */
-	HWMON_I_INPUT,
-	HWMON_I_INPUT,
-	HWMON_I_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ina3221_in = {
-	.type = hwmon_in,
-	.config = ina3221_in_config,
-};
-
 #define INA3221_HWMON_CURR_CONFIG (HWMON_C_INPUT | \
 				   HWMON_C_CRIT | HWMON_C_CRIT_ALARM | \
 				   HWMON_C_MAX | HWMON_C_MAX_ALARM)
 
-static const u32 ina3221_curr_config[] = {
-	INA3221_HWMON_CURR_CONFIG,
-	INA3221_HWMON_CURR_CONFIG,
-	INA3221_HWMON_CURR_CONFIG,
-	0
-};
-
-static const struct hwmon_channel_info ina3221_curr = {
-	.type = hwmon_curr,
-	.config = ina3221_curr_config,
-};
-
 static const struct hwmon_channel_info *ina3221_info[] = {
-	&ina3221_in,
-	&ina3221_curr,
+	HWMON_CHANNEL_INFO(in,
+			   /* 0: dummy, skipped in is_visible */
+			   HWMON_I_INPUT,
+			   /* 1-3: input voltage Channels */
+			   HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+			   /* 4-6: shunt voltage Channels */
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT),
+	HWMON_CHANNEL_INFO(curr,
+			   INA3221_HWMON_CURR_CONFIG,
+			   INA3221_HWMON_CURR_CONFIG,
+			   INA3221_HWMON_CURR_CONFIG),
 	NULL
 };
 
