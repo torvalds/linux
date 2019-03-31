@@ -1720,16 +1720,6 @@ static void lm90_regulator_disable(void *regulator)
 	regulator_disable(regulator);
 }
 
-static const u32 lm90_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS,
-	0
-};
-
-static const struct hwmon_channel_info lm90_chip_info = {
-	.type = hwmon_chip,
-	.config = lm90_chip_config,
-};
-
 
 static const struct hwmon_ops lm90_ops = {
 	.is_visible = lm90_is_visible,
@@ -1792,7 +1782,8 @@ static int lm90_probe(struct i2c_client *client,
 	data->chip.ops = &lm90_ops;
 	data->chip.info = data->info;
 
-	data->info[0] = &lm90_chip_info;
+	data->info[0] = HWMON_CHANNEL_INFO(chip,
+		HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS);
 	data->info[1] = &data->temp_info;
 
 	info = &data->temp_info;
