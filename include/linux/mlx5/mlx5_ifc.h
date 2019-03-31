@@ -81,6 +81,14 @@ enum {
 };
 
 enum {
+	MLX5_OBJ_TYPE_SW_ICM = 0x0008,
+};
+
+enum {
+	MLX5_GENERAL_OBJ_TYPES_CAP_SW_ICM = (1ULL << MLX5_OBJ_TYPE_SW_ICM),
+};
+
+enum {
 	MLX5_CMD_OP_QUERY_HCA_CAP                 = 0x100,
 	MLX5_CMD_OP_QUERY_ADAPTER                 = 0x101,
 	MLX5_CMD_OP_INIT_HCA                      = 0x102,
@@ -357,7 +365,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         pop_vlan_2[0x1];
 	u8         push_vlan_2[0x1];
 	u8	   reformat_and_vlan_action[0x1];
-	u8	   reserved_at_10[0x2];
+	u8	   reserved_at_10[0x1];
+	u8         sw_owner[0x1];
 	u8	   reformat_l3_tunnel_to_l2[0x1];
 	u8	   reformat_l2_to_l3_tunnel[0x1];
 	u8	   reformat_and_modify_action[0x1];
@@ -770,7 +779,19 @@ struct mlx5_ifc_device_mem_cap_bits {
 
 	u8         max_memic_size[0x20];
 
-	u8         reserved_at_c0[0x740];
+	u8         steering_sw_icm_start_address[0x40];
+
+	u8         reserved_at_100[0x8];
+	u8         log_header_modify_sw_icm_size[0x8];
+	u8         reserved_at_110[0x2];
+	u8         log_sw_icm_alloc_granularity[0x6];
+	u8         log_steering_sw_icm_size[0x8];
+
+	u8         reserved_at_120[0x20];
+
+	u8         header_modify_sw_icm_start_address[0x40];
+
+	u8         reserved_at_180[0x680];
 };
 
 enum {
@@ -919,6 +940,7 @@ enum {
 
 enum {
 	MLX5_UCTX_CAP_RAW_TX = 1UL << 0,
+	MLX5_UCTX_CAP_INTERNAL_DEV_RES = 1UL << 1,
 };
 
 struct mlx5_ifc_cmd_hca_cap_bits {
@@ -2920,6 +2942,7 @@ enum {
 	MLX5_MKC_ACCESS_MODE_MTT   = 0x1,
 	MLX5_MKC_ACCESS_MODE_KLMS  = 0x2,
 	MLX5_MKC_ACCESS_MODE_KSM   = 0x3,
+	MLX5_MKC_ACCESS_MODE_SW_ICM = 0x4,
 	MLX5_MKC_ACCESS_MODE_MEMIC = 0x5,
 };
 
@@ -9491,6 +9514,19 @@ struct mlx5_ifc_uctx_bits {
 	u8         reserved_at_20[0x160];
 };
 
+struct mlx5_ifc_sw_icm_bits {
+	u8         modify_field_select[0x40];
+
+	u8	   reserved_at_40[0x18];
+	u8         log_sw_icm_size[0x8];
+
+	u8         reserved_at_60[0x20];
+
+	u8         sw_icm_start_addr[0x40];
+
+	u8         reserved_at_c0[0x140];
+};
+
 struct mlx5_ifc_create_umem_in_bits {
 	u8         opcode[0x10];
 	u8         uid[0x10];
@@ -9526,6 +9562,11 @@ struct mlx5_ifc_destroy_uctx_in_bits {
 	u8         uid[0x10];
 
 	u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_create_sw_icm_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits   hdr;
+	struct mlx5_ifc_sw_icm_bits		      sw_icm;
 };
 
 struct mlx5_ifc_mtrc_string_db_param_bits {
