@@ -229,40 +229,22 @@ mlxreg_fan_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 	return 0;
 }
 
-static const u32 mlxreg_fan_hwmon_fan_config[] = {
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	0
-};
-
-static const struct hwmon_channel_info mlxreg_fan_hwmon_fan = {
-	.type = hwmon_fan,
-	.config = mlxreg_fan_hwmon_fan_config,
-};
-
-static const u32 mlxreg_fan_hwmon_pwm_config[] = {
-	HWMON_PWM_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info mlxreg_fan_hwmon_pwm = {
-	.type = hwmon_pwm,
-	.config = mlxreg_fan_hwmon_pwm_config,
-};
-
 static const struct hwmon_channel_info *mlxreg_fan_hwmon_info[] = {
-	&mlxreg_fan_hwmon_fan,
-	&mlxreg_fan_hwmon_pwm,
+	HWMON_CHANNEL_INFO(fan,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT),
 	NULL
 };
 
