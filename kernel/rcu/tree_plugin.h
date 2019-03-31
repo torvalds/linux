@@ -2138,7 +2138,7 @@ static void __init rcu_organize_nocb_kthreads(void)
 	int ls = rcu_nocb_leader_stride;
 	int nl = 0;  /* Next GP kthread. */
 	struct rcu_data *rdp;
-	struct rcu_data *rdp_leader = NULL;  /* Suppress misguided gcc warn. */
+	struct rcu_data *rdp_gp = NULL;  /* Suppress misguided gcc warn. */
 	struct rcu_data *rdp_prev = NULL;
 
 	if (!cpumask_available(rcu_nocb_mask))
@@ -2159,10 +2159,10 @@ static void __init rcu_organize_nocb_kthreads(void)
 			/* New GP kthread, set up for CBs & next GP. */
 			nl = DIV_ROUND_UP(rdp->cpu + 1, ls) * ls;
 			rdp->nocb_gp_rdp = rdp;
-			rdp_leader = rdp;
+			rdp_gp = rdp;
 		} else {
 			/* Another CB kthread, link to previous GP kthread. */
-			rdp->nocb_gp_rdp = rdp_leader;
+			rdp->nocb_gp_rdp = rdp_gp;
 			rdp_prev->nocb_next_cb_rdp = rdp;
 		}
 		rdp_prev = rdp;
