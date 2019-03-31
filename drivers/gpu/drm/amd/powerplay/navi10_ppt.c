@@ -171,6 +171,11 @@ static int navi10_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PACE),
 };
 
+static int navi10_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+	PWR_MAP(AC),
+	PWR_MAP(DC),
+};
+
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -218,6 +223,19 @@ static int navi10_get_smu_table_index(struct smu_context *smc, uint32_t index)
 
 	val = navi10_table_map[index];
 	if (val >= TABLE_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
+static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_POWER_SOURCE_COUNT)
+		return -EINVAL;
+
+	val = navi10_pwr_src_map[index];
+	if (val >= POWER_SOURCE_COUNT)
 		return -EINVAL;
 
 	return val;
@@ -459,6 +477,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_smu_clk_index = navi10_get_smu_clk_index,
 	.get_smu_feature_index = navi10_get_smu_feature_index,
 	.get_smu_table_index = navi10_get_smu_table_index,
+	.get_smu_power_index = navi10_get_pwr_src_index,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 };

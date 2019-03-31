@@ -51,6 +51,9 @@
 #define TAB_MAP(tab) \
 	[SMU_TABLE_##tab] = TABLE_##tab
 
+#define PWR_MAP(tab) \
+	[SMU_POWER_SOURCE_##tab] = POWER_SOURCE_##tab
+
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;

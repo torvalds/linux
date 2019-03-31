@@ -1038,7 +1038,7 @@ static int smu_v11_0_get_power_limit(struct smu_context *smu,
 		mutex_unlock(&smu->mutex);
 	} else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
-						  POWER_SOURCE_AC << 16);
+			smu_power_get_index(smu, SMU_POWER_SOURCE_AC) << 16);
 		if (ret) {
 			pr_err("[%s] get PPT limit failed!", __func__);
 			return ret;

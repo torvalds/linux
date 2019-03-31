@@ -202,6 +202,11 @@ static int vega20_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(OVERDRIVE),
 };
 
+static int vega20_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+	PWR_MAP(AC),
+	PWR_MAP(DC),
+};
+
 static int vega20_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -210,6 +215,19 @@ static int vega20_get_smu_table_index(struct smu_context *smc, uint32_t index)
 
 	val = vega20_table_map[index];
 	if (val >= TABLE_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
+static int vega20_get_pwr_src_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_POWER_SOURCE_COUNT)
+		return -EINVAL;
+
+	val = vega20_pwr_src_map[index];
+	if (val >= POWER_SOURCE_COUNT)
 		return -EINVAL;
 
 	return val;
@@ -3105,6 +3123,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_smu_clk_index = vega20_get_smu_clk_index,
 	.get_smu_feature_index = vega20_get_smu_feature_index,
 	.get_smu_table_index = vega20_get_smu_table_index,
+	.get_smu_power_index = vega20_get_pwr_src_index,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,
