@@ -45,6 +45,9 @@ static bool notests;
 module_param(notests, bool, 0644);
 MODULE_PARM_DESC(notests, "disable crypto self-tests");
 
+static bool panic_on_fail;
+module_param(panic_on_fail, bool, 0444);
+
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 static bool noextratests;
 module_param(noextratests, bool, 0644);
@@ -4109,8 +4112,9 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 					     type, mask);
 
 test_done:
-	if (fips_enabled && rc)
-		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
+	if (rc && (fips_enabled || panic_on_fail))
+		panic("alg: self-tests for %s (%s) failed in %s mode!\n",
+		      driver, alg, fips_enabled ? "fips" : "panic_on_fail");
 
 	if (fips_enabled && !rc)
 		pr_info("alg: self-tests for %s (%s) passed\n", driver, alg);
