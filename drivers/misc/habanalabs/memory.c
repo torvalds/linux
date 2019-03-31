@@ -1046,10 +1046,17 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 
 	mutex_lock(&ctx->mmu_lock);
 
-	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size)
+	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
 		if (hl_mmu_unmap(ctx, next_vaddr, page_size))
 			dev_warn_ratelimited(hdev->dev,
-				"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+			"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+
+		/* unmapping on Palladium can be really long, so avoid a CPU
+		 * soft lockup bug by sleeping a little between unmapping pages
+		 */
+		if (hdev->pldm)
+			usleep_range(500, 1000);
+	}
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
 
