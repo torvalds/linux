@@ -666,10 +666,6 @@ const struct snd_sof_dsp_ops sof_hsw_ops = {
 	.block_read	= sof_block_read,
 	.block_write	= sof_block_write,
 
-	/* mailbox */
-	.mailbox_read   = sof_mailbox_read,
-	.mailbox_write  = sof_mailbox_write,
-
 	/* ipc */
 	.send_msg	= hsw_send_msg,
 	.fw_ready	= hsw_fw_ready,
