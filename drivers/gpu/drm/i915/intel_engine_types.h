@@ -14,7 +14,7 @@
 #include <linux/types.h>
 
 #include "i915_gem.h"
-#include "i915_scheduler_types.h"
+#include "i915_priolist_types.h"
 #include "i915_selftest.h"
 #include "i915_timeline_types.h"
 #include "intel_workarounds_types.h"
