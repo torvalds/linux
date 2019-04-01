@@ -38,6 +38,8 @@
 #define PCF85063_CTRL2_AF		BIT(6)
 #define PCF85063_CTRL2_AIE		BIT(7)
 
+#define PCF85063_REG_RAM		0x03
+
 #define PCF85063_REG_SC			0x04 /* datetime */
 #define PCF85063_REG_SC_OS		0x80
 
@@ -236,6 +238,18 @@ static const struct rtc_class_ops pcf85063_rtc_ops_alarm = {
 	.alarm_irq_enable = pcf85063_rtc_alarm_irq_enable,
 };
 
+static int pcf85063_nvmem_read(void *priv, unsigned int offset,
+			       void *val, size_t bytes)
+{
+	return regmap_read(priv, PCF85063_REG_RAM, val);
+}
+
+static int pcf85063_nvmem_write(void *priv, unsigned int offset,
+				void *val, size_t bytes)
+{
+	return regmap_write(priv, PCF85063_REG_RAM, *(u8 *)val);
+}
+
 static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 				     const struct device_node *np,
 				     unsigned int force_cap)
@@ -298,6 +312,13 @@ static int pcf85063_probe(struct i2c_client *client)
 	int err;
 	const struct pcf85063_config *config = &pcf85063tp_config;
 	const void *data = of_device_get_match_data(&client->dev);
+	struct nvmem_config nvmem_cfg = {
+		.name = "pcf85063_nvram",
+		.reg_read = pcf85063_nvmem_read,
+		.reg_write = pcf85063_nvmem_write,
+		.type = NVMEM_TYPE_BATTERY_BACKED,
+		.size = 1,
+	};
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -353,6 +374,9 @@ static int pcf85063_probe(struct i2c_client *client)
 					"failed to enable irq wake\n");
 		}
 	}
+
+	nvmem_cfg.priv = pcf85063->regmap;
+	rtc_nvmem_register(pcf85063->rtc, &nvmem_cfg);
 
 	return rtc_register_device(pcf85063->rtc);
 }
