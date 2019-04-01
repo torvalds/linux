@@ -1,3 +1,8 @@
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :ref:`Documentation/process/6.Followthrough.rst <development_followthrough>`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
 .. _cn_development_followthrough:
 
 跟进
