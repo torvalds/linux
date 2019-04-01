@@ -161,6 +161,7 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 #endif
 	priv->rng.read = stm32_rng_read,
 	priv->rng.priv = (unsigned long) dev;
+	priv->rng.quality = 900;
 
 	pm_runtime_set_autosuspend_delay(dev, 100);
 	pm_runtime_use_autosuspend(dev);
