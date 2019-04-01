@@ -38,6 +38,14 @@
 #define DRIVER_DATE	"20140818"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
+#define DRIVER_VERSION	"v2.0.0"
+
+/***********************************************************************
+ *  Rockchip DRM driver version
+ *
+ *  v2.0.0	: add basic version for linux 4.19 rockchip drm driver(hjc)
+ *
+ **********************************************************************/
 
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
@@ -416,6 +424,7 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	int ret;
 
+	DRM_INFO("Rockchip DRM driver version: %s\n", DRIVER_VERSION);
 	ret = rockchip_drm_platform_of_probe(dev);
 	if (ret)
 		return ret;
