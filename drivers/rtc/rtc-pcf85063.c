@@ -30,6 +30,10 @@
 #define PCF85063_REG_SC			0x04 /* datetime */
 #define PCF85063_REG_SC_OS		0x80
 
+struct pcf85063_config {
+	struct regmap_config regmap;
+};
+
 struct pcf85063 {
 	struct rtc_device	*rtc;
 	struct regmap		*regmap;
@@ -147,10 +151,20 @@ static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 				  PCF85063_REG_CTRL1_CAP_SEL, reg);
 }
 
-static const struct regmap_config regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = 0x11,
+static const struct pcf85063_config pcf85063a_config = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
+	},
+};
+
+static const struct pcf85063_config pcf85063tp_config = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x0a,
+	},
 };
 
 static int pcf85063_probe(struct i2c_client *client)
@@ -158,6 +172,8 @@ static int pcf85063_probe(struct i2c_client *client)
 	struct pcf85063 *pcf85063;
 	unsigned int tmp;
 	int err;
+	const struct pcf85063_config *config = &pcf85063tp_config;
+	const void *data = of_device_get_match_data(&client->dev);
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -166,7 +182,10 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (!pcf85063)
 		return -ENOMEM;
 
-	pcf85063->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (data)
+		config = data;
+
+	pcf85063->regmap = devm_regmap_init_i2c(client, &config->regmap);
 	if (IS_ERR(pcf85063->regmap))
 		return PTR_ERR(pcf85063->regmap);
 
@@ -196,7 +215,9 @@ static int pcf85063_probe(struct i2c_client *client)
 
 #ifdef CONFIG_OF
 static const struct of_device_id pcf85063_of_match[] = {
-	{ .compatible = "nxp,pcf85063" },
+	{ .compatible = "nxp,pcf85063", .data = &pcf85063tp_config },
+	{ .compatible = "nxp,pcf85063tp", .data = &pcf85063tp_config },
+	{ .compatible = "nxp,pcf85063a", .data = &pcf85063a_config },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf85063_of_match);
