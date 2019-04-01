@@ -293,6 +293,7 @@ int bochs_kms_init(struct bochs_device *bochs)
 void bochs_kms_fini(struct bochs_device *bochs)
 {
 	if (bochs->mode_config_initialized) {
+		drm_atomic_helper_shutdown(bochs->dev);
 		drm_mode_config_cleanup(bochs->dev);
 		bochs->mode_config_initialized = false;
 	}
