@@ -920,7 +920,8 @@ static void remove_filter_string(struct event_filter *filter)
 	filter->filter_string = NULL;
 }
 
-static void append_filter_err(struct filter_parse_error *pe,
+static void append_filter_err(struct trace_array *tr,
+			      struct filter_parse_error *pe,
 			      struct event_filter *filter)
 {
 	struct trace_seq *s;
@@ -1607,7 +1608,7 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 		if (err) {
 			filter_disable(file);
 			parse_error(pe, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-			append_filter_err(pe, filter);
+			append_filter_err(tr, pe, filter);
 		} else
 			event_set_filtered_flag(file);
 
@@ -1719,7 +1720,8 @@ static void create_filter_finish(struct filter_parse_error *pe)
  * information if @set_str is %true and the caller is responsible for
  * freeing it.
  */
-static int create_filter(struct trace_event_call *call,
+static int create_filter(struct trace_array *tr,
+			 struct trace_event_call *call,
 			 char *filter_string, bool set_str,
 			 struct event_filter **filterp)
 {
@@ -1736,17 +1738,18 @@ static int create_filter(struct trace_event_call *call,
 
 	err = process_preds(call, filter_string, *filterp, pe);
 	if (err && set_str)
-		append_filter_err(pe, *filterp);
+		append_filter_err(tr, pe, *filterp);
 	create_filter_finish(pe);
 
 	return err;
 }
 
-int create_event_filter(struct trace_event_call *call,
+int create_event_filter(struct trace_array *tr,
+			struct trace_event_call *call,
 			char *filter_str, bool set_str,
 			struct event_filter **filterp)
 {
-	return create_filter(call, filter_str, set_str, filterp);
+	return create_filter(tr, call, filter_str, set_str, filterp);
 }
 
 /**
@@ -1773,7 +1776,7 @@ static int create_system_filter(struct trace_subsystem_dir *dir,
 			kfree((*filterp)->filter_string);
 			(*filterp)->filter_string = NULL;
 		} else {
-			append_filter_err(pe, *filterp);
+			append_filter_err(tr, pe, *filterp);
 		}
 	}
 	create_filter_finish(pe);
@@ -1804,7 +1807,7 @@ int apply_event_filter(struct trace_event_file *file, char *filter_string)
 		return 0;
 	}
 
-	err = create_filter(call, filter_string, true, &filter);
+	err = create_filter(file->tr, call, filter_string, true, &filter);
 
 	/*
 	 * Always swap the call filter with the new filter
@@ -2060,7 +2063,7 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 	if (event->filter)
 		goto out_unlock;
 
-	err = create_filter(call, filter_str, false, &filter);
+	err = create_filter(NULL, call, filter_str, false, &filter);
 	if (err)
 		goto free_filter;
 
@@ -2209,8 +2212,8 @@ static __init int ftrace_test_event_filter(void)
 		struct test_filter_data_t *d = &test_filter_data[i];
 		int err;
 
-		err = create_filter(&event_ftrace_test_filter, d->filter,
-				    false, &filter);
+		err = create_filter(NULL, &event_ftrace_test_filter,
+				    d->filter, false, &filter);
 		if (err) {
 			printk(KERN_INFO
 			       "Failed to get filter for '%s', err %d\n",
