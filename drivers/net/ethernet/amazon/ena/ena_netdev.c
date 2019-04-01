@@ -2236,7 +2236,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (netif_xmit_stopped(txq) || !skb->xmit_more) {
+	if (netif_xmit_stopped(txq) || !netdev_xmit_more()) {
 		/* trigger the dma engine. ena_com_write_sq_doorbell()
 		 * has a mb
 		 */

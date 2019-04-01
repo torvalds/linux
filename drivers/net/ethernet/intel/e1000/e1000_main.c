@@ -3267,7 +3267,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, tx_ring, desc_needed);
 
-		if (!skb->xmit_more ||
+		if (!netdev_xmit_more() ||
 		    netif_xmit_stopped(netdev_get_tx_queue(netdev, 0))) {
 			writel(tx_ring->next_to_use, hw->hw_addr + tx_ring->tdt);
 			/* we need this if more than one processor can write to
