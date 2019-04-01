@@ -272,7 +272,6 @@ static const struct regmap_config snvs_rtc_config = {
 static int snvs_rtc_probe(struct platform_device *pdev)
 {
 	struct snvs_rtc_data *data;
-	struct resource *res;
 	int ret;
 	void __iomem *mmio;
 
@@ -284,9 +283,8 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 
 	if (IS_ERR(data->regmap)) {
 		dev_warn(&pdev->dev, "snvs rtc: you use old dts file, please update it\n");
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-		mmio = devm_ioremap_resource(&pdev->dev, res);
+		mmio = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(mmio))
 			return PTR_ERR(mmio);
 
