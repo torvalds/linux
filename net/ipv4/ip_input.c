@@ -258,11 +258,10 @@ int ip_local_deliver(struct sk_buff *skb)
 		       ip_local_deliver_finish);
 }
 
-static inline bool ip_rcv_options(struct sk_buff *skb)
+static inline bool ip_rcv_options(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_options *opt;
 	const struct iphdr *iph;
-	struct net_device *dev = skb->dev;
 
 	/* It looks as overkill, because not all
 	   IP options require packet mangling.
@@ -298,7 +297,7 @@ static inline bool ip_rcv_options(struct sk_buff *skb)
 			}
 		}
 
-		if (ip_options_rcv_srr(skb))
+		if (ip_options_rcv_srr(skb, dev))
 			goto drop;
 	}
 
@@ -354,7 +353,7 @@ static int ip_rcv_finish_core(struct net *net, struct sock *sk,
 	}
 #endif
 
-	if (iph->ihl > 5 && ip_rcv_options(skb))
+	if (iph->ihl > 5 && ip_rcv_options(skb, dev))
 		goto drop;
 
 	rt = skb_rtable(skb);
