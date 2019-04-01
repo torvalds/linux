@@ -1,6 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _kernel_licensing:
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :ref:`Documentation/process/license-rules.rst <kernel_licensing>`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
+.. _cn_kernel_licensing:
 
 Linux内核许可规则
 =================
