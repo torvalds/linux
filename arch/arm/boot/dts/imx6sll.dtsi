@@ -64,6 +64,7 @@
 				198000		1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			#cooling-cells = <2>;
 			clocks = <&clks IMX6SLL_CLK_ARM>,
 				 <&clks IMX6SLL_CLK_PLL2_PFD2>,
 				 <&clks IMX6SLL_CLK_STEP>,
