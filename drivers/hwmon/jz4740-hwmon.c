@@ -94,7 +94,6 @@ static int jz4740_hwmon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct jz4740_hwmon *hwmon;
 	struct device *hwmon_dev;
-	struct resource *mem;
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
@@ -109,8 +108,7 @@ static int jz4740_hwmon_probe(struct platform_device *pdev)
 		return hwmon->irq;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hwmon->base = devm_ioremap_resource(&pdev->dev, mem);
+	hwmon->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwmon->base))
 		return PTR_ERR(hwmon->base);
 
