@@ -98,6 +98,13 @@
 		};
 	};
 
+	reg_gps: reg-gps {
+		compatible = "regulator-fixed";
+		regulator-name = "gps";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
 	reg_vbat: reg-vbat {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
@@ -431,6 +438,20 @@
 		host-wakeup-gpios = <&r_pio 0 5 GPIO_ACTIVE_HIGH>; /* PL5 */
 		shutdown-gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
 		max-speed = <1500000>;
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pb_pins>;
+	status = "okay";
+
+	gnss {
+		compatible = "u-blox,neo-6m";
+
+		v-bckp-supply = <&reg_rtc_ldo>;
+		vcc-supply = <&reg_gps>;
+		current-speed = <9600>;
 	};
 };
 
