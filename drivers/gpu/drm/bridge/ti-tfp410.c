@@ -29,6 +29,7 @@ struct tfp410 {
 	struct drm_connector	connector;
 	unsigned int		connector_type;
 
+	u32			bus_format;
 	struct i2c_adapter	*ddc;
 	struct gpio_desc	*hpd;
 	int			hpd_irq;
@@ -139,6 +140,9 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
+	drm_display_info_set_bus_formats(&dvi->connector.display_info,
+					 &dvi->bus_format, 1);
+
 	drm_connector_attach_encoder(&dvi->connector,
 					  bridge->encoder);
 
@@ -197,6 +201,7 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 	struct drm_bridge_timings *timings = &dvi->timings;
 	struct device_node *ep;
 	u32 pclk_sample = 0;
+	u32 bus_width = 24;
 	s32 deskew = 0;
 
 	/* Start with defaults. */
@@ -221,6 +226,7 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 
 	/* Get the sampling edge from the endpoint. */
 	of_property_read_u32(ep, "pclk-sample", &pclk_sample);
+	of_property_read_u32(ep, "bus-width", &bus_width);
 	of_node_put(ep);
 
 	timings->input_bus_flags = DRM_BUS_FLAG_DE_HIGH;
@@ -233,6 +239,17 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 	case 1:
 		timings->input_bus_flags |= DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
 					 |  DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (bus_width) {
+	case 12:
+		dvi->bus_format = MEDIA_BUS_FMT_RGB888_2X12_LE;
+		break;
+	case 24:
+		dvi->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		break;
 	default:
 		return -EINVAL;
