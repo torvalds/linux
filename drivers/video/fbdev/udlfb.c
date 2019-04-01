@@ -657,6 +657,50 @@ error:
 	return 0;
 }
 
+static void dlfb_init_damage(struct dlfb_data *dlfb)
+{
+	dlfb->damage_x = INT_MAX;
+	dlfb->damage_x2 = 0;
+	dlfb->damage_y = INT_MAX;
+	dlfb->damage_y2 = 0;
+}
+
+static void dlfb_damage_work(struct work_struct *w)
+{
+	struct dlfb_data *dlfb = container_of(w, struct dlfb_data, damage_work);
+	int x, x2, y, y2;
+
+	spin_lock_irq(&dlfb->damage_lock);
+	x = dlfb->damage_x;
+	x2 = dlfb->damage_x2;
+	y = dlfb->damage_y;
+	y2 = dlfb->damage_y2;
+	dlfb_init_damage(dlfb);
+	spin_unlock_irq(&dlfb->damage_lock);
+
+	if (x < x2 && y < y2)
+		dlfb_handle_damage(dlfb, x, y, x2 - x, y2 - y);
+}
+
+static void dlfb_offload_damage(struct dlfb_data *dlfb, int x, int y, int width, int height)
+{
+	unsigned long flags;
+	int x2 = x + width;
+	int y2 = y + height;
+
+	if (x >= x2 || y >= y2)
+		return;
+
+	spin_lock_irqsave(&dlfb->damage_lock, flags);
+	dlfb->damage_x = min(x, dlfb->damage_x);
+	dlfb->damage_x2 = max(x2, dlfb->damage_x2);
+	dlfb->damage_y = min(y, dlfb->damage_y);
+	dlfb->damage_y2 = max(y2, dlfb->damage_y2);
+	spin_unlock_irqrestore(&dlfb->damage_lock, flags);
+
+	schedule_work(&dlfb->damage_work);
+}
+
 /*
  * Path triggered by usermode clients who write to filesystem
  * e.g. cat filename > /dev/fb1
@@ -693,7 +737,7 @@ static void dlfb_ops_copyarea(struct fb_info *info,
 
 	sys_copyarea(info, area);
 
-	dlfb_handle_damage(dlfb, area->dx, area->dy,
+	dlfb_offload_damage(dlfb, area->dx, area->dy,
 			area->width, area->height);
 }
 
@@ -704,7 +748,7 @@ static void dlfb_ops_imageblit(struct fb_info *info,
 
 	sys_imageblit(info, image);
 
-	dlfb_handle_damage(dlfb, image->dx, image->dy,
+	dlfb_offload_damage(dlfb, image->dx, image->dy,
 			image->width, image->height);
 }
 
@@ -715,7 +759,7 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 
 	sys_fillrect(info, rect);
 
-	dlfb_handle_damage(dlfb, rect->dx, rect->dy, rect->width,
+	dlfb_offload_damage(dlfb, rect->dx, rect->dy, rect->width,
 			      rect->height);
 }
 
@@ -939,6 +983,8 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 static void dlfb_ops_destroy(struct fb_info *info)
 {
 	struct dlfb_data *dlfb = info->par;
+
+	cancel_work_sync(&dlfb->damage_work);
 
 	if (info->cmap.len != 0)
 		fb_dealloc_cmap(&info->cmap);
@@ -1635,6 +1681,10 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	info->pseudo_palette = dlfb->pseudo_palette;
 	dlfb->ops = dlfb_ops;
 	info->fbops = &dlfb->ops;
+
+	dlfb_init_damage(dlfb);
+	spin_lock_init(&dlfb->damage_lock);
+	INIT_WORK(&dlfb->damage_work, dlfb_damage_work);
 
 	INIT_LIST_HEAD(&info->modelist);
 
