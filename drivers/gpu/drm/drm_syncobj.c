@@ -680,6 +680,80 @@ drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 					&args->handle);
 }
 
+static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
+					    struct drm_syncobj_transfer *args)
+{
+	struct drm_syncobj *timeline_syncobj = NULL;
+	struct dma_fence *fence;
+	struct dma_fence_chain *chain;
+	int ret;
+
+	timeline_syncobj = drm_syncobj_find(file_private, args->dst_handle);
+	if (!timeline_syncobj) {
+		return -ENOENT;
+	}
+	ret = drm_syncobj_find_fence(file_private, args->src_handle,
+				     args->src_point, args->flags,
+				     &fence);
+	if (ret)
+		goto err;
+	chain = kzalloc(sizeof(struct dma_fence_chain), GFP_KERNEL);
+	if (!chain) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+	drm_syncobj_add_point(timeline_syncobj, chain, fence, args->dst_point);
+err1:
+	dma_fence_put(fence);
+err:
+	drm_syncobj_put(timeline_syncobj);
+
+	return ret;
+}
+
+static int
+drm_syncobj_transfer_to_binary(struct drm_file *file_private,
+			       struct drm_syncobj_transfer *args)
+{
+	struct drm_syncobj *binary_syncobj = NULL;
+	struct dma_fence *fence;
+	int ret;
+
+	binary_syncobj = drm_syncobj_find(file_private, args->dst_handle);
+	if (!binary_syncobj)
+		return -ENOENT;
+	ret = drm_syncobj_find_fence(file_private, args->src_handle,
+				     args->src_point, args->flags, &fence);
+	if (ret)
+		goto err;
+	drm_syncobj_replace_fence(binary_syncobj, fence);
+	dma_fence_put(fence);
+err:
+	drm_syncobj_put(binary_syncobj);
+
+	return ret;
+}
+int
+drm_syncobj_transfer_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_private)
+{
+	struct drm_syncobj_transfer *args = data;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+		return -ENODEV;
+
+	if (args->pad)
+		return -EINVAL;
+
+	if (args->dst_point)
+		ret = drm_syncobj_transfer_to_timeline(file_private, args);
+	else
+		ret = drm_syncobj_transfer_to_binary(file_private, args);
+
+	return ret;
+}
+
 static void syncobj_wait_fence_func(struct dma_fence *fence,
 				    struct dma_fence_cb *cb)
 {
