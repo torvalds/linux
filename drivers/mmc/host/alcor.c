@@ -54,9 +54,9 @@ struct alcor_sdmmc_host {
 	struct delayed_work timeout_work;
 
 	struct sg_mapping_iter sg_miter;	/* SG state for PIO */
+	struct sg_dma_page_iter sg_diter;	/* SG state for DMA */
 	struct scatterlist *sg;
 	unsigned int blocks;		/* remaining PIO blocks */
-	int sg_count;
 
 	u32			irq_status_sd;
 	unsigned char		cur_power_mode;
@@ -117,30 +117,19 @@ static void alcor_reset(struct alcor_sdmmc_host *host, u8 val)
 	dev_err(host->dev, "%s: timeout\n", __func__);
 }
 
+/*
+ * Perform DMA I/O of a single page.
+ */
 static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
-	u32 addr;
+	dma_addr_t addr;
 
-	if (!host->sg_count)
+	if (!__sg_page_iter_dma_next(&host->sg_diter))
 		return;
 
-	if (!host->sg) {
-		dev_err(host->dev, "have blocks, but no SG\n");
-		return;
-	}
-
-	if (!sg_dma_len(host->sg)) {
-		dev_err(host->dev, "DMA SG len == 0\n");
-		return;
-	}
-
-
-	addr = (u32)sg_dma_address(host->sg);
-
-	alcor_write32(priv, addr, AU6601_REG_SDMA_ADDR);
-	host->sg = sg_next(host->sg);
-	host->sg_count--;
+	addr = sg_page_iter_dma_address(&host->sg_diter);
+	alcor_write32(priv, (u32) addr, AU6601_REG_SDMA_ADDR);
 }
 
 static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host)
@@ -153,12 +142,29 @@ static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host)
 		ctrl |= AU6601_DATA_WRITE;
 
 	if (data->host_cookie == COOKIE_MAPPED) {
+		/*
+		 * For DMA transfers, this function is called just once,
+		 * at the start of the operation. The hardware can only
+		 * perform DMA I/O on a single page at a time, so here
+		 * we kick off the transfer with the first page, and expect
+		 * subsequent pages to be transferred upon IRQ events
+		 * indicating that the single-page DMA was completed.
+		 */
+		__sg_page_iter_start(&host->sg_diter.base, data->sg,
+				     data->sg_len, 0);
+
 		alcor_data_set_dma(host);
 		ctrl |= AU6601_DATA_DMA_MODE;
 		host->dma_on = 1;
-		alcor_write32(priv, data->sg_count * 0x1000,
+		alcor_write32(priv, data->blksz * data->blocks,
 			       AU6601_REG_BLOCK_SIZE);
 	} else {
+		/*
+		 * For PIO transfers, we break down each operation
+		 * into several sector-sized transfers. When one sector has
+		 * complete, the IRQ handler will call this function again
+		 * to kick off the transfer of the next sector.
+		 */
 		alcor_write32(priv, data->blksz, AU6601_REG_BLOCK_SIZE);
 	}
 
@@ -233,9 +239,8 @@ static void alcor_prepare_data(struct alcor_sdmmc_host *host,
 	host->data->bytes_xfered = 0;
 	host->blocks = data->blocks;
 	host->sg = data->sg;
-	host->sg_count = data->sg_count;
 	dev_dbg(host->dev, "prepare DATA: sg %i, blocks: %i\n",
-			host->sg_count, host->blocks);
+			data->sg_count, host->blocks);
 
 	if (data->host_cookie != COOKIE_MAPPED)
 		alcor_prepare_sg_miter(host);
@@ -484,9 +489,6 @@ static int alcor_data_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 		alcor_trf_block_pio(host, false);
 		return 1;
 	case AU6601_INT_DMA_END:
-		if (!host->sg_count)
-			break;
-
 		alcor_data_set_dma(host);
 		break;
 	default:
@@ -523,8 +525,7 @@ static void alcor_data_irq_thread(struct alcor_sdmmc_host *host, u32 intmask)
 	if (alcor_data_irq_done(host, intmask))
 		return;
 
-	if ((intmask & AU6601_INT_DATA_END) || !host->blocks ||
-	    (host->dma_on && !host->sg_count))
+	if ((intmask & AU6601_INT_DATA_END) || !host->blocks || host->dma_on)
 		alcor_finish_data(host);
 }
 
@@ -762,8 +763,7 @@ static void alcor_pre_req(struct mmc_host *mmc,
 	struct alcor_sdmmc_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
 	struct mmc_command *cmd = mrq->cmd;
-	struct scatterlist *sg;
-	unsigned int i, sg_len;
+	unsigned int sg_len;
 
 	if (!data || !cmd)
 		return;
@@ -784,11 +784,6 @@ static void alcor_pre_req(struct mmc_host *mmc,
 
 	if (data->blksz & 3)
 		return;
-
-	for_each_sg(data->sg, sg, data->sg_len, i) {
-		if (sg->length != AU6601_MAX_DMA_BLOCK_SIZE)
-			return;
-	}
 
 	/* This data might be unmapped at this time */
 
@@ -1037,26 +1032,13 @@ static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 	mmc->caps2 = MMC_CAP2_NO_SDIO;
 	mmc->ops = &alcor_sdc_ops;
 
-	/* The hardware does DMA data transfer of 4096 bytes to/from a single
-	 * buffer address. Scatterlists are not supported, but upon DMA
-	 * completion (signalled via IRQ), the original vendor driver does
-	 * then immediately set up another DMA transfer of the next 4096
-	 * bytes.
-	 *
-	 * This means that we need to handle the I/O in 4096 byte chunks.
-	 * Lacking a way to limit the sglist entries to 4096 bytes, we instead
-	 * impose that only one segment is provided, with maximum size 4096,
-	 * which also happens to be the minimum size. This means that the
-	 * single-entry sglist handled by this driver can be handed directly
-	 * to the hardware, nice and simple.
-	 *
-	 * Unfortunately though, that means we only do 4096 bytes I/O per
-	 * MMC command. A future improvement would be to make the driver
-	 * accept sg lists and entries of any size, and simply iterate
-	 * through them 4096 bytes at a time.
+	/*
+	 * Enable large requests through iteration of scatterlist pages.
+	 * Limit to 240 sectors per request like the original vendor driver.
 	 */
-	mmc->max_segs = AU6601_MAX_DMA_SEGMENTS;
-	mmc->max_seg_size = AU6601_MAX_DMA_BLOCK_SIZE;
+	mmc->max_segs = 64;
+	mmc->max_seg_size = 240 * 512;
+	mmc->max_blk_count = 240;
 	mmc->max_req_size = mmc->max_seg_size;
 }
 
