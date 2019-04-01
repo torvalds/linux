@@ -249,8 +249,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		bool safe_to_lower)
 {
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
-	/* Min fclk = 1GHz since all the extra scemi logic seems to run off of it */
-	int fclk_adj = new_clocks->fclk_khz > 1000000 ? new_clocks->fclk_khz : 1000000;
+	/* Min fclk = 1.2GHz since all the extra scemi logic seems to run off of it */
+	int fclk_adj = new_clocks->fclk_khz > 1200000 ? new_clocks->fclk_khz : 1200000;
 
 	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr->clks.phyclk_khz)) {
 		clk_mgr->clks.phyclk_khz = new_clocks->phyclk_khz;
