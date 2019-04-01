@@ -28,6 +28,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/ratelimit.h>
+#include <linux/nospec.h>
 
 #include <mali_kbase_jm.h>
 #include <mali_kbase_hwaccess_jm.h>
@@ -1394,6 +1395,13 @@ while (false)
 #undef compiletime_assert
 #undef compiletime_assert_defined
 #endif
+		if (user_atom.atom_number >= BASE_JD_ATOM_COUNT) {
+			err = -EINVAL;
+			break;
+		}
+		user_atom.atom_number =
+			array_index_nospec(user_atom.atom_number,
+					   BASE_JD_ATOM_COUNT);
 		katom = &jctx->atoms[user_atom.atom_number];
 
 		/* Record the flush ID for the cache flush optimisation */
