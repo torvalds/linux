@@ -26,6 +26,7 @@
    code-of-conduct
    code-of-conduct-interpretation
    submitting-patches
+   programming-language
    coding-style
    development-process
    email-clients
