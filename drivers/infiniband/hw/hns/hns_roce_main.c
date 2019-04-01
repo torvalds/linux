@@ -455,6 +455,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.destroy_ah = hns_roce_destroy_ah,
 	.destroy_cq = hns_roce_ib_destroy_cq,
 	.disassociate_ucontext = hns_roce_disassociate_ucontext,
+	.fill_res_entry = hns_roce_fill_res_entry,
 	.get_dma_mr = hns_roce_get_dma_mr,
 	.get_link_layer = hns_roce_get_link_layer,
 	.get_netdev = hns_roce_get_netdev,
