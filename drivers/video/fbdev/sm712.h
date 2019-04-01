@@ -15,9 +15,10 @@
 
 #define FB_ACCEL_SMI_LYNX 88
 
-#define SCREEN_X_RES      1024
-#define SCREEN_Y_RES      600
-#define SCREEN_BPP        16
+#define SCREEN_X_RES          1024
+#define SCREEN_Y_RES_PC       768
+#define SCREEN_Y_RES_NETBOOK  600
+#define SCREEN_BPP            16
 
 #define dac_reg	(0x3c8)
 #define dac_val	(0x3c9)
