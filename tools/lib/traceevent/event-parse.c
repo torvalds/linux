@@ -199,23 +199,23 @@ static const char *find_cmdline(struct tep_handle *pevent, int pid)
 }
 
 /**
- * tep_pid_is_registered - return if a pid has a cmdline registered
+ * tep_is_pid_registered - return if a pid has a cmdline registered
  * @pevent: handle for the pevent
  * @pid: The pid to check if it has a cmdline registered with.
  *
- * Returns 1 if the pid has a cmdline mapped to it
- * 0 otherwise.
+ * Returns true if the pid has a cmdline mapped to it
+ * false otherwise.
  */
-int tep_pid_is_registered(struct tep_handle *pevent, int pid)
+bool tep_is_pid_registered(struct tep_handle *pevent, int pid)
 {
 	const struct tep_cmdline *comm;
 	struct tep_cmdline key;
 
 	if (!pid)
-		return 1;
+		return true;
 
 	if (!pevent->cmdlines && cmdline_init(pevent))
-		return 0;
+		return false;
 
 	key.pid = pid;
 
@@ -223,8 +223,8 @@ int tep_pid_is_registered(struct tep_handle *pevent, int pid)
 		       sizeof(*pevent->cmdlines), cmdline_cmp);
 
 	if (comm)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 /*
@@ -5172,7 +5172,7 @@ out_failed:
 }
 
 /**
- * tep_data_lat_fmt - parse the data for the latency format
+ * tep_data_latency_format - parse the data for the latency format
  * @pevent: a handle to the pevent
  * @s: the trace_seq to write to
  * @record: the record to read from
@@ -5181,8 +5181,8 @@ out_failed:
  * need rescheduling, in hard/soft interrupt, preempt count
  * and lock depth) and places it into the trace_seq.
  */
-void tep_data_lat_fmt(struct tep_handle *pevent,
-		      struct trace_seq *s, struct tep_record *record)
+void tep_data_latency_format(struct tep_handle *pevent,
+			     struct trace_seq *s, struct tep_record *record)
 {
 	static int check_lock_depth = 1;
 	static int check_migrate_disable = 1;
@@ -5532,7 +5532,7 @@ void tep_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
 	}
 
 	if (pevent->latency_format) {
-		tep_data_lat_fmt(pevent, s, record);
+		tep_data_latency_format(pevent, s, record);
 	}
 
 	if (use_usec_format) {
@@ -6827,7 +6827,7 @@ struct tep_handle *tep_alloc(void)
 
 	if (pevent) {
 		pevent->ref_count = 1;
-		pevent->host_bigendian = tep_host_bigendian();
+		pevent->host_bigendian = tep_is_bigendian();
 	}
 
 	return pevent;

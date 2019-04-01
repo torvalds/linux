@@ -155,10 +155,10 @@ int tep_get_header_page_size(struct tep_handle *pevent)
 }
 
 /**
- * tep_get_header_timestamp_size - get size of the time stamp in the header page
+ * tep_get_header_timestamp_size - get size of the timestamp in the header page
  * @tep: a handle to the tep_handle
  *
- * This returns size of the time stamp in the header page
+ * This returns size of the timestamp in the header page
  * If @tep is NULL, 0 is returned.
  */
 int tep_get_header_timestamp_size(struct tep_handle *tep)
@@ -249,17 +249,17 @@ void tep_set_page_size(struct tep_handle *pevent, int _page_size)
 }
 
 /**
- * tep_file_bigendian - get if the file is in big endian order
+ * tep_is_file_bigendian - return the endian of the file
  * @pevent: a handle to the tep_handle
  *
- * This returns if the file is in big endian order
- * If @pevent is NULL, 0 is returned.
+ * This returns true if the file is in big endian order
+ * If @pevent is NULL, false is returned.
  */
-int tep_file_bigendian(struct tep_handle *pevent)
+bool tep_is_file_bigendian(struct tep_handle *pevent)
 {
 	if (pevent)
-		return pevent->file_bigendian;
-	return 0;
+		return pevent->file_bigendian == TEP_BIG_ENDIAN;
+	return false;
 }
 
 /**
@@ -276,27 +276,27 @@ void tep_set_file_bigendian(struct tep_handle *pevent, enum tep_endian endian)
 }
 
 /**
- * tep_is_host_bigendian - get if the order of the current host is big endian
+ * tep_is_local_bigendian - return the endian of the saved local machine
  * @pevent: a handle to the tep_handle
  *
- * This gets if the order of the current host is big endian
- * If @pevent is NULL, 0 is returned.
+ * This returns true if the saved local machine in @pevent is big endian.
+ * If @pevent is NULL, false is returned.
  */
-int tep_is_host_bigendian(struct tep_handle *pevent)
+bool tep_is_local_bigendian(struct tep_handle *pevent)
 {
 	if (pevent)
-		return pevent->host_bigendian;
+		return pevent->host_bigendian == TEP_BIG_ENDIAN;
 	return 0;
 }
 
 /**
- * tep_set_host_bigendian - set the order of the local host
+ * tep_set_local_bigendian - set the stored local machine endian order
  * @pevent: a handle to the tep_handle
  * @endian: non zero, if the local host has big endian order
  *
- * This sets the order of the local host
+ * This sets the endian order for the local machine.
  */
-void tep_set_host_bigendian(struct tep_handle *pevent, enum tep_endian endian)
+void tep_set_local_bigendian(struct tep_handle *pevent, enum tep_endian endian)
 {
 	if (pevent)
 		pevent->host_bigendian = endian;
@@ -306,14 +306,14 @@ void tep_set_host_bigendian(struct tep_handle *pevent, enum tep_endian endian)
  * tep_is_latency_format - get if the latency output format is configured
  * @pevent: a handle to the tep_handle
  *
- * This gets if the latency output format is configured
- * If @pevent is NULL, 0 is returned.
+ * This returns true if the latency output format is configured
+ * If @pevent is NULL, false is returned.
  */
-int tep_is_latency_format(struct tep_handle *pevent)
+bool tep_is_latency_format(struct tep_handle *pevent)
 {
 	if (pevent)
 		return pevent->latency_format;
-	return 0;
+	return false;
 }
 
 /**

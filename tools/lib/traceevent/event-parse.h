@@ -412,7 +412,7 @@ void tep_set_flag(struct tep_handle *tep, int flag);
 void tep_clear_flag(struct tep_handle *tep, enum tep_flag flag);
 bool tep_check_flags(struct tep_handle *tep, enum tep_flag flags);
 
-static inline int tep_host_bigendian(void)
+static inline int tep_is_bigendian(void)
 {
 	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
 	unsigned int val;
@@ -440,7 +440,7 @@ int tep_register_function(struct tep_handle *pevent, char *name,
 			  unsigned long long addr, char *mod);
 int tep_register_print_string(struct tep_handle *pevent, const char *fmt,
 			      unsigned long long addr);
-int tep_pid_is_registered(struct tep_handle *pevent, int pid);
+bool tep_is_pid_registered(struct tep_handle *pevent, int pid);
 
 void tep_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
 			  struct tep_event *event,
@@ -525,8 +525,8 @@ tep_find_event_by_name(struct tep_handle *pevent, const char *sys, const char *n
 struct tep_event *
 tep_find_event_by_record(struct tep_handle *pevent, struct tep_record *record);
 
-void tep_data_lat_fmt(struct tep_handle *pevent,
-		      struct trace_seq *s, struct tep_record *record);
+void tep_data_latency_format(struct tep_handle *pevent,
+			     struct trace_seq *s, struct tep_record *record);
 int tep_data_type(struct tep_handle *pevent, struct tep_record *rec);
 int tep_data_pid(struct tep_handle *pevent, struct tep_record *rec);
 int tep_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec);
@@ -563,11 +563,11 @@ int tep_get_long_size(struct tep_handle *pevent);
 void tep_set_long_size(struct tep_handle *pevent, int long_size);
 int tep_get_page_size(struct tep_handle *pevent);
 void tep_set_page_size(struct tep_handle *pevent, int _page_size);
-int tep_file_bigendian(struct tep_handle *pevent);
+bool tep_is_file_bigendian(struct tep_handle *pevent);
 void tep_set_file_bigendian(struct tep_handle *pevent, enum tep_endian endian);
-int tep_is_host_bigendian(struct tep_handle *pevent);
-void tep_set_host_bigendian(struct tep_handle *pevent, enum tep_endian endian);
-int tep_is_latency_format(struct tep_handle *pevent);
+bool tep_is_local_bigendian(struct tep_handle *pevent);
+void tep_set_local_bigendian(struct tep_handle *pevent, enum tep_endian endian);
+bool tep_is_latency_format(struct tep_handle *pevent);
 void tep_set_latency_format(struct tep_handle *pevent, int lat);
 int tep_get_header_page_size(struct tep_handle *pevent);
 int tep_get_header_timestamp_size(struct tep_handle *tep);
