@@ -24,7 +24,8 @@ static const struct snd_sof_debugfs_map cnl_dsp_debugfs[] = {
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
-static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
+static void cnl_ipc_host_done(struct snd_sof_dev *sdev);
+static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev);
 
 static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
@@ -44,6 +45,11 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
 	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
+
+	/* reenable IPC interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
+				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
 
 	/* reply message from DSP */
 	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE &&
@@ -62,20 +68,19 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 					CNL_DSP_REG_HIPCCTL,
 					CNL_DSP_REG_HIPCCTL_DONE, 0);
 
-		/*
-		 * handle immediate reply from DSP core. If the msg is
-		 * found, set done bit in cmd_done which is called at the
-		 * end of message processing function, else set it here
-		 * because the done bit can't be set in cmd_done function
-		 * which is triggered by msg
-		 */
-		if (snd_sof_ipc_reply(sdev, msg))
-			cnl_ipc_cmd_done(sdev, SOF_IPC_DSP_REPLY);
+		/* handle immediate reply from DSP core */
+		hda_dsp_ipc_get_reply(sdev);
+		snd_sof_ipc_reply(sdev, msg);
+
+		if (sdev->code_loading)	{
+			sdev->code_loading = 0;
+			wake_up(&sdev->waitq);
+		}
+
+		cnl_ipc_dsp_done(sdev);
 
 		ret = IRQ_HANDLED;
 	}
-
-	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
 
 	/* new message from DSP */
 	if (hipctdr & CNL_DSP_REG_HIPCTDR_BUSY) {
@@ -105,52 +110,42 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 					       CNL_DSP_REG_HIPCTDR_BUSY,
 					       CNL_DSP_REG_HIPCTDR_BUSY);
 
+		cnl_ipc_host_done(sdev);
+
 		ret = IRQ_HANDLED;
-	}
-
-	if (ret == IRQ_HANDLED) {
-		/* reenable IPC interrupt */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-					HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
-	}
-
-	if (sdev->code_loading)	{
-		sdev->code_loading = 0;
-		wake_up(&sdev->waitq);
 	}
 
 	return ret;
 }
 
-static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
+static void cnl_ipc_host_done(struct snd_sof_dev *sdev)
 {
-	if (dir == SOF_IPC_HOST_REPLY) {
-		/*
-		 * set done bit to ack dsp the msg has been
-		 * processed and send reply msg to dsp
-		 */
-		snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
-					       CNL_DSP_REG_HIPCTDA,
-					       CNL_DSP_REG_HIPCTDA_DONE,
-					       CNL_DSP_REG_HIPCTDA_DONE);
-	} else {
-		/*
-		 * set DONE bit - tell DSP we have received the reply msg
-		 * from DSP, and processed it, don't send more reply to host
-		 */
-		snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
-					       CNL_DSP_REG_HIPCIDA,
-					       CNL_DSP_REG_HIPCIDA_DONE,
-					       CNL_DSP_REG_HIPCIDA_DONE);
+	/*
+	 * set done bit to ack dsp the msg has been
+	 * processed and send reply msg to dsp
+	 */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       CNL_DSP_REG_HIPCTDA,
+				       CNL_DSP_REG_HIPCTDA_DONE,
+				       CNL_DSP_REG_HIPCTDA_DONE);
+}
 
-		/* unmask Done interrupt */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-					CNL_DSP_REG_HIPCCTL,
-					CNL_DSP_REG_HIPCCTL_DONE,
-					CNL_DSP_REG_HIPCCTL_DONE);
-	}
+static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev)
+{
+	/*
+	 * set DONE bit - tell DSP we have received the reply msg
+	 * from DSP, and processed it, don't send more reply to host
+	 */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       CNL_DSP_REG_HIPCIDA,
+				       CNL_DSP_REG_HIPCIDA_DONE,
+				       CNL_DSP_REG_HIPCIDA_DONE);
 
-	return 0;
+	/* unmask Done interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
+				CNL_DSP_REG_HIPCCTL,
+				CNL_DSP_REG_HIPCCTL_DONE,
+				CNL_DSP_REG_HIPCCTL_DONE);
 }
 
 static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
@@ -193,9 +188,7 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 
 	/* ipc */
 	.send_msg	= cnl_ipc_send_msg,
-	.get_reply	= hda_dsp_ipc_get_reply,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
-	.cmd_done	= cnl_ipc_cmd_done,
 
 	/* debug */
 	.debug_map	= cnl_dsp_debugfs,

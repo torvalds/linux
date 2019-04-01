@@ -159,6 +159,5 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset)
 
 	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
 	snd_sof_trace_notify_for_error(sdev);
-	snd_sof_dsp_cmd_done(sdev, SOF_IPC_HOST_REPLY);
 }
 EXPORT_SYMBOL(snd_sof_dsp_panic);

@@ -211,7 +211,7 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 		ret = -ETIMEDOUT;
 	} else {
 		/* copy the data returned from DSP */
-		ret = snd_sof_dsp_get_reply(sdev, msg);
+		ret = msg->reply_error;
 		if (msg->reply_size)
 			memcpy(reply_data, msg->reply_data, msg->reply_size);
 		if (ret < 0)
@@ -220,8 +220,6 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 		else
 			ipc_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
 	}
-
-	snd_sof_dsp_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 
 	return ret;
 }
@@ -250,10 +248,13 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	msg->header = header;
 	msg->msg_size = msg_bytes;
 	msg->reply_size = reply_bytes;
+	msg->reply_error = 0;
 
 	/* attach any data */
 	if (msg_bytes)
 		memcpy(msg->msg_data, msg_data, msg_bytes);
+
+	sdev->msg = msg;
 
 	ret = snd_sof_dsp_send_msg(sdev, msg);
 	/* Next reply that we receive will be related to this message */
@@ -302,14 +303,6 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
 
-/* mark IPC message as complete - locks held by caller */
-static void sof_ipc_tx_msg_reply_complete(struct snd_sof_ipc *ipc,
-					  struct snd_sof_ipc_msg *msg)
-{
-	msg->ipc_complete = true;
-	wake_up(&msg->waitq);
-}
-
 /* handle reply message from DSP */
 int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 {
@@ -333,7 +326,8 @@ int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 	}
 
 	/* wake up and return the error if we have waiters on this message ? */
-	sof_ipc_tx_msg_reply_complete(sdev->ipc, msg);
+	msg->ipc_complete = true;
+	wake_up(&msg->waitq);
 
 	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 
@@ -398,9 +392,6 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	}
 
 	ipc_log_header(sdev->dev, "ipc rx done", hdr.cmd);
-
-	/* tell DSP we are done */
-	snd_sof_dsp_cmd_done(sdev, SOF_IPC_HOST_REPLY);
 }
 EXPORT_SYMBOL(snd_sof_ipc_msgs_rx);
 

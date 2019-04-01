@@ -257,26 +257,6 @@ static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 	return -ENOTSUPP;
 }
 
-static inline int snd_sof_dsp_get_reply(struct snd_sof_dev *sdev,
-					struct snd_sof_ipc_msg *msg)
-{
-	if (sof_ops(sdev)->get_reply)
-		return sof_ops(sdev)->get_reply(sdev, msg);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
-}
-
-static inline int snd_sof_dsp_cmd_done(struct snd_sof_dev *sdev,
-				       int dir)
-{
-	if (sof_ops(sdev)->cmd_done)
-		return sof_ops(sdev)->cmd_done(sdev, dir);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
-}
-
 /* host DMA trace */
 static inline int snd_sof_dma_trace_init(struct snd_sof_dev *sdev,
 					 u32 *stream_tag)

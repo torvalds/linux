@@ -67,7 +67,9 @@ static const struct snd_sof_debugfs_map bdw_debugfs[] = {
 	 SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
-static int bdw_cmd_done(struct snd_sof_dev *sdev, int dir);
+static void bdw_host_done(struct snd_sof_dev *sdev);
+static void bdw_dsp_done(struct snd_sof_dev *sdev);
+static void bdw_get_reply(struct snd_sof_dev *sdev);
 
 /*
  * DSP Control.
@@ -288,8 +290,10 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
-		if (snd_sof_ipc_reply(sdev, ipcx))
-			bdw_cmd_done(sdev, SOF_IPC_DSP_REPLY);
+		bdw_get_reply(sdev);
+		snd_sof_ipc_reply(sdev, ipcx);
+
+		bdw_dsp_done(sdev);
 	}
 
 	ipcd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCD);
@@ -309,6 +313,8 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}
+
+		bdw_host_done(sdev);
 	}
 
 	return IRQ_HANDLED;
@@ -475,59 +481,61 @@ static int bdw_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	return 0;
 }
 
-static int bdw_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
+static void bdw_get_reply(struct snd_sof_dev *sdev)
 {
+	struct snd_sof_ipc_msg *msg = sdev->msg;
 	struct sof_ipc_reply reply;
+	unsigned long flags;
 	int ret = 0;
-	u32 size;
 
 	/* get reply */
 	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
+
+	spin_lock_irqsave(&sdev->ipc_lock, flags);
+
 	if (reply.error < 0) {
-		size = sizeof(reply);
+		memcpy(msg->reply_data, &reply, sizeof(reply));
 		ret = reply.error;
 	} else {
 		/* reply correct size ? */
 		if (reply.hdr.size != msg->reply_size) {
-			dev_err(sdev->dev, "error: reply expected 0x%zx got 0x%x bytes\n",
+			dev_err(sdev->dev, "error: reply expected %zu got %u bytes\n",
 				msg->reply_size, reply.hdr.size);
-			size = msg->reply_size;
 			ret = -EINVAL;
-		} else {
-			size = reply.hdr.size;
 		}
+
+		/* read the message */
+		if (msg->reply_size > 0)
+			sof_mailbox_read(sdev, sdev->host_box.offset,
+					 msg->reply_data, msg->reply_size);
 	}
 
-	/* read the message */
-	if (msg->msg_data && size > 0)
-		sof_mailbox_read(sdev, sdev->host_box.offset, msg->reply_data,
-				 size);
+	msg->reply_error = ret;
 
-	return ret;
+	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 }
 
-static int bdw_cmd_done(struct snd_sof_dev *sdev, int dir)
+static void bdw_host_done(struct snd_sof_dev *sdev)
 {
-	if (dir == SOF_IPC_HOST_REPLY) {
-		/* clear BUSY bit and set DONE bit - accept new messages */
-		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IPCD,
-						 SHIM_IPCD_BUSY | SHIM_IPCD_DONE,
-						 SHIM_IPCD_DONE);
+	/* clear BUSY bit and set DONE bit - accept new messages */
+	snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IPCD,
+					 SHIM_IPCD_BUSY | SHIM_IPCD_DONE,
+					 SHIM_IPCD_DONE);
 
-		/* unmask busy interrupt */
-		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IMRX,
-						 SHIM_IMRX_BUSY, 0);
-	} else {
-		/* clear DONE bit - tell DSP we have completed */
-		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IPCX,
-						 SHIM_IPCX_DONE, 0);
+	/* unmask busy interrupt */
+	snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IMRX,
+					 SHIM_IMRX_BUSY, 0);
+}
 
-		/* unmask Done interrupt */
-		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IMRX,
-						 SHIM_IMRX_DONE, 0);
-	}
+static void bdw_dsp_done(struct snd_sof_dev *sdev)
+{
+	/* clear DONE bit - tell DSP we have completed */
+	snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IPCX,
+					 SHIM_IPCX_DONE, 0);
 
-	return 0;
+	/* unmask Done interrupt */
+	snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_IMRX,
+					 SHIM_IMRX_DONE, 0);
 }
 
 /*
@@ -664,9 +672,7 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 
 	/* ipc */
 	.send_msg	= bdw_send_msg,
-	.get_reply	= bdw_get_reply,
 	.fw_ready	= bdw_fw_ready,
-	.cmd_done	= bdw_cmd_done,
 
 	/* debug */
 	.debug_map  = bdw_debugfs,

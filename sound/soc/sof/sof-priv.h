@@ -115,9 +115,6 @@ struct snd_sof_dsp_ops {
 	/* ipc */
 	int (*send_msg)(struct snd_sof_dev *sof_dev,
 			struct snd_sof_ipc_msg *msg); /* mandatory */
-	int (*get_reply)(struct snd_sof_dev *sof_dev,
-			 struct snd_sof_ipc_msg *msg); /* mandatory */
-	int (*cmd_done)(struct snd_sof_dev *sof_dev, int dir); /* mandatory */
 
 	/* FW loading */
 	int (*load_firmware)(struct snd_sof_dev *sof_dev); /* mandatory */
@@ -257,6 +254,7 @@ struct snd_sof_ipc_msg {
 	void *reply_data;
 	size_t msg_size;
 	size_t reply_size;
+	int reply_error;
 
 	wait_queue_head_t waitq;
 	bool ipc_complete;
@@ -359,6 +357,7 @@ struct snd_sof_dev {
 	struct snd_sof_mailbox dsp_box;		/* DSP initiated IPC */
 	struct snd_sof_mailbox host_box;	/* Host initiated IPC */
 	struct snd_sof_mailbox stream_box;	/* Stream position update */
+	struct snd_sof_ipc_msg *msg;
 	u64 irq_status;
 	int ipc_irq;
 	u32 next_comp_id; /* monotonic - reset during S3 */
