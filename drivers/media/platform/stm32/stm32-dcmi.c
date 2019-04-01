@@ -1611,7 +1611,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 	/* Parse the graph to extract a list of subdevice DT nodes. */
 	ret = dcmi_graph_parse(dcmi, dcmi->dev->of_node);
 	if (ret < 0) {
-		dev_err(dcmi->dev, "Graph parsing failed\n");
+		dev_err(dcmi->dev, "Failed to parse graph\n");
 		return ret;
 	}
 
@@ -1620,6 +1620,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 	ret = v4l2_async_notifier_add_subdev(&dcmi->notifier,
 					     &dcmi->entity.asd);
 	if (ret) {
+		dev_err(dcmi->dev, "Failed to add subdev notifier\n");
 		of_node_put(dcmi->entity.node);
 		return ret;
 	}
@@ -1628,7 +1629,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	ret = v4l2_async_notifier_register(&dcmi->v4l2_dev, &dcmi->notifier);
 	if (ret < 0) {
-		dev_err(dcmi->dev, "Notifier registration failed\n");
+		dev_err(dcmi->dev, "Failed to register notifier\n");
 		v4l2_async_notifier_cleanup(&dcmi->notifier);
 		return ret;
 	}
