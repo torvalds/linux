@@ -61,10 +61,9 @@
 		#size-cells = <0>;
 
 		cpu0: cpu@0 {
-			clocks = <&ccu CLK_C0CPUX>;
-			clock-names = "cpu";
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C0CPUX>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			cci-control-port = <&cci_control0>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -75,6 +74,7 @@
 		cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C0CPUX>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			cci-control-port = <&cci_control0>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -85,6 +85,7 @@
 		cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C0CPUX>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			cci-control-port = <&cci_control0>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -95,6 +96,7 @@
 		cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C0CPUX>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			cci-control-port = <&cci_control0>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -103,10 +105,9 @@
 		};
 
 		cpu100: cpu@100 {
-			clocks = <&ccu CLK_C1CPUX>;
-			clock-names = "cpu";
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C1CPUX>;
 			operating-points-v2 = <&cpu1_opp_table>;
 			cci-control-port = <&cci_control1>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -117,6 +118,7 @@
 		cpu@101 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C1CPUX>;
 			operating-points-v2 = <&cpu1_opp_table>;
 			cci-control-port = <&cci_control1>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -127,6 +129,7 @@
 		cpu@102 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C1CPUX>;
 			operating-points-v2 = <&cpu1_opp_table>;
 			cci-control-port = <&cci_control1>;
 			enable-method = "allwinner,sun8i-a83t-smp";
@@ -137,6 +140,7 @@
 		cpu@103 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			clocks = <&ccu CLK_C1CPUX>;
 			operating-points-v2 = <&cpu1_opp_table>;
 			cci-control-port = <&cci_control1>;
 			enable-method = "allwinner,sun8i-a83t-smp";
