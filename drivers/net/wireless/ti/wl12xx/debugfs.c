@@ -125,20 +125,10 @@ WL12XX_DEBUGFS_FWSTATS_FILE(rxpipe, tx_xfr_host_int_trig_rx_data, "%u");
 int wl12xx_debugfs_add_files(struct wl1271 *wl,
 			     struct dentry *rootdir)
 {
-	int ret = 0;
-	struct dentry *entry, *stats, *moddir;
+	struct dentry *stats, *moddir;
 
 	moddir = debugfs_create_dir(KBUILD_MODNAME, rootdir);
-	if (!moddir || IS_ERR(moddir)) {
-		entry = moddir;
-		goto err;
-	}
-
 	stats = debugfs_create_dir("fw_stats", moddir);
-	if (!stats || IS_ERR(stats)) {
-		entry = stats;
-		goto err;
-	}
 
 	DEBUGFS_FWSTATS_ADD(tx, internal_desc_overflow);
 
@@ -232,12 +222,4 @@ int wl12xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(rxpipe, tx_xfr_host_int_trig_rx_data);
 
 	return 0;
-
-err:
-	if (IS_ERR(entry))
-		ret = PTR_ERR(entry);
-	else
-		ret = -ENOMEM;
-
-	return ret;
 }

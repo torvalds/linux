@@ -397,6 +397,11 @@ int qed_eq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 
 	qed_eq_prod_update(p_hwfn, qed_chain_get_prod_idx(p_chain));
 
+	/* Attempt to post pending requests */
+	spin_lock_bh(&p_hwfn->p_spq->lock);
+	rc = qed_spq_pend_post(p_hwfn);
+	spin_unlock_bh(&p_hwfn->p_spq->lock);
+
 	return rc;
 }
 
@@ -767,7 +772,7 @@ static int qed_spq_post_list(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
+int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
 	struct qed_spq_entry *p_ent = NULL;
@@ -788,6 +793,17 @@ static int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
 
 	return qed_spq_post_list(p_hwfn, &p_spq->pending,
 				 SPQ_HIGH_PRI_RESERVE_DEFAULT);
+}
+
+static void qed_spq_recov_set_ret_code(struct qed_spq_entry *p_ent,
+				       u8 *fw_return_code)
+{
+	if (!fw_return_code)
+		return;
+
+	if (p_ent->elem.hdr.protocol_id == PROTOCOLID_ROCE ||
+	    p_ent->elem.hdr.protocol_id == PROTOCOLID_IWARP)
+		*fw_return_code = RDMA_RETURN_OK;
 }
 
 /* Avoid overriding of SPQ entries when getting out-of-order completions, by
@@ -823,6 +839,17 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	if (!p_ent) {
 		DP_NOTICE(p_hwfn, "Got a NULL pointer\n");
 		return -EINVAL;
+	}
+
+	if (p_hwfn->cdev->recov_in_prog) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SPQ,
+			   "Recovery is in progress. Skip spq post [cmd %02x protocol %02x]\n",
+			   p_ent->elem.hdr.cmd_id, p_ent->elem.hdr.protocol_id);
+
+		/* Let the flow complete w/o any error handling */
+		qed_spq_recov_set_ret_code(p_ent, fw_return_code);
+		return 0;
 	}
 
 	/* Complete the entry */
@@ -905,7 +932,6 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry	*p_ent = NULL;
 	struct qed_spq_entry	*tmp;
 	struct qed_spq_entry	*found = NULL;
-	int			rc;
 
 	if (!p_hwfn)
 		return -EINVAL;
@@ -963,12 +989,7 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 		 */
 		qed_spq_return_entry(p_hwfn, found);
 
-	/* Attempt to post pending requests */
-	spin_lock_bh(&p_spq->lock);
-	rc = qed_spq_pend_post(p_hwfn);
-	spin_unlock_bh(&p_spq->lock);
-
-	return rc;
+	return 0;
 }
 
 int qed_consq_alloc(struct qed_hwfn *p_hwfn)

@@ -1740,7 +1740,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr,
 		dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
 				 le16_to_cpu(pktlen), DMA_TO_DEVICE);
 	}
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 	tdinfo->skb = NULL;
 }
 

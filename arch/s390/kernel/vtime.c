@@ -69,7 +69,7 @@ static void update_mt_scaling(void)
 	u64 delta, fac, mult, div;
 	int i;
 
-	stcctm5(smp_cpu_mtid + 1, cycles_new);
+	stcctm(MT_DIAG, smp_cpu_mtid + 1, cycles_new);
 	cycles_old = this_cpu_ptr(mt_cycles);
 	fac = 1;
 	mult = div = 0;
@@ -124,7 +124,7 @@ static void account_system_index_scaled(struct task_struct *p, u64 cputime,
  */
 static int do_account_vtime(struct task_struct *tsk)
 {
-	u64 timer, clock, user, guest, system, hardirq, softirq, steal;
+	u64 timer, clock, user, guest, system, hardirq, softirq;
 
 	timer = S390_lowcore.last_update_timer;
 	clock = S390_lowcore.last_update_clock;
@@ -182,12 +182,6 @@ static int do_account_vtime(struct task_struct *tsk)
 	if (softirq)
 		account_system_index_scaled(tsk, softirq, CPUTIME_SOFTIRQ);
 
-	steal = S390_lowcore.steal_timer;
-	if ((s64) steal > 0) {
-		S390_lowcore.steal_timer = 0;
-		account_steal_time(cputime_to_nsecs(steal));
-	}
-
 	return virt_timer_forward(user + guest + system + hardirq + softirq);
 }
 
@@ -213,8 +207,19 @@ void vtime_task_switch(struct task_struct *prev)
  */
 void vtime_flush(struct task_struct *tsk)
 {
+	u64 steal, avg_steal;
+
 	if (do_account_vtime(tsk))
 		virt_timer_expire();
+
+	steal = S390_lowcore.steal_timer;
+	avg_steal = S390_lowcore.avg_steal_timer / 2;
+	if ((s64) steal > 0) {
+		S390_lowcore.steal_timer = 0;
+		account_steal_time(steal);
+		avg_steal += steal;
+	}
+	S390_lowcore.avg_steal_timer = avg_steal;
 }
 
 /*
@@ -432,6 +437,6 @@ void vtime_init(void)
 		__this_cpu_write(mt_scaling_jiffies, jiffies);
 		__this_cpu_write(mt_scaling_mult, 1);
 		__this_cpu_write(mt_scaling_div, 1);
-		stcctm5(smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
+		stcctm(MT_DIAG, smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
 	}
 }

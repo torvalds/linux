@@ -1536,7 +1536,7 @@ static void z8530_tx_done(struct z8530_channel *c)
 	z8530_tx_begin(c);
 	c->netdevice->stats.tx_packets++;
 	c->netdevice->stats.tx_bytes += skb->len;
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 }
 
 /**

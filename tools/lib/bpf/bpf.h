@@ -85,6 +85,7 @@ struct bpf_load_program_attr {
 	__u32 line_info_rec_size;
 	const void *line_info;
 	__u32 line_info_cnt;
+	__u32 log_level;
 };
 
 /* Flags to direct loading requirements */
@@ -110,6 +111,8 @@ LIBBPF_API int bpf_map_update_elem(int fd, const void *key, const void *value,
 				   __u64 flags);
 
 LIBBPF_API int bpf_map_lookup_elem(int fd, const void *key, void *value);
+LIBBPF_API int bpf_map_lookup_elem_flags(int fd, const void *key, void *value,
+					 __u64 flags);
 LIBBPF_API int bpf_map_lookup_and_delete_elem(int fd, const void *key,
 					      void *value);
 LIBBPF_API int bpf_map_delete_elem(int fd, const void *key);

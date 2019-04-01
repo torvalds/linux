@@ -2977,8 +2977,8 @@ static inline void bnx2x_mcast_hdl_pending_del_e2(struct bnx2x *bp,
 
 		cmd_pos->data.macs_num--;
 
-		  DP(BNX2X_MSG_SP, "Deleting MAC. %d left,cnt is %d\n",
-				   cmd_pos->data.macs_num, cnt);
+		DP(BNX2X_MSG_SP, "Deleting MAC. %d left,cnt is %d\n",
+		   cmd_pos->data.macs_num, cnt);
 
 		/* Break if we reached the maximum
 		 * number of rules.
@@ -3597,8 +3597,8 @@ static int bnx2x_mcast_validate_e1(struct bnx2x *bp,
 	/* RESTORE command will restore the entire multicast configuration */
 	case BNX2X_MCAST_CMD_RESTORE:
 		p->mcast_list_len = reg_sz;
-		  DP(BNX2X_MSG_SP, "Command %d, p->mcast_list_len=%d\n",
-				   cmd, p->mcast_list_len);
+		DP(BNX2X_MSG_SP, "Command %d, p->mcast_list_len=%d\n",
+		   cmd, p->mcast_list_len);
 		break;
 
 	case BNX2X_MCAST_CMD_ADD:
@@ -3735,8 +3735,8 @@ static inline int bnx2x_mcast_handle_restore_cmd_e1(
 
 		i++;
 
-		  DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
-		     cfg_data.mac);
+		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
+		   cfg_data.mac);
 	}
 
 	*rdata_idx = i;

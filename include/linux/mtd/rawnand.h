@@ -16,13 +16,12 @@
 #ifndef __LINUX_MTD_RAWNAND_H
 #define __LINUX_MTD_RAWNAND_H
 
-#include <linux/wait.h>
-#include <linux/spinlock.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/bbm.h>
 #include <linux/mtd/jedec.h>
 #include <linux/mtd/onfi.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/types.h>
 
@@ -897,25 +896,17 @@ struct nand_controller_ops {
 /**
  * struct nand_controller - Structure used to describe a NAND controller
  *
- * @lock:               protection lock
- * @active:		the mtd device which holds the controller currently
- * @wq:			wait queue to sleep on if a NAND operation is in
- *			progress used instead of the per chip wait queue
- *			when a hw controller is available.
+ * @lock:		lock used to serialize accesses to the NAND controller
  * @ops:		NAND controller operations.
  */
 struct nand_controller {
-	spinlock_t lock;
-	struct nand_chip *active;
-	wait_queue_head_t wq;
+	struct mutex lock;
 	const struct nand_controller_ops *ops;
 };
 
 static inline void nand_controller_init(struct nand_controller *nfc)
 {
-	nfc->active = NULL;
-	spin_lock_init(&nfc->lock);
-	init_waitqueue_head(&nfc->wq);
+	mutex_init(&nfc->lock);
 }
 
 /**
@@ -936,7 +927,6 @@ static inline void nand_controller_init(struct nand_controller *nfc)
  * @waitfunc: hardware specific function for wait on ready.
  * @block_bad: check if a block is bad, using OOB markers
  * @block_markbad: mark a block bad
- * @erase: erase function
  * @set_features: set the NAND chip features
  * @get_features: get the NAND chip features
  * @chip_delay: chip dependent delay for transferring data from array to read
@@ -962,7 +952,6 @@ struct nand_legacy {
 	int (*waitfunc)(struct nand_chip *chip);
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
-	int (*erase)(struct nand_chip *chip, int page);
 	int (*set_features)(struct nand_chip *chip, int feature_addr,
 			    u8 *subfeature_para);
 	int (*get_features)(struct nand_chip *chip, int feature_addr,
@@ -983,7 +972,6 @@ struct nand_legacy {
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
  * @buf_align:		minimum buffer alignment required by a platform
- * @state:		[INTERN] the current state of the NAND device
  * @oob_poi:		"poison value buffer," used for laying out OOB data
  *			before writing
  * @page_shift:		[INTERN] number of address bits in a page (column
@@ -1034,6 +1022,9 @@ struct nand_legacy {
  *			cur_cs < numchips. NAND Controller drivers should not
  *			modify this value, but they're allowed to read it.
  * @read_retries:	[INTERN] the number of read retry modes supported
+ * @lock:		lock protecting the suspended field. Also used to
+ *			serialize accesses to the NAND device.
+ * @suspended:		set to 1 when the device is suspended, 0 when it's not.
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -1088,7 +1079,8 @@ struct nand_chip {
 
 	int read_retries;
 
-	flstate_t state;
+	struct mutex lock;
+	unsigned int suspended : 1;
 
 	uint8_t *oob_poi;
 	struct nand_controller *controller;

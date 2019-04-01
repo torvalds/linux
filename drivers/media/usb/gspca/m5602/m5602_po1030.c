@@ -158,6 +158,7 @@ static const struct v4l2_ctrl_config po1030_greenbal_cfg = {
 
 int po1030_probe(struct sd *sd)
 {
+	int rc = 0;
 	u8 dev_id_h = 0, i;
 	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
@@ -177,11 +178,14 @@ int po1030_probe(struct sd *sd)
 	for (i = 0; i < ARRAY_SIZE(preinit_po1030); i++) {
 		u8 data = preinit_po1030[i][2];
 		if (preinit_po1030[i][0] == SENSOR)
-			m5602_write_sensor(sd,
+			rc |= m5602_write_sensor(sd,
 				preinit_po1030[i][1], &data, 1);
 		else
-			m5602_write_bridge(sd, preinit_po1030[i][1], data);
+			rc |= m5602_write_bridge(sd, preinit_po1030[i][1],
+						data);
 	}
+	if (rc < 0)
+		return rc;
 
 	if (m5602_read_sensor(sd, PO1030_DEVID_H, &dev_id_h, 1))
 		return -ENODEV;

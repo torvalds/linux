@@ -28,18 +28,20 @@ PR_GET_SPECULATION_CTRL returns the state of the speculation misfeature
 which is selected with arg2 of prctl(2). The return value uses bits 0-3 with
 the following meaning:
 
-==== ===================== ===================================================
-Bit  Define                Description
-==== ===================== ===================================================
-0    PR_SPEC_PRCTL         Mitigation can be controlled per task by
-                           PR_SET_SPECULATION_CTRL.
-1    PR_SPEC_ENABLE        The speculation feature is enabled, mitigation is
-                           disabled.
-2    PR_SPEC_DISABLE       The speculation feature is disabled, mitigation is
-                           enabled.
-3    PR_SPEC_FORCE_DISABLE Same as PR_SPEC_DISABLE, but cannot be undone. A
-                           subsequent prctl(..., PR_SPEC_ENABLE) will fail.
-==== ===================== ===================================================
+==== ====================== ==================================================
+Bit  Define                 Description
+==== ====================== ==================================================
+0    PR_SPEC_PRCTL          Mitigation can be controlled per task by
+                            PR_SET_SPECULATION_CTRL.
+1    PR_SPEC_ENABLE         The speculation feature is enabled, mitigation is
+                            disabled.
+2    PR_SPEC_DISABLE        The speculation feature is disabled, mitigation is
+                            enabled.
+3    PR_SPEC_FORCE_DISABLE  Same as PR_SPEC_DISABLE, but cannot be undone. A
+                            subsequent prctl(..., PR_SPEC_ENABLE) will fail.
+4    PR_SPEC_DISABLE_NOEXEC Same as PR_SPEC_DISABLE, but the state will be
+                            cleared on :manpage:`execve(2)`.
+==== ====================== ==================================================
 
 If all bits are 0 the CPU is not affected by the speculation misfeature.
 
@@ -92,6 +94,7 @@ Speculation misfeature controls
    * prctl(PR_SET_SPECULATION_CTRL, PR_SPEC_STORE_BYPASS, PR_SPEC_ENABLE, 0, 0);
    * prctl(PR_SET_SPECULATION_CTRL, PR_SPEC_STORE_BYPASS, PR_SPEC_DISABLE, 0, 0);
    * prctl(PR_SET_SPECULATION_CTRL, PR_SPEC_STORE_BYPASS, PR_SPEC_FORCE_DISABLE, 0, 0);
+   * prctl(PR_SET_SPECULATION_CTRL, PR_SPEC_STORE_BYPASS, PR_SPEC_DISABLE_NOEXEC, 0, 0);
 
 - PR_SPEC_INDIR_BRANCH: Indirect Branch Speculation in User Processes
                         (Mitigate Spectre V2 style attacks against user processes)

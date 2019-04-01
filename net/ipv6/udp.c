@@ -288,8 +288,8 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int peeked, peeking, off;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
+	struct udp_mib __percpu *mib;
 	bool checksum_valid = false;
-	struct udp_mib *mib;
 	int is_udp4;
 
 	if (flags & MSG_ERRQUEUE)
@@ -420,17 +420,19 @@ EXPORT_SYMBOL(udpv6_encap_enable);
  */
 static int __udp6_lib_err_encap_no_sk(struct sk_buff *skb,
 				      struct inet6_skb_parm *opt,
-				      u8 type, u8 code, int offset, u32 info)
+				      u8 type, u8 code, int offset, __be32 info)
 {
 	int i;
 
 	for (i = 0; i < MAX_IPTUN_ENCAP_OPS; i++) {
 		int (*handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			       u8 type, u8 code, int offset, u32 info);
+			       u8 type, u8 code, int offset, __be32 info);
+		const struct ip6_tnl_encap_ops *encap;
 
-		if (!ip6tun_encaps[i])
+		encap = rcu_dereference(ip6tun_encaps[i]);
+		if (!encap)
 			continue;
-		handler = rcu_dereference(ip6tun_encaps[i]->err_handler);
+		handler = encap->err_handler;
 		if (handler && !handler(skb, opt, type, code, offset, info))
 			return 0;
 	}

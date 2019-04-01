@@ -67,9 +67,6 @@ static int psp_sw_init(void *handle)
 
 	psp->adev = adev;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	ret = psp_init_microcode(psp);
 	if (ret) {
 		DRM_ERROR("Failed to load psp firmware!\n");
@@ -83,15 +80,14 @@ static int psp_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	release_firmware(adev->psp.sos_fw);
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
 	adev->psp.asd_fw = NULL;
-	release_firmware(adev->psp.ta_fw);
-	adev->psp.ta_fw = NULL;
+	if (adev->psp.ta_fw) {
+		release_firmware(adev->psp.ta_fw);
+		adev->psp.ta_fw = NULL;
+	}
 	return 0;
 }
 
@@ -140,12 +136,23 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	while (*((unsigned int *)psp->fence_buf) != index)
 		msleep(1);
 
-	/* the status field must be 0 after FW is loaded */
-	if (ucode && psp->cmd_buf_mem->resp.status) {
-		DRM_ERROR("failed loading with status (%d) and ucode id (%d)\n",
-			  psp->cmd_buf_mem->resp.status, ucode->ucode_id);
-		return -EINVAL;
+	/* In some cases, psp response status is not 0 even there is no
+	 * problem while the command is submitted. Some version of PSP FW
+	 * doesn't write 0 to that field.
+	 * So here we would like to only print a warning instead of an error
+	 * during psp initialization to avoid breaking hw_init and it doesn't
+	 * return -EINVAL.
+	 */
+	if (psp->cmd_buf_mem->resp.status) {
+		if (ucode)
+			DRM_WARN("failed to load ucode id (%d) ",
+				  ucode->ucode_id);
+		DRM_WARN("psp command failed and response status is (%d)\n",
+			  psp->cmd_buf_mem->resp.status);
 	}
+
+	/* get xGMI session id from response buffer */
+	cmd->resp.session_id = psp->cmd_buf_mem->resp.session_id;
 
 	if (ucode) {
 		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
@@ -435,6 +442,9 @@ static int psp_xgmi_initialize(struct psp_context *psp)
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
 
+	if (!psp->adev->psp.ta_fw)
+		return -ENOENT;
+
 	if (!psp->xgmi_context.initialized) {
 		ret = psp_xgmi_init_shared_buf(psp);
 		if (ret)
@@ -495,6 +505,98 @@ static int psp_hw_start(struct psp_context *psp)
 	return 0;
 }
 
+static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
+			   enum psp_gfx_fw_type *type)
+{
+	switch (ucode->ucode_id) {
+	case AMDGPU_UCODE_ID_SDMA0:
+		*type = GFX_FW_TYPE_SDMA0;
+		break;
+	case AMDGPU_UCODE_ID_SDMA1:
+		*type = GFX_FW_TYPE_SDMA1;
+		break;
+	case AMDGPU_UCODE_ID_CP_CE:
+		*type = GFX_FW_TYPE_CP_CE;
+		break;
+	case AMDGPU_UCODE_ID_CP_PFP:
+		*type = GFX_FW_TYPE_CP_PFP;
+		break;
+	case AMDGPU_UCODE_ID_CP_ME:
+		*type = GFX_FW_TYPE_CP_ME;
+		break;
+	case AMDGPU_UCODE_ID_CP_MEC1:
+		*type = GFX_FW_TYPE_CP_MEC;
+		break;
+	case AMDGPU_UCODE_ID_CP_MEC1_JT:
+		*type = GFX_FW_TYPE_CP_MEC_ME1;
+		break;
+	case AMDGPU_UCODE_ID_CP_MEC2:
+		*type = GFX_FW_TYPE_CP_MEC;
+		break;
+	case AMDGPU_UCODE_ID_CP_MEC2_JT:
+		*type = GFX_FW_TYPE_CP_MEC_ME2;
+		break;
+	case AMDGPU_UCODE_ID_RLC_G:
+		*type = GFX_FW_TYPE_RLC_G;
+		break;
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL:
+		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_CNTL;
+		break;
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM:
+		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM;
+		break;
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
+		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM;
+		break;
+	case AMDGPU_UCODE_ID_SMC:
+		*type = GFX_FW_TYPE_SMU;
+		break;
+	case AMDGPU_UCODE_ID_UVD:
+		*type = GFX_FW_TYPE_UVD;
+		break;
+	case AMDGPU_UCODE_ID_UVD1:
+		*type = GFX_FW_TYPE_UVD1;
+		break;
+	case AMDGPU_UCODE_ID_VCE:
+		*type = GFX_FW_TYPE_VCE;
+		break;
+	case AMDGPU_UCODE_ID_VCN:
+		*type = GFX_FW_TYPE_VCN;
+		break;
+	case AMDGPU_UCODE_ID_DMCU_ERAM:
+		*type = GFX_FW_TYPE_DMCU_ERAM;
+		break;
+	case AMDGPU_UCODE_ID_DMCU_INTV:
+		*type = GFX_FW_TYPE_DMCU_ISR;
+		break;
+	case AMDGPU_UCODE_ID_MAXIMUM:
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
+				       struct psp_gfx_cmd_resp *cmd)
+{
+	int ret;
+	uint64_t fw_mem_mc_addr = ucode->mc_addr;
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(fw_mem_mc_addr);
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
+	cmd->cmd.cmd_load_ip_fw.fw_size = ucode->ucode_size;
+
+	ret = psp_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
+	if (ret)
+		DRM_ERROR("Unknown firmware type\n");
+
+	return ret;
+}
+
 static int psp_np_fw_load(struct psp_context *psp)
 {
 	int i, ret;
@@ -516,7 +618,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 			/*skip ucode loading in SRIOV VF */
 			continue;
 
-		ret = psp_prep_cmd_buf(ucode, psp->cmd);
+		ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
 		if (ret)
 			return ret;
 
@@ -541,7 +643,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	struct psp_context *psp = &adev->psp;
 
 	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
-		psp_ring_destroy(psp, PSP_RING_TYPE__KM);
+		psp_ring_stop(psp, PSP_RING_TYPE__KM); /* should not destroy ring, only stop */
 		goto skip_memalloc;
 	}
 
@@ -618,10 +720,6 @@ static int psp_hw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	mutex_lock(&adev->firmware.mutex);
 	/*
 	 * This sequence is just used on hw_init only once, no need on
@@ -651,9 +749,6 @@ static int psp_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
 	    psp->xgmi_context.initialized == 1)
                 psp_xgmi_terminate(psp);
@@ -682,9 +777,6 @@ static int psp_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
 	    psp->xgmi_context.initialized == 1) {
 		ret = psp_xgmi_terminate(psp);
@@ -708,9 +800,6 @@ static int psp_resume(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
 
 	DRM_INFO("PSP is resuming...\n");
 
@@ -746,11 +835,6 @@ static bool psp_check_fw_loading_status(struct amdgpu_device *adev,
 					enum AMDGPU_UCODE_ID ucode_type)
 {
 	struct amdgpu_firmware_info *ucode = NULL;
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		DRM_INFO("firmware is not loaded by PSP\n");
-		return true;
-	}
 
 	if (!adev->firmware.fw_size)
 		return false;

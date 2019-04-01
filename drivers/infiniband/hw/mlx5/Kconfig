@@ -1,7 +1,6 @@
 config MLX5_INFINIBAND
 	tristate "Mellanox 5th generation network adapters (ConnectX series) support"
 	depends on NETDEVICES && ETHERNET && PCI && MLX5_CORE
-	depends on INFINIBAND_USER_ACCESS || INFINIBAND_USER_ACCESS=n
 	---help---
 	  This driver provides low-level InfiniBand support for
 	  Mellanox Connect-IB PCI Express host channel adapters (HCAs).

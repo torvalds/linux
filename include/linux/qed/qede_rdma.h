@@ -74,21 +74,23 @@ void qede_rdma_unregister_driver(struct qedr_driver *drv);
 bool qede_rdma_supported(struct qede_dev *dev);
 
 #if IS_ENABLED(CONFIG_QED_RDMA)
-int qede_rdma_dev_add(struct qede_dev *dev);
+int qede_rdma_dev_add(struct qede_dev *dev, bool recovery);
 void qede_rdma_dev_event_open(struct qede_dev *dev);
 void qede_rdma_dev_event_close(struct qede_dev *dev);
-void qede_rdma_dev_remove(struct qede_dev *dev);
+void qede_rdma_dev_remove(struct qede_dev *dev, bool recovery);
 void qede_rdma_event_changeaddr(struct qede_dev *edr);
 
 #else
-static inline int qede_rdma_dev_add(struct qede_dev *dev)
+static inline int qede_rdma_dev_add(struct qede_dev *dev,
+				    bool recovery)
 {
 	return 0;
 }
 
 static inline void qede_rdma_dev_event_open(struct qede_dev *dev) {}
 static inline void qede_rdma_dev_event_close(struct qede_dev *dev) {}
-static inline void qede_rdma_dev_remove(struct qede_dev *dev) {}
+static inline void qede_rdma_dev_remove(struct qede_dev *dev,
+					bool recovery) {}
 static inline void qede_rdma_event_changeaddr(struct qede_dev *edr) {}
 #endif
 #endif

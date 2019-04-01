@@ -184,61 +184,6 @@ u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 	return vrefresh;
 }
 
-void amdgpu_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
-			      u32 *p, u32 *u)
-{
-	u32 b_c = 0;
-	u32 i_c;
-	u32 tmp;
-
-	i_c = (i * r_c) / 100;
-	tmp = i_c >> p_b;
-
-	while (tmp) {
-		b_c++;
-		tmp >>= 1;
-	}
-
-	*u = (b_c + 1) / 2;
-	*p = i_c / (1 << (2 * (*u)));
-}
-
-int amdgpu_calculate_at(u32 t, u32 h, u32 fh, u32 fl, u32 *tl, u32 *th)
-{
-	u32 k, a, ah, al;
-	u32 t1;
-
-	if ((fl == 0) || (fh == 0) || (fl > fh))
-		return -EINVAL;
-
-	k = (100 * fh) / fl;
-	t1 = (t * (k - 100));
-	a = (1000 * (100 * h + t1)) / (10000 + (t1 / 100));
-	a = (a + 5) / 10;
-	ah = ((a * t) + 5000) / 10000;
-	al = a - ah;
-
-	*th = t - ah;
-	*tl = t + al;
-
-	return 0;
-}
-
-bool amdgpu_is_uvd_state(u32 class, u32 class2)
-{
-	if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-		return true;
-	if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-		return true;
-	return false;
-}
-
 bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor)
 {
 	switch (sensor) {
@@ -947,39 +892,6 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 			return AMDGPU_PCIE_GEN1;
 	}
 	return AMDGPU_PCIE_GEN1;
-}
-
-u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
-				 u16 asic_lanes,
-				 u16 default_lanes)
-{
-	switch (asic_lanes) {
-	case 0:
-	default:
-		return default_lanes;
-	case 1:
-		return 1;
-	case 2:
-		return 2;
-	case 4:
-		return 4;
-	case 8:
-		return 8;
-	case 12:
-		return 12;
-	case 16:
-		return 16;
-	}
-}
-
-u8 amdgpu_encode_pci_lane_width(u32 lanes)
-{
-	u8 encoded_lanes[] = { 0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6 };
-
-	if (lanes > 16)
-		return 0;
-
-	return encoded_lanes[lanes];
 }
 
 struct amd_vce_state*

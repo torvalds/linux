@@ -64,11 +64,11 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 EXPORT_SYMBOL_GPL(apei_mce_report_mem_error);
 
 #define CPER_CREATOR_MCE						\
-	UUID_LE(0x75a574e3, 0x5052, 0x4b29, 0x8a, 0x8e, 0xbe, 0x2c,	\
-		0x64, 0x90, 0xb8, 0x9d)
+	GUID_INIT(0x75a574e3, 0x5052, 0x4b29, 0x8a, 0x8e, 0xbe, 0x2c,	\
+		  0x64, 0x90, 0xb8, 0x9d)
 #define CPER_SECTION_TYPE_MCE						\
-	UUID_LE(0xfe08ffbe, 0x95e4, 0x4be7, 0xbc, 0x73, 0x40, 0x96,	\
-		0x04, 0x4a, 0x38, 0xfc)
+	GUID_INIT(0xfe08ffbe, 0x95e4, 0x4be7, 0xbc, 0x73, 0x40, 0x96,	\
+		  0x04, 0x4a, 0x38, 0xfc)
 
 /*
  * CPER specification (in UEFI specification 2.3 appendix N) requires
@@ -135,7 +135,7 @@ retry:
 		goto out;
 	/* try to skip other type records in storage */
 	else if (rc != sizeof(rcd) ||
-		 uuid_le_cmp(rcd.hdr.creator_id, CPER_CREATOR_MCE))
+		 !guid_equal(&rcd.hdr.creator_id, &CPER_CREATOR_MCE))
 		goto retry;
 	memcpy(m, &rcd.mce, sizeof(*m));
 	rc = sizeof(*m);

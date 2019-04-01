@@ -2,4 +2,4 @@ config PHY_FSL_IMX8MQ_USB
 	tristate "Freescale i.MX8M USB3 PHY"
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
-	default SOC_IMX8MQ
+	default ARCH_MXC && ARM64

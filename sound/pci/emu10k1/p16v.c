@@ -656,11 +656,10 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
 	    substream; 
 	    substream = substream->next) {
-		if ((err = snd_pcm_lib_preallocate_pages(substream, 
-							 SNDRV_DMA_TYPE_DEV, 
-							 snd_dma_pci_data(emu->pci), 
-							 ((65536 - 64) * 8), ((65536 - 64) * 8))) < 0) 
-			return err;
+		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(emu->pci),
+					      (65536 - 64) * 8,
+					      (65536 - 64) * 8);
 		/*
 		dev_dbg(emu->card->dev,
 			   "preallocate playback substream: err=%d\n", err);
@@ -670,11 +669,9 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; 
 	      substream; 
 	      substream = substream->next) {
- 		if ((err = snd_pcm_lib_preallocate_pages(substream, 
-	                                           SNDRV_DMA_TYPE_DEV, 
-	                                           snd_dma_pci_data(emu->pci), 
-	                                           65536 - 64, 65536 - 64)) < 0)
-			return err;
+		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(emu->pci),
+					      65536 - 64, 65536 - 64);
 		/*
 		dev_dbg(emu->card->dev,
 			   "preallocate capture substream: err=%d\n", err);

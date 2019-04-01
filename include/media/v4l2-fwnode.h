@@ -143,7 +143,7 @@ struct v4l2_fwnode_link {
  * @vep.bus_type to V4L2_MBUS_UNKNOWN. The caller may not provide a default
  * configuration in this case as the defaults are specific to a given bus type.
  * This functionality is deprecated and should not be used in new drivers and it
- * is only supported for CSI-2 D-PHY, parallel and Bt.656 busses.
+ * is only supported for CSI-2 D-PHY, parallel and Bt.656 buses.
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
@@ -186,7 +186,7 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  * @vep.bus_type to V4L2_MBUS_UNKNOWN. The caller may not provide a default
  * configuration in this case as the defaults are specific to a given bus type.
  * This functionality is deprecated and should not be used in new drivers and it
- * is only supported for CSI-2 D-PHY, parallel and Bt.656 busses.
+ * is only supported for CSI-2 D-PHY, parallel and Bt.656 buses.
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *

@@ -49,9 +49,6 @@ config CHROMEOS_TBMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called chromeos_tbmc.
 
-config CROS_EC_CTL
-        tristate
-
 config CROS_EC_I2C
 	tristate "ChromeOS Embedded Controller (I2C)"
 	depends on MFD_CROS_EC && I2C
@@ -110,5 +107,51 @@ config CROS_KBD_LED_BACKLIGHT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_kbd_led_backlight.
+
+config CROS_EC_LIGHTBAR
+	tristate "Chromebook Pixel's lightbar support"
+	depends on MFD_CROS_EC_CHARDEV
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This option exposes the Chromebook Pixel's lightbar to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_lightbar.
+
+config CROS_EC_VBC
+	tristate "ChromeOS EC vboot context support"
+	depends on MFD_CROS_EC_CHARDEV && OF
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This option exposes the ChromeOS EC vboot context nvram to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_vbc.
+
+config CROS_EC_DEBUGFS
+	tristate "Export ChromeOS EC internals in DebugFS"
+	depends on MFD_CROS_EC_CHARDEV && DEBUG_FS
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This option exposes the ChromeOS EC device internals to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_debugfs.
+
+config CROS_EC_SYSFS
+	tristate "ChromeOS EC control and information through sysfs"
+	depends on MFD_CROS_EC_CHARDEV && SYSFS
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This option exposes some sysfs attributes to control and get
+	  information from ChromeOS EC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_sysfs.
+
+source "drivers/platform/chrome/wilco_ec/Kconfig"
 
 endif # CHROMEOS_PLATFORMS

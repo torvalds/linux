@@ -23,6 +23,7 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_panel.h"

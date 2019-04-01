@@ -21,6 +21,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include "../../codecs/hdac_hdmi.h"
@@ -576,6 +577,9 @@ static int broxton_audio_probe(struct platform_device *pdev)
 	struct bxt_rt286_private *ctx;
 	struct snd_soc_card *card =
 			(struct snd_soc_card *)pdev->id_entry->driver_data;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
+	int ret;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(broxton_rt298_dais); i++) {
@@ -601,6 +605,15 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, ctx);
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret = snd_soc_fixup_dai_links_platform_name(card,
+						    platform_name);
+	if (ret)
+		return ret;
 
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }

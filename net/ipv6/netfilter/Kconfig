@@ -31,34 +31,6 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
-if NF_NAT_IPV6
-
-config NFT_CHAIN_NAT_IPV6
-	tristate "IPv6 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv6 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
-
-config NFT_MASQ_IPV6
-	tristate "IPv6 masquerade support for nf_tables"
-	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE_IPV6
-	help
-	  This is the expression that provides IPv4 masquerading support for
-	  nf_tables.
-
-config NFT_REDIR_IPV6
-	tristate "IPv6 redirect support for nf_tables"
-	depends on NFT_REDIR
-	select NF_NAT_REDIRECT
-	help
-	  This is the expression that provides IPv4 redirect support for
-	  nf_tables.
-
-endif # NF_NAT_IPV6
-
 config NFT_REJECT_IPV6
 	select NF_REJECT_IPV6
 	default NFT_REJECT
@@ -105,23 +77,6 @@ config NF_LOG_IPV6
 	tristate "IPv6 packet logging"
 	default m if NETFILTER_ADVANCED=n
 	select NF_LOG_COMMON
-
-config NF_NAT_IPV6
-	tristate "IPv6 NAT"
-	depends on NF_CONNTRACK
-	depends on NETFILTER_ADVANCED
-	select NF_NAT
-	help
-	  The IPv6 NAT option allows masquerading, port forwarding and other
-	  forms of full Network Address Port Translation. This can be
-	  controlled by iptables or nft.
-
-if NF_NAT_IPV6
-
-config NF_NAT_MASQUERADE_IPV6
-	bool
-
-endif # NF_NAT_IPV6
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
@@ -311,7 +266,6 @@ config IP6_NF_NAT
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_NAT
-	select NF_NAT_IPV6
 	select NETFILTER_XT_NAT
 	help
 	  This enables the `nat' table in ip6tables. This allows masquerading,
@@ -324,7 +278,7 @@ if IP6_NF_NAT
 
 config IP6_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	select NF_NAT_MASQUERADE_IPV6
+	select NF_NAT_MASQUERADE
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
 	  changed to seem to come from a particular interface's address, and

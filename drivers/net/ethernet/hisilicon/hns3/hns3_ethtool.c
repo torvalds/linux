@@ -47,6 +47,7 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 	HNS3_TQP_STAT("err_bd_num", err_bd_num),
 	HNS3_TQP_STAT("l2_err", l2_err),
 	HNS3_TQP_STAT("l3l4_csum_err", l3l4_csum_err),
+	HNS3_TQP_STAT("multicast", rx_multicast),
 };
 
 #define HNS3_RXQ_STATS_COUNT ARRAY_SIZE(hns3_rxq_stats)
@@ -116,7 +117,7 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	ret = hns3_lp_setup(ndev, loop_mode, true);
 	usleep_range(10000, 20000);
 
-	return 0;
+	return ret;
 }
 
 static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
@@ -333,10 +334,10 @@ static void hns3_self_test(struct net_device *ndev,
 			continue;
 
 		data[test_index] = hns3_lp_up(ndev, loop_type);
-		if (!data[test_index]) {
+		if (!data[test_index])
 			data[test_index] = hns3_lp_run_test(ndev, loop_type);
-			hns3_lp_down(ndev, loop_type);
-		}
+
+		hns3_lp_down(ndev, loop_type);
 
 		if (data[test_index])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -620,12 +621,11 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		hns3_get_ksettings(h, cmd);
 		break;
 	case HNAE3_MEDIA_TYPE_COPPER:
-		if (!netdev->phydev)
-			return -EOPNOTSUPP;
-
 		cmd->base.port = PORT_TP;
-		phy_ethtool_ksettings_get(netdev->phydev, cmd);
-
+		if (!netdev->phydev)
+			hns3_get_ksettings(h, cmd);
+		else
+			phy_ethtool_ksettings_get(netdev->phydev, cmd);
 		break;
 	default:
 
@@ -748,15 +748,19 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 }
 
 static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
-				       u32 new_desc_num)
+				       u32 tx_desc_num, u32 rx_desc_num)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
 
-	h->kinfo.num_desc = new_desc_num;
+	h->kinfo.num_tx_desc = tx_desc_num;
+	h->kinfo.num_rx_desc = rx_desc_num;
 
-	for (i = 0; i < h->kinfo.num_tqps * 2; i++)
-		priv->ring_data[i].ring->desc_num = new_desc_num;
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		priv->ring_data[i].ring->desc_num = tx_desc_num;
+		priv->ring_data[i + h->kinfo.num_tqps].ring->desc_num =
+			rx_desc_num;
+	}
 
 	return hns3_init_all_ring(priv);
 }
@@ -767,7 +771,9 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
 	bool if_running = netif_running(ndev);
-	u32 old_desc_num, new_desc_num;
+	u32 old_tx_desc_num, new_tx_desc_num;
+	u32 old_rx_desc_num, new_rx_desc_num;
+	int queue_num = h->kinfo.num_tqps;
 	int ret;
 
 	if (hns3_nic_resetting(ndev))
@@ -776,43 +782,41 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	if (param->rx_mini_pending || param->rx_jumbo_pending)
 		return -EINVAL;
 
-	if (param->tx_pending != param->rx_pending) {
-		netdev_err(ndev,
-			   "Descriptors of tx and rx must be equal");
-		return -EINVAL;
-	}
-
 	if (param->tx_pending > HNS3_RING_MAX_PENDING ||
-	    param->tx_pending < HNS3_RING_MIN_PENDING) {
-		netdev_err(ndev,
-			   "Descriptors requested (Tx/Rx: %d) out of range [%d-%d]\n",
-			   param->tx_pending, HNS3_RING_MIN_PENDING,
-			   HNS3_RING_MAX_PENDING);
+	    param->tx_pending < HNS3_RING_MIN_PENDING ||
+	    param->rx_pending > HNS3_RING_MAX_PENDING ||
+	    param->rx_pending < HNS3_RING_MIN_PENDING) {
+		netdev_err(ndev, "Queue depth out of range [%d-%d]\n",
+			   HNS3_RING_MIN_PENDING, HNS3_RING_MAX_PENDING);
 		return -EINVAL;
 	}
-
-	new_desc_num = param->tx_pending;
 
 	/* Hardware requires that its descriptors must be multiple of eight */
-	new_desc_num = ALIGN(new_desc_num, HNS3_RING_BD_MULTIPLE);
-	old_desc_num = h->kinfo.num_desc;
-	if (old_desc_num == new_desc_num)
+	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
+	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
+	old_tx_desc_num = priv->ring_data[0].ring->desc_num;
+	old_rx_desc_num = priv->ring_data[queue_num].ring->desc_num;
+	if (old_tx_desc_num == new_tx_desc_num &&
+	    old_rx_desc_num == new_rx_desc_num)
 		return 0;
 
 	netdev_info(ndev,
-		    "Changing descriptor count from %d to %d.\n",
-		    old_desc_num, new_desc_num);
+		    "Changing Tx/Rx ring depth from %d/%d to %d/%d\n",
+		    old_tx_desc_num, old_rx_desc_num,
+		    new_tx_desc_num, new_rx_desc_num);
 
 	if (if_running)
-		dev_close(ndev);
+		ndev->netdev_ops->ndo_stop(ndev);
 
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		return ret;
 
-	ret = hns3_change_all_ring_bd_num(priv, new_desc_num);
+	ret = hns3_change_all_ring_bd_num(priv, new_tx_desc_num,
+					  new_rx_desc_num);
 	if (ret) {
-		ret = hns3_change_all_ring_bd_num(priv, old_desc_num);
+		ret = hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
+						  old_rx_desc_num);
 		if (ret) {
 			netdev_err(ndev,
 				   "Revert to old bd num fail, ret=%d.\n", ret);
@@ -821,7 +825,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	if (if_running)
-		ret = dev_open(ndev, NULL);
+		ret = ndev->netdev_ops->ndo_open(ndev);
 
 	return ret;
 }
@@ -1114,6 +1118,8 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_channels = hns3_get_channels,
 	.get_coalesce = hns3_get_coalesce,
 	.set_coalesce = hns3_set_coalesce,
+	.get_regs_len = hns3_get_regs_len,
+	.get_regs = hns3_get_regs,
 	.get_link = hns3_get_link,
 };
 

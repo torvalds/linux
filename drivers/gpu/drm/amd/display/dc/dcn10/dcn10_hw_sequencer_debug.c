@@ -40,7 +40,6 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "reg_helper.h"
-#include "custom_float.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
@@ -72,7 +71,7 @@ static unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, 
 static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm = {0};
+	struct dcn_hubbub_wm wm;
 	int i;
 
 	unsigned int chars_printed = 0;
@@ -81,7 +80,8 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 
-	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
+	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
+	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
 	chars_printed = snprintf_count(pBuf, remaining_buffer, "wm_set_index,data_urgent,pte_meta_urgent,sr_enter,sr_exit,dram_clk_chanage\n");
 	remaining_buffer -= chars_printed;
@@ -419,20 +419,22 @@ static unsigned int dcn10_get_otg_states(struct dc *dc, char *pBuf, unsigned int
 	unsigned int remaining_buffer = bufSize;
 
 	chars_printed = snprintf_count(pBuf, remaining_buffer, "instance,v_bs,v_be,v_ss,v_se,vpol,vmax,vmin,vmax_sel,vmin_sel,"
-			"h_bs,h_be,h_ss,h_se,hpol,htot,vtot,underflow\n");
+			"h_bs,h_be,h_ss,h_se,hpol,htot,vtot,underflow,pixelclk[khz]\n");
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;
 
 	for (i = 0; i < pool->timing_generator_count; i++) {
 		struct timing_generator *tg = pool->timing_generators[i];
 		struct dcn_otg_state s = {0};
+		int pix_clk = 0;
 
 		optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+		pix_clk = dc->current_state->res_ctx.pipe_ctx[i].stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
 
 		//only print if OTG master is enabled
 		if (s.otg_enabled & 1) {
 			chars_printed = snprintf_count(pBuf, remaining_buffer, "%x,%d,%d,%d,%d,%d,%d,%d,%d,%d,"
-				"%d,%d,%d,%d,%d,%d,%d,%d"
+				"%d,%d,%d,%d,%d,%d,%d,%d,%d"
 				"\n",
 				tg->inst,
 				s.v_blank_start,
@@ -451,7 +453,8 @@ static unsigned int dcn10_get_otg_states(struct dc *dc, char *pBuf, unsigned int
 				s.h_sync_a_pol,
 				s.h_total,
 				s.v_total,
-				s.underflow_occurred_status);
+				s.underflow_occurred_status,
+				pix_clk);
 
 			remaining_buffer -= chars_printed;
 			pBuf += chars_printed;

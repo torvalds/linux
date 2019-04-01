@@ -1117,7 +1117,7 @@ static inline void mmc_davinci_cpufreq_deregister(struct mmc_davinci_host *host)
 {
 }
 #endif
-static void __init init_mmcsd_host(struct mmc_davinci_host *host)
+static void init_mmcsd_host(struct mmc_davinci_host *host)
 {
 
 	mmc_davinci_reset_ctrl(host, 1);
@@ -1193,7 +1193,7 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	else if (ret)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
 	if (ret == -EPROBE_DEFER)
 		return ret;
 

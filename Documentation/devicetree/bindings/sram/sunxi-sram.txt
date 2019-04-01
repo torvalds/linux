@@ -63,6 +63,7 @@ The valid sections compatible for H5 are:
 
 The valid sections compatible for H6 are:
     - allwinner,sun50i-h6-sram-c, allwinner,sun50i-a64-sram-c
+    - allwinner,sun50i-h6-sram-c1, allwinner,sun4i-a10-sram-c1
 
 The valid sections compatible for F1C100s are:
     - allwinner,suniv-f1c100s-sram-d, allwinner,sun4i-a10-sram-d

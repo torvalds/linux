@@ -351,7 +351,7 @@
 		reg = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp0_copper_eth_phy_reset>;
-		reset-gpios = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&cp0_gpio2 11 GPIO_ACTIVE_LOW>;
 		reset-assert-us = <10000>;
 	};
 

@@ -252,7 +252,7 @@ static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 
 	 * if (tail_call_cnt > MAX_TAIL_CALL_CNT)
 	 *   goto out;
 	 */
-	PPC_LD(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
+	PPC_BPF_LL(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
 	PPC_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT);
 	PPC_BCC(COND_GT, out);
 
@@ -265,7 +265,7 @@ static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 
 	/* prog = array->ptrs[index]; */
 	PPC_MULI(b2p[TMP_REG_1], b2p_index, 8);
 	PPC_ADD(b2p[TMP_REG_1], b2p[TMP_REG_1], b2p_bpf_array);
-	PPC_LD(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_array, ptrs));
+	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_array, ptrs));
 
 	/*
 	 * if (prog == NULL)
@@ -275,7 +275,7 @@ static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 
 	PPC_BCC(COND_EQ, out);
 
 	/* goto *(prog->bpf_func + prologue_size); */
-	PPC_LD(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_prog, bpf_func));
+	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_prog, bpf_func));
 #ifdef PPC64_ELF_ABI_v1
 	/* skip past the function descriptor */
 	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1],
@@ -606,7 +606,7 @@ bpf_alu32_trunc:
 				 * the instructions generated will remain the
 				 * same across all passes
 				 */
-				PPC_STD(dst_reg, 1, bpf_jit_stack_local(ctx));
+				PPC_BPF_STL(dst_reg, 1, bpf_jit_stack_local(ctx));
 				PPC_ADDI(b2p[TMP_REG_1], 1, bpf_jit_stack_local(ctx));
 				PPC_LDBRX(dst_reg, 0, b2p[TMP_REG_1]);
 				break;
@@ -662,7 +662,7 @@ emit_clear:
 				PPC_LI32(b2p[TMP_REG_1], imm);
 				src_reg = b2p[TMP_REG_1];
 			}
-			PPC_STD(src_reg, dst_reg, off);
+			PPC_BPF_STL(src_reg, dst_reg, off);
 			break;
 
 		/*
@@ -709,7 +709,7 @@ emit_clear:
 			break;
 		/* dst = *(u64 *)(ul) (src + off) */
 		case BPF_LDX | BPF_MEM | BPF_DW:
-			PPC_LD(dst_reg, src_reg, off);
+			PPC_BPF_LL(dst_reg, src_reg, off);
 			break;
 
 		/*
@@ -768,36 +768,58 @@ emit_clear:
 		case BPF_JMP | BPF_JGT | BPF_X:
 		case BPF_JMP | BPF_JSGT | BPF_K:
 		case BPF_JMP | BPF_JSGT | BPF_X:
+		case BPF_JMP32 | BPF_JGT | BPF_K:
+		case BPF_JMP32 | BPF_JGT | BPF_X:
+		case BPF_JMP32 | BPF_JSGT | BPF_K:
+		case BPF_JMP32 | BPF_JSGT | BPF_X:
 			true_cond = COND_GT;
 			goto cond_branch;
 		case BPF_JMP | BPF_JLT | BPF_K:
 		case BPF_JMP | BPF_JLT | BPF_X:
 		case BPF_JMP | BPF_JSLT | BPF_K:
 		case BPF_JMP | BPF_JSLT | BPF_X:
+		case BPF_JMP32 | BPF_JLT | BPF_K:
+		case BPF_JMP32 | BPF_JLT | BPF_X:
+		case BPF_JMP32 | BPF_JSLT | BPF_K:
+		case BPF_JMP32 | BPF_JSLT | BPF_X:
 			true_cond = COND_LT;
 			goto cond_branch;
 		case BPF_JMP | BPF_JGE | BPF_K:
 		case BPF_JMP | BPF_JGE | BPF_X:
 		case BPF_JMP | BPF_JSGE | BPF_K:
 		case BPF_JMP | BPF_JSGE | BPF_X:
+		case BPF_JMP32 | BPF_JGE | BPF_K:
+		case BPF_JMP32 | BPF_JGE | BPF_X:
+		case BPF_JMP32 | BPF_JSGE | BPF_K:
+		case BPF_JMP32 | BPF_JSGE | BPF_X:
 			true_cond = COND_GE;
 			goto cond_branch;
 		case BPF_JMP | BPF_JLE | BPF_K:
 		case BPF_JMP | BPF_JLE | BPF_X:
 		case BPF_JMP | BPF_JSLE | BPF_K:
 		case BPF_JMP | BPF_JSLE | BPF_X:
+		case BPF_JMP32 | BPF_JLE | BPF_K:
+		case BPF_JMP32 | BPF_JLE | BPF_X:
+		case BPF_JMP32 | BPF_JSLE | BPF_K:
+		case BPF_JMP32 | BPF_JSLE | BPF_X:
 			true_cond = COND_LE;
 			goto cond_branch;
 		case BPF_JMP | BPF_JEQ | BPF_K:
 		case BPF_JMP | BPF_JEQ | BPF_X:
+		case BPF_JMP32 | BPF_JEQ | BPF_K:
+		case BPF_JMP32 | BPF_JEQ | BPF_X:
 			true_cond = COND_EQ;
 			goto cond_branch;
 		case BPF_JMP | BPF_JNE | BPF_K:
 		case BPF_JMP | BPF_JNE | BPF_X:
+		case BPF_JMP32 | BPF_JNE | BPF_K:
+		case BPF_JMP32 | BPF_JNE | BPF_X:
 			true_cond = COND_NE;
 			goto cond_branch;
 		case BPF_JMP | BPF_JSET | BPF_K:
 		case BPF_JMP | BPF_JSET | BPF_X:
+		case BPF_JMP32 | BPF_JSET | BPF_K:
+		case BPF_JMP32 | BPF_JSET | BPF_X:
 			true_cond = COND_NE;
 			/* Fall through */
 
@@ -809,18 +831,44 @@ cond_branch:
 			case BPF_JMP | BPF_JLE | BPF_X:
 			case BPF_JMP | BPF_JEQ | BPF_X:
 			case BPF_JMP | BPF_JNE | BPF_X:
+			case BPF_JMP32 | BPF_JGT | BPF_X:
+			case BPF_JMP32 | BPF_JLT | BPF_X:
+			case BPF_JMP32 | BPF_JGE | BPF_X:
+			case BPF_JMP32 | BPF_JLE | BPF_X:
+			case BPF_JMP32 | BPF_JEQ | BPF_X:
+			case BPF_JMP32 | BPF_JNE | BPF_X:
 				/* unsigned comparison */
-				PPC_CMPLD(dst_reg, src_reg);
+				if (BPF_CLASS(code) == BPF_JMP32)
+					PPC_CMPLW(dst_reg, src_reg);
+				else
+					PPC_CMPLD(dst_reg, src_reg);
 				break;
 			case BPF_JMP | BPF_JSGT | BPF_X:
 			case BPF_JMP | BPF_JSLT | BPF_X:
 			case BPF_JMP | BPF_JSGE | BPF_X:
 			case BPF_JMP | BPF_JSLE | BPF_X:
+			case BPF_JMP32 | BPF_JSGT | BPF_X:
+			case BPF_JMP32 | BPF_JSLT | BPF_X:
+			case BPF_JMP32 | BPF_JSGE | BPF_X:
+			case BPF_JMP32 | BPF_JSLE | BPF_X:
 				/* signed comparison */
-				PPC_CMPD(dst_reg, src_reg);
+				if (BPF_CLASS(code) == BPF_JMP32)
+					PPC_CMPW(dst_reg, src_reg);
+				else
+					PPC_CMPD(dst_reg, src_reg);
 				break;
 			case BPF_JMP | BPF_JSET | BPF_X:
-				PPC_AND_DOT(b2p[TMP_REG_1], dst_reg, src_reg);
+			case BPF_JMP32 | BPF_JSET | BPF_X:
+				if (BPF_CLASS(code) == BPF_JMP) {
+					PPC_AND_DOT(b2p[TMP_REG_1], dst_reg,
+						    src_reg);
+				} else {
+					int tmp_reg = b2p[TMP_REG_1];
+
+					PPC_AND(tmp_reg, dst_reg, src_reg);
+					PPC_RLWINM_DOT(tmp_reg, tmp_reg, 0, 0,
+						       31);
+				}
 				break;
 			case BPF_JMP | BPF_JNE | BPF_K:
 			case BPF_JMP | BPF_JEQ | BPF_K:
@@ -828,43 +876,87 @@ cond_branch:
 			case BPF_JMP | BPF_JLT | BPF_K:
 			case BPF_JMP | BPF_JGE | BPF_K:
 			case BPF_JMP | BPF_JLE | BPF_K:
+			case BPF_JMP32 | BPF_JNE | BPF_K:
+			case BPF_JMP32 | BPF_JEQ | BPF_K:
+			case BPF_JMP32 | BPF_JGT | BPF_K:
+			case BPF_JMP32 | BPF_JLT | BPF_K:
+			case BPF_JMP32 | BPF_JGE | BPF_K:
+			case BPF_JMP32 | BPF_JLE | BPF_K:
+			{
+				bool is_jmp32 = BPF_CLASS(code) == BPF_JMP32;
+
 				/*
 				 * Need sign-extended load, so only positive
 				 * values can be used as imm in cmpldi
 				 */
-				if (imm >= 0 && imm < 32768)
-					PPC_CMPLDI(dst_reg, imm);
-				else {
+				if (imm >= 0 && imm < 32768) {
+					if (is_jmp32)
+						PPC_CMPLWI(dst_reg, imm);
+					else
+						PPC_CMPLDI(dst_reg, imm);
+				} else {
 					/* sign-extending load */
 					PPC_LI32(b2p[TMP_REG_1], imm);
 					/* ... but unsigned comparison */
-					PPC_CMPLD(dst_reg, b2p[TMP_REG_1]);
+					if (is_jmp32)
+						PPC_CMPLW(dst_reg,
+							  b2p[TMP_REG_1]);
+					else
+						PPC_CMPLD(dst_reg,
+							  b2p[TMP_REG_1]);
 				}
 				break;
+			}
 			case BPF_JMP | BPF_JSGT | BPF_K:
 			case BPF_JMP | BPF_JSLT | BPF_K:
 			case BPF_JMP | BPF_JSGE | BPF_K:
 			case BPF_JMP | BPF_JSLE | BPF_K:
+			case BPF_JMP32 | BPF_JSGT | BPF_K:
+			case BPF_JMP32 | BPF_JSLT | BPF_K:
+			case BPF_JMP32 | BPF_JSGE | BPF_K:
+			case BPF_JMP32 | BPF_JSLE | BPF_K:
+			{
+				bool is_jmp32 = BPF_CLASS(code) == BPF_JMP32;
+
 				/*
 				 * signed comparison, so any 16-bit value
 				 * can be used in cmpdi
 				 */
-				if (imm >= -32768 && imm < 32768)
-					PPC_CMPDI(dst_reg, imm);
-				else {
+				if (imm >= -32768 && imm < 32768) {
+					if (is_jmp32)
+						PPC_CMPWI(dst_reg, imm);
+					else
+						PPC_CMPDI(dst_reg, imm);
+				} else {
 					PPC_LI32(b2p[TMP_REG_1], imm);
-					PPC_CMPD(dst_reg, b2p[TMP_REG_1]);
+					if (is_jmp32)
+						PPC_CMPW(dst_reg,
+							 b2p[TMP_REG_1]);
+					else
+						PPC_CMPD(dst_reg,
+							 b2p[TMP_REG_1]);
 				}
 				break;
+			}
 			case BPF_JMP | BPF_JSET | BPF_K:
+			case BPF_JMP32 | BPF_JSET | BPF_K:
 				/* andi does not sign-extend the immediate */
 				if (imm >= 0 && imm < 32768)
 					/* PPC_ANDI is _only/always_ dot-form */
 					PPC_ANDI(b2p[TMP_REG_1], dst_reg, imm);
 				else {
-					PPC_LI32(b2p[TMP_REG_1], imm);
-					PPC_AND_DOT(b2p[TMP_REG_1], dst_reg,
-						    b2p[TMP_REG_1]);
+					int tmp_reg = b2p[TMP_REG_1];
+
+					PPC_LI32(tmp_reg, imm);
+					if (BPF_CLASS(code) == BPF_JMP) {
+						PPC_AND_DOT(tmp_reg, dst_reg,
+							    tmp_reg);
+					} else {
+						PPC_AND(tmp_reg, dst_reg,
+							tmp_reg);
+						PPC_RLWINM_DOT(tmp_reg, tmp_reg,
+							       0, 0, 31);
+					}
 				}
 				break;
 			}
@@ -1093,6 +1185,7 @@ skip_codegen_passes:
 
 	bpf_flush_icache(bpf_hdr, (u8 *)bpf_hdr + (bpf_hdr->pages * PAGE_SIZE));
 	if (!fp->is_func || extra_pass) {
+		bpf_prog_fill_jited_linfo(fp, addrs);
 out_addrs:
 		kfree(addrs);
 		kfree(jit_data);

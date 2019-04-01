@@ -228,10 +228,11 @@
 &weim {
 	status = "okay";
 
-	/* weim memory map: 32MB on CS0, 32MB on CS1, 32MB on CS2 */
+	/* weim memory map: 32MB on CS0, CS1, CS2 and CS3 */
 	ranges = <0 0 0x08000000 0x02000000
 		  1 0 0x0a000000 0x02000000
-		  2 0 0x0c000000 0x02000000>;
+		  2 0 0x0c000000 0x02000000
+		  3 0 0x0e000000 0x02000000>;
 
 	/* SRAM on Colibri nEXT_CS0 */
 	sram@0,0 {

@@ -9,6 +9,7 @@
 #include <linux/mm_types.h>
 #include <linux/reservation.h>
 #include <drm/drmP.h>
+#include <drm/drm_util.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_atomic.h>
@@ -707,6 +708,9 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     const struct drm_display_mode *mode);
 void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
 void vc4_crtc_txp_armed(struct drm_crtc_state *state);
+void vc4_crtc_get_margins(struct drm_crtc_state *state,
+			  unsigned int *right, unsigned int *left,
+			  unsigned int *top, unsigned int *bottom);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);

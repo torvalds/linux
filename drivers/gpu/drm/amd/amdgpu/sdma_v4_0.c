@@ -128,7 +128,7 @@ static const struct soc15_reg_golden golden_settings_sdma0_4_2_init[] = {
 
 static const struct soc15_reg_golden golden_settings_sdma0_4_2[] =
 {
-	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CHICKEN_BITS, 0xfe931f07, 0x02831d07),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CHICKEN_BITS, 0xfe931f07, 0x02831f07),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CLK_CTRL, 0xffffffff, 0x3f000100),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG, 0x0000773f, 0x00004002),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ, 0x0000773f, 0x00004002),
@@ -158,7 +158,7 @@ static const struct soc15_reg_golden golden_settings_sdma0_4_2[] =
 };
 
 static const struct soc15_reg_golden golden_settings_sdma1_4_2[] = {
-	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_CHICKEN_BITS, 0xfe931f07, 0x02831d07),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_CHICKEN_BITS, 0xfe931f07, 0x02831f07),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_CLK_CTRL, 0xffffffff, 0x3f000100),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG, 0x0000773f, 0x00004002),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG_READ, 0x0000773f, 0x00004002),
@@ -500,7 +500,7 @@ static void sdma_v4_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 static void sdma_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
 				   struct amdgpu_job *job,
 				   struct amdgpu_ib *ib,
-				   bool ctx_switch)
+				   uint32_t flags)
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
@@ -834,8 +834,6 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 					OFFSET, ring->doorbell_index);
 	WREG32_SDMA(i, mmSDMA0_GFX_DOORBELL, doorbell);
 	WREG32_SDMA(i, mmSDMA0_GFX_DOORBELL_OFFSET, doorbell_offset);
-	adev->nbio_funcs->sdma_doorbell_range(adev, i, ring->use_doorbell,
-					      ring->doorbell_index);
 
 	sdma_v4_0_ring_set_wptr(ring);
 
@@ -1522,9 +1520,7 @@ static int sdma_v4_0_sw_init(void *handle)
 				ring->use_doorbell?"true":"false");
 
 		/* doorbell size is 2 dwords, get DWORD offset */
-		ring->doorbell_index = (i == 0) ?
-			(adev->doorbell_index.sdma_engine0 << 1)
-			: (adev->doorbell_index.sdma_engine1 << 1);
+		ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
@@ -1543,9 +1539,7 @@ static int sdma_v4_0_sw_init(void *handle)
 			/* paging queue use same doorbell index/routing as gfx queue
 			 * with 0x400 (4096 dwords) offset on second doorbell page
 			 */
-			ring->doorbell_index = (i == 0) ?
-				(adev->doorbell_index.sdma_engine0 << 1)
-				: (adev->doorbell_index.sdma_engine1 << 1);
+			ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
 			ring->doorbell_index += 0x400;
 
 			sprintf(ring->name, "page%d", i);

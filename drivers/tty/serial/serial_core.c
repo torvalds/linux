@@ -130,6 +130,9 @@ static void uart_start(struct tty_struct *tty)
 	struct uart_port *port;
 	unsigned long flags;
 
+	if (!state)
+		return;
+
 	port = uart_port_lock(state, flags);
 	__uart_start(tty);
 	uart_port_unlock(port, flags);
@@ -726,6 +729,9 @@ static void uart_unthrottle(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	upstat_t mask = UPSTAT_SYNC_FIFO;
 	struct uart_port *port;
+
+	if (!state)
+		return;
 
 	port = uart_port_ref(state);
 	if (!port)
@@ -2838,7 +2844,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 */
 	tty_dev = tty_port_register_device_attr_serdev(port, drv->tty_driver,
 			uport->line, uport->dev, port, uport->tty_groups);
-	if (likely(!IS_ERR(tty_dev))) {
+	if (!IS_ERR(tty_dev)) {
 		device_set_wakeup_capable(tty_dev, 1);
 	} else {
 		dev_err(uport->dev, "Cannot register tty device on line %d\n",

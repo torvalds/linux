@@ -11,44 +11,9 @@
 
 /********************************************
  *
- *      Host Interface Defines
- *
- ********************************************/
-
-enum {
-	WILC_HIF_SDIO = 0,
-	WILC_HIF_SPI = BIT(0)
-};
-
-/********************************************
- *
- *      Wlan Interface Defines
- *
- ********************************************/
-
-enum {
-	WILC_MAC_STATUS_INIT = -1,
-	WILC_MAC_STATUS_DISCONNECTED = 0,
-	WILC_MAC_STATUS_CONNECTED = 1
-};
-
-struct tx_complete_data {
-	int size;
-	void *buff;
-	u8 *bssid;
-	struct sk_buff *skb;
-};
-
-typedef void (*wilc_tx_complete_func_t)(void *, int);
-
-/********************************************
- *
  *      Wlan Configuration ID
  *
  ********************************************/
-#define WILC_MULTICAST_TABLE_SIZE	8
-#define MAX_SSID_LEN            33
-#define MAX_RATES_SUPPORTED     12
 
 enum bss_types {
 	WILC_FW_BSS_TYPE_INFRA = 0,
@@ -689,7 +654,6 @@ enum {
 	WID_TX_POWER_LEVEL_11N		= 0x00B1,
 
 	/* Custom Character WID list */
-	WID_PC_TEST_MODE		= 0x00C8,
 	/* SCAN Complete notification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
@@ -835,9 +799,5 @@ enum {
 	WID_ALL				= 0x7FFE,
 	WID_MAX				= 0xFFFF
 };
-
-struct wilc;
-int wilc_wlan_init(struct net_device *dev);
-u32 wilc_get_chipid(struct wilc *wilc, bool update);
 
 #endif

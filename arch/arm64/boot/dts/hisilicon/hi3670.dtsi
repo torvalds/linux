@@ -56,56 +56,56 @@
 		};
 
 		cpu0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
 		cpu1: cpu@1 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
 
 		cpu2: cpu@2 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
 		cpu3: cpu@3 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};
 
 		cpu4: cpu@100 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 		};
 
 		cpu5: cpu@101 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 		};
 
 		cpu6: cpu@102 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 		};
 
 		cpu7: cpu@103 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x103>;
 			enable-method = "psci";

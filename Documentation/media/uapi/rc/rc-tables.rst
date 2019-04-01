@@ -385,7 +385,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_CHANNELDOWN``
 
-       -  Decrease channel sequencially
+       -  Decrease channel sequentially
 
        -  CHANNEL - / CHANNEL DOWN / DOWN
 
@@ -393,7 +393,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_CHANNELUP``
 
-       -  Increase channel sequencially
+       -  Increase channel sequentially
 
        -  CHANNEL + / CHANNEL UP / UP
 

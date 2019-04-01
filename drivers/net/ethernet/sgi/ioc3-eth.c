@@ -666,7 +666,7 @@ static inline void ioc3_tx(struct net_device *dev)
 		packets++;
 		skb = ip->tx_skbs[o_entry];
 		bytes += skb->len;
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		ip->tx_skbs[o_entry] = NULL;
 
 		o_entry = (o_entry + 1) & 127;		/* Next */

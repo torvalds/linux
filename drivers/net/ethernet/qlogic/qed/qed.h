@@ -53,7 +53,7 @@
 extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_MAJOR_VERSION		8
-#define QED_MINOR_VERSION		33
+#define QED_MINOR_VERSION		37
 #define QED_REVISION_VERSION		0
 #define QED_ENGINEERING_VERSION		20
 
@@ -554,7 +554,6 @@ struct qed_hwfn {
 	u8				dp_level;
 	char				name[NAME_SIZE];
 
-	bool				first_on_engine;
 	bool				hw_init_done;
 
 	u8				num_funcs_on_engine;
@@ -754,6 +753,7 @@ struct qed_dev {
 #define CHIP_BOND_ID_SHIFT              0
 
 	u8				num_engines;
+	u8				num_ports;
 	u8				num_ports_in_engine;
 	u8				num_funcs_in_port;
 
@@ -804,6 +804,9 @@ struct qed_dev {
 	struct qed_fw_data		*fw_data;
 
 	u32				mcp_nvm_resp;
+
+	/* Recovery */
+	bool recov_in_prog;
 
 	/* Linux specific here */
 	struct  qede_dev		*edev;
@@ -890,7 +893,6 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_device_num_engines(struct qed_dev *cdev);
-int qed_device_get_port_id(struct qed_dev *cdev);
 void qed_set_fw_mac_addr(__le16 *fw_msb,
 			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac);
 
@@ -937,6 +939,10 @@ bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
 	writel((u32)val, (void __iomem *)((u8 __iomem *)\
 					  (cdev->doorbells) + (db_addr)))
 
+#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
+				  qed_device_num_ports((_p_hwfn)->cdev))
+int qed_device_num_ports(struct qed_dev *cdev);
+
 /* Prototypes */
 int qed_fill_dev_info(struct qed_dev *cdev,
 		      struct qed_dev_info *dev_info);
@@ -944,6 +950,7 @@ void qed_link_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt);
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 input_len, u8 *input_buf,
 		   u32 max_size, u8 *unzip_buf);
+void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn);
 void qed_get_protocol_stats(struct qed_dev *cdev,
 			    enum qed_mcp_protocol_type type,
 			    union qed_mcp_protocol_stats *stats);

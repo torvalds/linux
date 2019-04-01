@@ -273,6 +273,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	vcpu_load(vcpu);
+	vmx_leave_nested(vcpu);
 	vmx_switch_vmcs(vcpu, &to_vmx(vcpu)->vmcs01);
 	free_nested(vcpu);
 	vcpu_put(vcpu);
@@ -1979,17 +1980,6 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		prepare_vmcs02_early_full(vmx, vmcs12);
 
 	/*
-	 * HOST_RSP is normally set correctly in vmx_vcpu_run() just before
-	 * entry, but only if the current (host) sp changed from the value
-	 * we wrote last (vmx->host_rsp).  This cache is no longer relevant
-	 * if we switch vmcs, and rather than hold a separate cache per vmcs,
-	 * here we just force the write to happen on entry.  host_rsp will
-	 * also be written unconditionally by nested_vmx_check_vmentry_hw()
-	 * if we are doing early consistency checks via hardware.
-	 */
-	vmx->host_rsp = 0;
-
-	/*
 	 * PIN CONTROLS
 	 */
 	exec_control = vmcs12->pin_based_vm_exec_control;
@@ -2288,10 +2278,6 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	}
 	vmx_set_rflags(vcpu, vmcs12->guest_rflags);
 
-	vmx->nested.preemption_timer_expired = false;
-	if (nested_cpu_has_preemption_timer(vmcs12))
-		vmx_start_preemption_timer(vcpu);
-
 	/* EXCEPTION_BITMAP and CR0_GUEST_HOST_MASK should basically be the
 	 * bitwise-or of what L1 wants to trap for L2, and what we want to
 	 * trap. Note that CR0.TS also needs updating - we do this later.
@@ -2472,6 +2458,10 @@ static int nested_check_vm_execution_controls(struct kvm_vcpu *vcpu,
 	    (nested_cpu_has_vpid(vmcs12) && !vmcs12->virtual_processor_id))
 		return -EINVAL;
 
+	if (!nested_cpu_has_preemption_timer(vmcs12) &&
+	    nested_cpu_has_save_preemption_timer(vmcs12))
+		return -EINVAL;
+
 	if (nested_cpu_has_ept(vmcs12) &&
 	    !valid_ept_address(vcpu, vmcs12->ept_pointer))
 		return -EINVAL;
@@ -2595,6 +2585,11 @@ static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
 	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
 	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
 		return -EINVAL;
+
+	if (is_noncanonical_address(vmcs12->host_ia32_sysenter_esp, vcpu) ||
+	    is_noncanonical_address(vmcs12->host_ia32_sysenter_eip, vcpu))
+		return -EINVAL;
+
 	/*
 	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
 	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
@@ -2717,6 +2712,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long cr3, cr4;
+	bool vm_fail;
 
 	if (!nested_early_check)
 		return 0;
@@ -2750,29 +2746,34 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		vmx->loaded_vmcs->host_state.cr4 = cr4;
 	}
 
-	vmx->__launched = vmx->loaded_vmcs->launched;
-
 	asm(
-		/* Set HOST_RSP */
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
-		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%1)\n\t"
+		"cmp %%" _ASM_SP ", %c[host_state_rsp](%[loaded_vmcs]) \n\t"
+		"je 1f \n\t"
+		__ex("vmwrite %%" _ASM_SP ", %[HOST_RSP]") "\n\t"
+		"mov %%" _ASM_SP ", %c[host_state_rsp](%[loaded_vmcs]) \n\t"
+		"1: \n\t"
 		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
 		/* Check if vmlaunch or vmresume is needed */
-		"cmpl $0, %c[launched](%% " _ASM_CX")\n\t"
+		"cmpb $0, %c[launched](%[loaded_vmcs])\n\t"
 
+		/*
+		 * VMLAUNCH and VMRESUME clear RFLAGS.{CF,ZF} on VM-Exit, set
+		 * RFLAGS.CF on VM-Fail Invalid and set RFLAGS.ZF on VM-Fail
+		 * Valid.  vmx_vmenter() directly "returns" RFLAGS, and so the
+		 * results of VM-Enter is captured via CC_{SET,OUT} to vm_fail.
+		 */
 		"call vmx_vmenter\n\t"
 
-		/* Set vmx->fail accordingly */
-		"setbe %c[fail](%% " _ASM_CX")\n\t"
-	      : ASM_CALL_CONSTRAINT
-	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
-		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
-		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
-		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
+		CC_SET(be)
+	      : ASM_CALL_CONSTRAINT, CC_OUT(be) (vm_fail)
+	      :	[HOST_RSP]"r"((unsigned long)HOST_RSP),
+		[loaded_vmcs]"r"(vmx->loaded_vmcs),
+		[launched]"i"(offsetof(struct loaded_vmcs, launched)),
+		[host_state_rsp]"i"(offsetof(struct loaded_vmcs, host_state.rsp)),
 		[wordsize]"i"(sizeof(ulong))
-	      : "rax", "cc", "memory"
+	      : "cc", "memory"
 	);
 
 	preempt_enable();
@@ -2782,10 +2783,9 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	if (vmx->msr_autoload.guest.nr)
 		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
 
-	if (vmx->fail) {
+	if (vm_fail) {
 		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
 			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
-		vmx->fail = 0;
 		return 1;
 	}
 
@@ -2808,8 +2808,6 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 	return 0;
 }
-STACK_FRAME_NON_STANDARD(nested_vmx_check_vmentry_hw);
-
 
 static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 						 struct vmcs12 *vmcs12);
@@ -3024,6 +3022,15 @@ int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	 */
 	if (unlikely(evaluate_pending_interrupts))
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
+
+	/*
+	 * Do not start the preemption timer hrtimer until after we know
+	 * we are successful, so that only nested_vmx_vmexit needs to cancel
+	 * the timer.
+	 */
+	vmx->nested.preemption_timer_expired = false;
+	if (nested_cpu_has_preemption_timer(vmcs12))
+		vmx_start_preemption_timer(vcpu);
 
 	/*
 	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point
@@ -3445,13 +3452,10 @@ static void sync_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	else
 		vmcs12->guest_activity_state = GUEST_ACTIVITY_ACTIVE;
 
-	if (nested_cpu_has_preemption_timer(vmcs12)) {
-		if (vmcs12->vm_exit_controls &
-		    VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
+	if (nested_cpu_has_preemption_timer(vmcs12) &&
+	    vmcs12->vm_exit_controls & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
 			vmcs12->vmx_preemption_timer_value =
 				vmx_get_preemption_timer_value(vcpu);
-		hrtimer_cancel(&to_vmx(vcpu)->nested.preemption_timer);
-	}
 
 	/*
 	 * In some cases (usually, nested EPT), L2 is allowed to change its
@@ -3859,6 +3863,9 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 	leave_guest_mode(vcpu);
 
+	if (nested_cpu_has_preemption_timer(vmcs12))
+		hrtimer_cancel(&to_vmx(vcpu)->nested.preemption_timer);
+
 	if (vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_TSC_OFFSETING)
 		vcpu->arch.tsc_offset -= vmcs12->tsc_offset;
 
@@ -3909,9 +3916,6 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		vmx_flush_tlb(vcpu, true);
 	}
-
-	/* This is needed for same reason as it was needed in prepare_vmcs02 */
-	vmx->host_rsp = 0;
 
 	/* Unpin physical memory we referred to in vmcs02 */
 	if (vmx->nested.apic_access_page) {
@@ -4030,25 +4034,50 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 	/* Addr = segment_base + offset */
 	/* offset = base + [index * scale] + displacement */
 	off = exit_qualification; /* holds the displacement */
+	if (addr_size == 1)
+		off = (gva_t)sign_extend64(off, 31);
+	else if (addr_size == 0)
+		off = (gva_t)sign_extend64(off, 15);
 	if (base_is_valid)
 		off += kvm_register_read(vcpu, base_reg);
 	if (index_is_valid)
 		off += kvm_register_read(vcpu, index_reg)<<scaling;
 	vmx_get_segment(vcpu, &s, seg_reg);
-	*ret = s.base + off;
 
+	/*
+	 * The effective address, i.e. @off, of a memory operand is truncated
+	 * based on the address size of the instruction.  Note that this is
+	 * the *effective address*, i.e. the address prior to accounting for
+	 * the segment's base.
+	 */
 	if (addr_size == 1) /* 32 bit */
-		*ret &= 0xffffffff;
+		off &= 0xffffffff;
+	else if (addr_size == 0) /* 16 bit */
+		off &= 0xffff;
 
 	/* Checks for #GP/#SS exceptions. */
 	exn = false;
 	if (is_long_mode(vcpu)) {
+		/*
+		 * The virtual/linear address is never truncated in 64-bit
+		 * mode, e.g. a 32-bit address size can yield a 64-bit virtual
+		 * address when using FS/GS with a non-zero base.
+		 */
+		*ret = s.base + off;
+
 		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
 		 * non-canonical form. This is the only check on the memory
 		 * destination for long mode!
 		 */
 		exn = is_noncanonical_address(*ret, vcpu);
-	} else if (is_protmode(vcpu)) {
+	} else {
+		/*
+		 * When not in long mode, the virtual/linear address is
+		 * unconditionally truncated to 32 bits regardless of the
+		 * address size.
+		 */
+		*ret = (s.base + off) & 0xffffffff;
+
 		/* Protected mode: apply checks for segment validity in the
 		 * following order:
 		 * - segment type check (#GP(0) may be thrown)
@@ -4072,10 +4101,16 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 		/* Protected mode: #GP(0)/#SS(0) if the segment is unusable.
 		 */
 		exn = (s.unusable != 0);
-		/* Protected mode: #GP(0)/#SS(0) if the memory
-		 * operand is outside the segment limit.
+
+		/*
+		 * Protected mode: #GP(0)/#SS(0) if the memory operand is
+		 * outside the segment limit.  All CPUs that support VMX ignore
+		 * limit checks for flat segments, i.e. segments with base==0,
+		 * limit==0xffffffff and of type expand-up data or code.
 		 */
-		exn = exn || (off + sizeof(u64) > s.limit);
+		if (!(s.base == 0 && s.limit == 0xffffffff &&
+		     ((s.type & 8) || !(s.type & 4))))
+			exn = exn || (off + sizeof(u64) > s.limit);
 	}
 	if (exn) {
 		kvm_queue_exception_e(vcpu,
@@ -4140,11 +4175,11 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		goto out_vmcs02;
 
-	vmx->nested.cached_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL);
+	vmx->nested.cached_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL_ACCOUNT);
 	if (!vmx->nested.cached_vmcs12)
 		goto out_cached_vmcs12;
 
-	vmx->nested.cached_shadow_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL);
+	vmx->nested.cached_shadow_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL_ACCOUNT);
 	if (!vmx->nested.cached_shadow_vmcs12)
 		goto out_cached_shadow_vmcs12;
 
@@ -5556,9 +5591,11 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	 * secondary cpu-based controls.  Do not include those that
 	 * depend on CPUID bits, they are added later by vmx_cpuid_update.
 	 */
-	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
-		msrs->secondary_ctls_low,
-		msrs->secondary_ctls_high);
+	if (msrs->procbased_ctls_high & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)
+		rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
+		      msrs->secondary_ctls_low,
+		      msrs->secondary_ctls_high);
+
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
 		SECONDARY_EXEC_DESC |
@@ -5689,6 +5726,10 @@ __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 		enable_shadow_vmcs = 0;
 	if (enable_shadow_vmcs) {
 		for (i = 0; i < VMX_BITMAP_NR; i++) {
+			/*
+			 * The vmx_bitmap is not tied to a VM and so should
+			 * not be charged to a memcg.
+			 */
 			vmx_bitmap[i] = (unsigned long *)
 				__get_free_page(GFP_KERNEL);
 			if (!vmx_bitmap[i]) {

@@ -463,11 +463,12 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 }
 
 static struct snd_info_entry *
-snd_info_create_entry(const char *name, struct snd_info_entry *parent);
+snd_info_create_entry(const char *name, struct snd_info_entry *parent,
+		      struct module *module);
 
 int __init snd_info_init(void)
 {
-	snd_proc_root = snd_info_create_entry("asound", NULL);
+	snd_proc_root = snd_info_create_entry("asound", NULL, THIS_MODULE);
 	if (!snd_proc_root)
 		return -ENOMEM;
 	snd_proc_root->mode = S_IFDIR | 0555;
@@ -503,6 +504,14 @@ int __exit snd_info_done(void)
 	return 0;
 }
 
+static void snd_card_id_read(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	struct snd_card *card = entry->private_data;
+
+	snd_iprintf(buffer, "%s\n", card->id);
+}
+
 /*
  * create a card proc file
  * called from init.c
@@ -520,28 +529,8 @@ int snd_info_card_create(struct snd_card *card)
 	if (!entry)
 		return -ENOMEM;
 	card->proc_root = entry;
-	return 0;
-}
 
-/* register all pending info entries */
-static int snd_info_register_recursive(struct snd_info_entry *entry)
-{
-	struct snd_info_entry *p;
-	int err;
-
-	if (!entry->p) {
-		err = snd_info_register(entry);
-		if (err < 0)
-			return err;
-	}
-
-	list_for_each_entry(p, &entry->children, list) {
-		err = snd_info_register_recursive(p);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
+	return snd_card_ro_proc_new(card, "id", card, snd_card_id_read);
 }
 
 /*
@@ -557,7 +546,7 @@ int snd_info_card_register(struct snd_card *card)
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
 
-	err = snd_info_register_recursive(card->proc_root);
+	err = snd_info_register(card->proc_root);
 	if (err < 0)
 		return err;
 
@@ -705,7 +694,8 @@ EXPORT_SYMBOL(snd_info_get_str);
  * Return: The pointer of the new instance, or %NULL on failure.
  */
 static struct snd_info_entry *
-snd_info_create_entry(const char *name, struct snd_info_entry *parent)
+snd_info_create_entry(const char *name, struct snd_info_entry *parent,
+		      struct module *module)
 {
 	struct snd_info_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -722,6 +712,7 @@ snd_info_create_entry(const char *name, struct snd_info_entry *parent)
 	INIT_LIST_HEAD(&entry->children);
 	INIT_LIST_HEAD(&entry->list);
 	entry->parent = parent;
+	entry->module = module;
 	if (parent)
 		list_add_tail(&entry->list, &parent->children);
 	return entry;
@@ -741,10 +732,9 @@ struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
 					       struct snd_info_entry *parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
-	if (entry)
-		entry->module = module;
-	return entry;
+	if (!parent)
+		parent = snd_proc_root;
+	return snd_info_create_entry(name, parent, module);
 }
 EXPORT_SYMBOL(snd_info_create_module_entry);
 
@@ -762,12 +752,9 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry * parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
-	if (entry) {
-		entry->module = card->module;
-		entry->card = card;
-	}
-	return entry;
+	if (!parent)
+		parent = card->proc_root;
+	return snd_info_create_entry(name, parent, card->module);
 }
 EXPORT_SYMBOL(snd_info_create_card_entry);
 
@@ -813,15 +800,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 }
 EXPORT_SYMBOL(snd_info_free_entry);
 
-/**
- * snd_info_register - register the info entry
- * @entry: the info entry
- *
- * Registers the proc info entry.
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-int snd_info_register(struct snd_info_entry * entry)
+static int __snd_info_register(struct snd_info_entry *entry)
 {
 	struct proc_dir_entry *root, *p = NULL;
 
@@ -829,6 +808,8 @@ int snd_info_register(struct snd_info_entry * entry)
 		return -ENXIO;
 	root = entry->parent == NULL ? snd_proc_root->p : entry->parent->p;
 	mutex_lock(&info_mutex);
+	if (entry->p || !root)
+		goto unlock;
 	if (S_ISDIR(entry->mode)) {
 		p = proc_mkdir_mode(entry->name, entry->mode, root);
 		if (!p) {
@@ -850,10 +831,72 @@ int snd_info_register(struct snd_info_entry * entry)
 		proc_set_size(p, entry->size);
 	}
 	entry->p = p;
+ unlock:
 	mutex_unlock(&info_mutex);
 	return 0;
 }
+
+/**
+ * snd_info_register - register the info entry
+ * @entry: the info entry
+ *
+ * Registers the proc info entry.
+ * The all children entries are registered recursively.
+ *
+ * Return: Zero if successful, or a negative error code on failure.
+ */
+int snd_info_register(struct snd_info_entry *entry)
+{
+	struct snd_info_entry *p;
+	int err;
+
+	if (!entry->p) {
+		err = __snd_info_register(entry);
+		if (err < 0)
+			return err;
+	}
+
+	list_for_each_entry(p, &entry->children, list) {
+		err = snd_info_register(p);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
 EXPORT_SYMBOL(snd_info_register);
+
+/**
+ * snd_card_rw_proc_new - Create a read/write text proc file entry for the card
+ * @card: the card instance
+ * @name: the file name
+ * @private_data: the arbitrary private data
+ * @read: the read callback
+ * @write: the write callback, NULL for read-only
+ *
+ * This proc file entry will be registered via snd_card_register() call, and
+ * it will be removed automatically at the card removal, too.
+ */
+int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+			 void *private_data,
+			 void (*read)(struct snd_info_entry *,
+				      struct snd_info_buffer *),
+			 void (*write)(struct snd_info_entry *entry,
+				       struct snd_info_buffer *buffer))
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_card_entry(card, name, card->proc_root);
+	if (!entry)
+		return -ENOMEM;
+	snd_info_set_text_ops(entry, private_data, read);
+	if (write) {
+		entry->mode |= 0200;
+		entry->c.text.write = write;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_card_rw_proc_new);
 
 /*
 

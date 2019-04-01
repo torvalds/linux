@@ -626,11 +626,71 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 }
 
 /**
- * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_pcie
+ * DOC: ppfeatures
+ *
+ * The amdgpu driver provides a sysfs API for adjusting what powerplay
+ * features to be enabled. The file ppfeatures is used for this. And
+ * this is only available for Vega10 and later dGPUs.
+ *
+ * Reading back the file will show you the followings:
+ * - Current ppfeature masks
+ * - List of the all supported powerplay features with their naming,
+ *   bitmasks and enablement status('Y'/'N' means "enabled"/"disabled").
+ *
+ * To manually enable or disable a specific feature, just set or clear
+ * the corresponding bit from original ppfeature masks and input the
+ * new ppfeature masks.
+ */
+static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint64_t featuremask;
+	int ret;
+
+	ret = kstrtou64(buf, 0, &featuremask);
+	if (ret)
+		return -EINVAL;
+
+	pr_debug("featuremask = 0x%llx\n", featuremask);
+
+	if (adev->powerplay.pp_funcs->set_ppfeature_status) {
+		ret = amdgpu_dpm_set_ppfeature_status(adev, featuremask);
+		if (ret)
+			return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (adev->powerplay.pp_funcs->get_ppfeature_status)
+		return amdgpu_dpm_get_ppfeature_status(adev, buf);
+
+	return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+/**
+ * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_fclk pp_dpm_dcefclk
+ * pp_dpm_pcie
  *
  * The amdgpu driver provides a sysfs API for adjusting what power levels
  * are enabled for a given power state.  The files pp_dpm_sclk, pp_dpm_mclk,
- * and pp_dpm_pcie are used for this.
+ * pp_dpm_socclk, pp_dpm_fclk, pp_dpm_dcefclk and pp_dpm_pcie are used for
+ * this.
+ *
+ * pp_dpm_socclk and pp_dpm_dcefclk interfaces are only available for
+ * Vega10 and later ASICs.
+ * pp_dpm_fclk interface is only available for Vega20 and later ASICs.
  *
  * Reading back the files will show you the available power levels within
  * the power state and the clock information for those levels.
@@ -640,6 +700,8 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
  * Secondly,Enter a new value for each level by inputing a string that
  * contains " echo xx xx xx > pp_dpm_sclk/mclk/pcie"
  * E.g., echo 4 5 6 to > pp_dpm_sclk will enable sclk levels 4, 5, and 6.
+ *
+ * NOTE: change to the dcefclk max dpm level is not supported now
  */
 
 static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
@@ -743,6 +805,114 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
+
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t amdgpu_get_pp_dpm_socclk(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (adev->powerplay.pp_funcs->print_clock_levels)
+		return amdgpu_dpm_print_clock_levels(adev, PP_SOCCLK, buf);
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static ssize_t amdgpu_set_pp_dpm_socclk(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int ret;
+	uint32_t mask = 0;
+
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
+
+	if (adev->powerplay.pp_funcs->force_clock_level)
+		ret = amdgpu_dpm_force_clock_level(adev, PP_SOCCLK, mask);
+
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t amdgpu_get_pp_dpm_fclk(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (adev->powerplay.pp_funcs->print_clock_levels)
+		return amdgpu_dpm_print_clock_levels(adev, PP_FCLK, buf);
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static ssize_t amdgpu_set_pp_dpm_fclk(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int ret;
+	uint32_t mask = 0;
+
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
+
+	if (adev->powerplay.pp_funcs->force_clock_level)
+		ret = amdgpu_dpm_force_clock_level(adev, PP_FCLK, mask);
+
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t amdgpu_get_pp_dpm_dcefclk(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (adev->powerplay.pp_funcs->print_clock_levels)
+		return amdgpu_dpm_print_clock_levels(adev, PP_DCEFCLK, buf);
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static ssize_t amdgpu_set_pp_dpm_dcefclk(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int ret;
+	uint32_t mask = 0;
+
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
+
+	if (adev->powerplay.pp_funcs->force_clock_level)
+		ret = amdgpu_dpm_force_clock_level(adev, PP_DCEFCLK, mask);
 
 	if (ret)
 		return -EINVAL;
@@ -990,6 +1160,31 @@ static ssize_t amdgpu_get_busy_percent(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
 
+/**
+ * DOC: pcie_bw
+ *
+ * The amdgpu driver provides a sysfs API for estimating how much data
+ * has been received and sent by the GPU in the last second through PCIe.
+ * The file pcie_bw is used for this.
+ * The Perf counters count the number of received and sent messages and return
+ * those values, as well as the maximum payload size of a PCIe packet (mps).
+ * Note that it is not possible to easily and quickly obtain the size of each
+ * packet transmitted, so we output the max payload size (mps) to allow for
+ * quick estimation of the PCIe bandwidth usage
+ */
+static ssize_t amdgpu_get_pcie_bw(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint64_t count0, count1;
+
+	amdgpu_asic_get_pcie_usage(adev, &count0, &count1);
+	return snprintf(buf, PAGE_SIZE,	"%llu %llu %i\n",
+			count0, count1, pcie_get_mps(adev->pdev));
+}
+
 static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, amdgpu_get_dpm_state, amdgpu_set_dpm_state);
 static DEVICE_ATTR(power_dpm_force_performance_level, S_IRUGO | S_IWUSR,
 		   amdgpu_get_dpm_forced_performance_level,
@@ -1008,6 +1203,15 @@ static DEVICE_ATTR(pp_dpm_sclk, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pp_dpm_mclk, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_dpm_mclk,
 		amdgpu_set_pp_dpm_mclk);
+static DEVICE_ATTR(pp_dpm_socclk, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_dpm_socclk,
+		amdgpu_set_pp_dpm_socclk);
+static DEVICE_ATTR(pp_dpm_fclk, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_dpm_fclk,
+		amdgpu_set_pp_dpm_fclk);
+static DEVICE_ATTR(pp_dpm_dcefclk, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_dpm_dcefclk,
+		amdgpu_set_pp_dpm_dcefclk);
 static DEVICE_ATTR(pp_dpm_pcie, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_dpm_pcie,
 		amdgpu_set_pp_dpm_pcie);
@@ -1025,6 +1229,10 @@ static DEVICE_ATTR(pp_od_clk_voltage, S_IRUGO | S_IWUSR,
 		amdgpu_set_pp_od_clk_voltage);
 static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
 		amdgpu_get_busy_percent, NULL);
+static DEVICE_ATTR(pcie_bw, S_IRUGO, amdgpu_get_pcie_bw, NULL);
+static DEVICE_ATTR(ppfeatures, S_IRUGO | S_IWUSR,
+		amdgpu_get_ppfeature_status,
+		amdgpu_set_ppfeature_status);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -1516,6 +1724,75 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 	return count;
 }
 
+static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
+	uint32_t sclk;
+	int r, size = sizeof(sclk);
+
+	/* Can't get voltage when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* get the sclk */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
+				   (void *)&sclk, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", sclk * 10 * 1000);
+}
+
+static ssize_t amdgpu_hwmon_show_sclk_label(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "sclk\n");
+}
+
+static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
+	uint32_t mclk;
+	int r, size = sizeof(mclk);
+
+	/* Can't get voltage when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* get the sclk */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
+				   (void *)&mclk, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", mclk * 10 * 1000);
+}
+
+static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "mclk\n");
+}
 
 /**
  * DOC: hwmon
@@ -1531,6 +1808,10 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
  * - GPU power
  *
  * - GPU fan
+ *
+ * - GPU gfx/compute engine clock
+ *
+ * - GPU memory clock (dGPU only)
  *
  * hwmon interfaces for GPU temperature:
  *
@@ -1576,6 +1857,12 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
  *
  * - fan[1-*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
+ * hwmon interfaces for GPU clocks:
+ *
+ * - freq1_input: the gfx/compute clock in hertz
+ *
+ * - freq2_input: the memory clock in hertz
+ *
  * You can use hwmon tools like sensors to view this information on your system.
  *
  */
@@ -1600,6 +1887,10 @@ static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, amdgpu_hwmon_show_power_avg, 
 static SENSOR_DEVICE_ATTR(power1_cap_max, S_IRUGO, amdgpu_hwmon_show_power_cap_max, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap_min, S_IRUGO, amdgpu_hwmon_show_power_cap_min, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap, S_IRUGO | S_IWUSR, amdgpu_hwmon_show_power_cap, amdgpu_hwmon_set_power_cap, 0);
+static SENSOR_DEVICE_ATTR(freq1_input, S_IRUGO, amdgpu_hwmon_show_sclk, NULL, 0);
+static SENSOR_DEVICE_ATTR(freq1_label, S_IRUGO, amdgpu_hwmon_show_sclk_label, NULL, 0);
+static SENSOR_DEVICE_ATTR(freq2_input, S_IRUGO, amdgpu_hwmon_show_mclk, NULL, 0);
+static SENSOR_DEVICE_ATTR(freq2_label, S_IRUGO, amdgpu_hwmon_show_mclk_label, NULL, 0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -1622,6 +1913,10 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_power1_cap_max.dev_attr.attr,
 	&sensor_dev_attr_power1_cap_min.dev_attr.attr,
 	&sensor_dev_attr_power1_cap.dev_attr.attr,
+	&sensor_dev_attr_freq1_input.dev_attr.attr,
+	&sensor_dev_attr_freq1_label.dev_attr.attr,
+	&sensor_dev_attr_freq2_input.dev_attr.attr,
+	&sensor_dev_attr_freq2_label.dev_attr.attr,
 	NULL
 };
 
@@ -1686,7 +1981,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		effective_mode &= ~S_IWUSR;
 
 	if ((adev->flags & AMD_IS_APU) &&
-	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
+	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr))
 		return 0;
@@ -1710,6 +2006,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	if (!(adev->flags & AMD_IS_APU) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
+		return 0;
+
+	/* no mclk on APUs */
+	if ((adev->flags & AMD_IS_APU) &&
+	    (attr == &sensor_dev_attr_freq2_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_freq2_label.dev_attr.attr))
 		return 0;
 
 	return effective_mode;
@@ -2070,6 +2372,25 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed to create device file pp_dpm_mclk\n");
 		return ret;
 	}
+	if (adev->asic_type >= CHIP_VEGA10) {
+		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_socclk);
+		if (ret) {
+			DRM_ERROR("failed to create device file pp_dpm_socclk\n");
+			return ret;
+		}
+		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
+		if (ret) {
+			DRM_ERROR("failed to create device file pp_dpm_dcefclk\n");
+			return ret;
+		}
+	}
+	if (adev->asic_type >= CHIP_VEGA20) {
+		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_fclk);
+		if (ret) {
+			DRM_ERROR("failed to create device file pp_dpm_fclk\n");
+			return ret;
+		}
+	}
 	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	if (ret) {
 		DRM_ERROR("failed to create device file pp_dpm_pcie\n");
@@ -2108,10 +2429,29 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"gpu_busy_level\n");
 		return ret;
 	}
+	/* PCIe Perf counters won't work on APU nodes */
+	if (!(adev->flags & AMD_IS_APU)) {
+		ret = device_create_file(adev->dev, &dev_attr_pcie_bw);
+		if (ret) {
+			DRM_ERROR("failed to create device file pcie_bw\n");
+			return ret;
+		}
+	}
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
 		return ret;
+	}
+
+	if ((adev->asic_type >= CHIP_VEGA10) &&
+	    !(adev->flags & AMD_IS_APU)) {
+		ret = device_create_file(adev->dev,
+				&dev_attr_ppfeatures);
+		if (ret) {
+			DRM_ERROR("failed to create device file	"
+					"ppfeatures\n");
+			return ret;
+		}
 	}
 
 	adev->pm.sysfs_initialized = true;
@@ -2138,7 +2478,13 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_sclk);
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
+	if (adev->asic_type >= CHIP_VEGA10) {
+		device_remove_file(adev->dev, &dev_attr_pp_dpm_socclk);
+		device_remove_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
+	}
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
+	if (adev->asic_type >= CHIP_VEGA20)
+		device_remove_file(adev->dev, &dev_attr_pp_dpm_fclk);
 	device_remove_file(adev->dev, &dev_attr_pp_sclk_od);
 	device_remove_file(adev->dev, &dev_attr_pp_mclk_od);
 	device_remove_file(adev->dev,
@@ -2147,6 +2493,11 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
+	if (!(adev->flags & AMD_IS_APU))
+		device_remove_file(adev->dev, &dev_attr_pcie_bw);
+	if ((adev->asic_type >= CHIP_VEGA10) &&
+	    !(adev->flags & AMD_IS_APU))
+		device_remove_file(adev->dev, &dev_attr_ppfeatures);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)

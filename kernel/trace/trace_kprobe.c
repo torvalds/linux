@@ -35,7 +35,7 @@ static struct dyn_event_operations trace_kprobe_ops = {
 	.match = trace_kprobe_match,
 };
 
-/**
+/*
  * Kprobe event core functions
  */
 struct trace_kprobe {
@@ -221,7 +221,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 
 	tk->rp.maxactive = maxactive;
 
-	if (!event || !is_good_name(event)) {
+	if (!event || !group) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -230,11 +230,6 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	tk->tp.call.name = kstrdup(event, GFP_KERNEL);
 	if (!tk->tp.call.name)
 		goto error;
-
-	if (!group || !is_good_name(group)) {
-		ret = -EINVAL;
-		goto error;
-	}
 
 	tk->tp.class.system = kstrdup(group, GFP_KERNEL);
 	if (!tk->tp.class.system)
@@ -624,7 +619,11 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	if (event)
 		event++;
 
-	if (is_return && isdigit(argv[0][1])) {
+	if (isdigit(argv[0][1])) {
+		if (!is_return) {
+			pr_info("Maxactive is not for kprobe");
+			return -EINVAL;
+		}
 		if (event)
 			len = event - &argv[0][1] - 1;
 		else
@@ -634,8 +633,8 @@ static int trace_kprobe_create(int argc, const char *argv[])
 		memcpy(buf, &argv[0][1], len);
 		buf[len] = '\0';
 		ret = kstrtouint(buf, 0, &maxactive);
-		if (ret) {
-			pr_info("Failed to parse maxactive.\n");
+		if (ret || !maxactive) {
+			pr_info("Invalid maxactive number\n");
 			return ret;
 		}
 		/* kretprobes instances are iterated over via a list. The
@@ -694,9 +693,9 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	tk = alloc_trace_kprobe(group, event, addr, symbol, offset, maxactive,
 			       argc, is_return);
 	if (IS_ERR(tk)) {
-		pr_info("Failed to allocate trace_probe.(%d)\n",
-			(int)PTR_ERR(tk));
 		ret = PTR_ERR(tk);
+		/* This must return -ENOMEM otherwise there is a bug */
+		WARN_ON_ONCE(ret != -ENOMEM);
 		goto out;
 	}
 
@@ -861,21 +860,13 @@ static const struct file_operations kprobe_profile_ops = {
 static nokprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
-	mm_segment_t old_fs;
 	int ret, len = 0;
 	u8 c;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-
 	do {
-		ret = __copy_from_user_inatomic(&c, (u8 *)addr + len, 1);
+		ret = probe_kernel_read(&c, (u8 *)addr + len, 1);
 		len++;
 	} while (c && ret == 0 && len < MAX_STRING_SIZE);
-
-	pagefault_enable();
-	set_fs(old_fs);
 
 	return (ret < 0) ? ret : len;
 }

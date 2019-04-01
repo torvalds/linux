@@ -322,7 +322,7 @@ static bool update_stats(struct psi_group *group)
 	expires = group->next_update;
 	if (now < expires)
 		goto out;
-	if (now - expires > psi_period)
+	if (now - expires >= psi_period)
 		missed_periods = div_u64(now - expires, psi_period);
 
 	/*

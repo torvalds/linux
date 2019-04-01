@@ -34,9 +34,9 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -49,9 +49,6 @@
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 1
 #define DRIVER_PATCHLEVEL 0
-
-/* virtgpu_drm_bus.c */
-int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev);
 
 struct virtio_gpu_object {
 	struct drm_gem_object gem_base;
@@ -137,18 +134,9 @@ struct virtio_gpu_framebuffer {
 #define to_virtio_gpu_framebuffer(x) \
 	container_of(x, struct virtio_gpu_framebuffer, base)
 
-struct virtio_gpu_fbdev {
-	struct drm_fb_helper           helper;
-	struct virtio_gpu_framebuffer  vgfb;
-	struct virtio_gpu_device       *vgdev;
-	struct delayed_work            work;
-};
-
 struct virtio_gpu_mman {
 	struct ttm_bo_device		bdev;
 };
-
-struct virtio_gpu_fbdev;
 
 struct virtio_gpu_queue {
 	struct virtqueue *vq;
@@ -180,8 +168,6 @@ struct virtio_gpu_device {
 
 	struct virtio_gpu_mman mman;
 
-	/* pointer to fbdev info structure */
-	struct virtio_gpu_fbdev *vgfbdev;
 	struct virtio_gpu_output outputs[VIRTIO_GPU_MAX_SCANOUTS];
 	uint32_t num_scanouts;
 
@@ -220,8 +206,8 @@ struct virtio_gpu_fpriv {
 extern struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS];
 
 /* virtio_kms.c */
-int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags);
-void virtio_gpu_driver_unload(struct drm_device *dev);
+int virtio_gpu_init(struct drm_device *dev);
+void virtio_gpu_deinit(struct drm_device *dev);
 int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file);
 void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file);
 
@@ -249,9 +235,6 @@ int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 			      uint32_t handle, uint64_t *offset_p);
 
 /* virtio_fb */
-#define VIRTIO_GPUFB_CONN_LIMIT 1
-int virtio_gpu_fbdev_init(struct virtio_gpu_device *vgdev);
-void virtio_gpu_fbdev_fini(struct virtio_gpu_device *vgdev);
 int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *qfb,
 			     struct drm_clip_rect *clips,
 			     unsigned int num_clips);
@@ -334,7 +317,7 @@ int virtio_gpu_framebuffer_init(struct drm_device *dev,
 				struct virtio_gpu_framebuffer *vgfb,
 				const struct drm_mode_fb_cmd2 *mode_cmd,
 				struct drm_gem_object *obj);
-int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
+void virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
 
 /* virtio_gpu_plane.c */
@@ -351,7 +334,6 @@ int virtio_gpu_mmap(struct file *filp, struct vm_area_struct *vma);
 /* virtio_gpu_fence.c */
 struct virtio_gpu_fence *virtio_gpu_fence_alloc(
 	struct virtio_gpu_device *vgdev);
-void virtio_gpu_fence_cleanup(struct virtio_gpu_fence *fence);
 int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 			  struct virtio_gpu_ctrl_hdr *cmd_hdr,
 			  struct virtio_gpu_fence *fence);

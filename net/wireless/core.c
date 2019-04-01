@@ -1068,6 +1068,8 @@ static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 
 	ASSERT_RTNL();
 
+	flush_work(&wdev->pmsr_free_wk);
+
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	list_del_rcu(&wdev->list);

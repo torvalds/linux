@@ -94,10 +94,12 @@ static struct tc_action_ops act_mirred_ops;
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
+			   struct tcf_proto *tp,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
@@ -157,18 +159,23 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+
 	m = to_mirred(*a);
+	if (ret == ACT_P_CREATED)
+		INIT_LIST_HEAD(&m->tcfm_list);
+
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	spin_lock_bh(&m->tcf_lock);
-	m->tcf_action = parm->action;
-	m->tcfm_eaction = parm->eaction;
 
 	if (parm->ifindex) {
 		dev = dev_get_by_index(net, parm->ifindex);
 		if (!dev) {
 			spin_unlock_bh(&m->tcf_lock);
-			tcf_idr_release(*a, bind);
-			return -ENODEV;
+			err = -ENODEV;
+			goto put_chain;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
 		rcu_swap_protected(m->tcfm_dev, dev,
@@ -177,7 +184,11 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			dev_put(dev);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
+	m->tcfm_eaction = parm->eaction;
 	spin_unlock_bh(&m->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED) {
 		spin_lock(&mirred_list_lock);
@@ -188,6 +199,12 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
@@ -400,7 +417,7 @@ static void tcf_mirred_put_dev(struct net_device *dev)
 
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
-	.type		=	TCA_ACT_MIRRED,
+	.id		=	TCA_ID_MIRRED,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred_act,
 	.stats_update	=	tcf_stats_update,

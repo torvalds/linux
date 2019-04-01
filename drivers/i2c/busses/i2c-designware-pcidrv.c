@@ -176,6 +176,7 @@ static int i2c_dw_pci_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
 
+	i_dev->suspended = true;
 	i_dev->disable(i_dev);
 
 	return 0;
@@ -185,8 +186,12 @@ static int i2c_dw_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
+	int ret;
 
-	return i_dev->init(i_dev);
+	ret = i_dev->init(i_dev);
+	i_dev->suspended = false;
+
+	return ret;
 }
 #endif
 

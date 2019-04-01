@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver for the Synopsys DesignWare AHB DMA Controller
  *
  * Copyright (C) 2005-2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
  * Copyright (C) 2016 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bitops.h>
@@ -222,6 +219,16 @@ enum dw_dma_msize {
 
 /* iDMA 32-bit support */
 
+/* bursts size */
+enum idma32_msize {
+	IDMA32_MSIZE_1,
+	IDMA32_MSIZE_2,
+	IDMA32_MSIZE_4,
+	IDMA32_MSIZE_8,
+	IDMA32_MSIZE_16,
+	IDMA32_MSIZE_32,
+};
+
 /* Bitfields in CTL_HI */
 #define IDMA32C_CTLH_BLOCK_TS_MASK	GENMASK(16, 0)
 #define IDMA32C_CTLH_BLOCK_TS(x)	((x) & IDMA32C_CTLH_BLOCK_TS_MASK)
@@ -311,6 +318,21 @@ struct dw_dma {
 	struct dw_dma_chan	*chan;
 	u8			all_chan_mask;
 	u8			in_use;
+
+	/* Channel operations */
+	void	(*initialize_chan)(struct dw_dma_chan *dwc);
+	void	(*suspend_chan)(struct dw_dma_chan *dwc, bool drain);
+	void	(*resume_chan)(struct dw_dma_chan *dwc, bool drain);
+	u32	(*prepare_ctllo)(struct dw_dma_chan *dwc);
+	void	(*encode_maxburst)(struct dw_dma_chan *dwc, u32 *maxburst);
+	u32	(*bytes2block)(struct dw_dma_chan *dwc, size_t bytes,
+			       unsigned int width, size_t *len);
+	size_t	(*block2bytes)(struct dw_dma_chan *dwc, u32 block, u32 width);
+
+	/* Device operations */
+	void (*set_device_name)(struct dw_dma *dw, int id);
+	void (*disable)(struct dw_dma *dw);
+	void (*enable)(struct dw_dma *dw);
 
 	/* platform data */
 	struct dw_dma_platform_data	*pdata;

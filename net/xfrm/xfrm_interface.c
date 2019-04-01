@@ -76,10 +76,10 @@ static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb)
 	int ifindex;
 	struct xfrm_if *xi;
 
-	if (!skb->dev)
+	if (!secpath_exists(skb) || !skb->dev)
 		return NULL;
 
-	xfrmn = net_generic(dev_net(skb->dev), xfrmi_net_id);
+	xfrmn = net_generic(xs_net(xfrm_input_state(skb)), xfrmi_net_id);
 	ifindex = skb->dev->ifindex;
 
 	for_each_xfrmi_rcu(xfrmn->xfrmi[0], xi) {

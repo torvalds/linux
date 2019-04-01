@@ -26,13 +26,8 @@ else
 	CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW) \
 	 $(call cc-param,asan-globals=1) \
 	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
-	 $(call cc-param,asan-stack=1) \
-	 $(call cc-param,asan-use-after-scope=1) \
+	 $(call cc-param,asan-stack=$(CONFIG_KASAN_STACK)) \
 	 $(call cc-param,asan-instrument-allocas=1)
-endif
-
-ifdef CONFIG_KASAN_EXTRA
-CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
 endif
 
 endif # CONFIG_KASAN_GENERIC

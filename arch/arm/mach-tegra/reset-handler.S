@@ -172,7 +172,7 @@ after_errata:
 	mov32	r5, TEGRA_IRAM_BASE + TEGRA_IRAM_RESET_HANDLER_OFFSET
 	mov	r0, #CPU_NOT_RESETTABLE
 	cmp	r10, #0
-	strneb	r0, [r5, #__tegra20_cpu1_resettable_status_offset]
+	strbne	r0, [r5, #__tegra20_cpu1_resettable_status_offset]
 1:
 #endif
 

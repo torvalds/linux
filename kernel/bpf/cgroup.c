@@ -230,6 +230,7 @@ cleanup:
  * @cgrp: The cgroup which descendants to traverse
  * @prog: A program to attach
  * @type: Type of attach operation
+ * @flags: Option flags
  *
  * Must be called with cgroup_mutex held.
  */
@@ -363,7 +364,7 @@ cleanup:
  * Must be called with cgroup_mutex held.
  */
 int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-			enum bpf_attach_type type, u32 unused_flags)
+			enum bpf_attach_type type)
 {
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	enum bpf_cgroup_storage_type stype;
@@ -572,7 +573,7 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	bpf_compute_and_save_data_end(skb, &saved_data_end);
 
 	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
-				 bpf_prog_run_save_cb);
+				 __bpf_prog_run_save_cb);
 	bpf_restore_data_end(skb, saved_data_end);
 	__skb_pull(skb, offset);
 	skb->sk = save_sk;

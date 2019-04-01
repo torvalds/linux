@@ -1288,7 +1288,7 @@ static void sbdma_tx_process(struct sbmac_softc *sc, struct sbmacdma *d,
 		 * for transmits, we just free buffers.
 		 */
 
-		dev_kfree_skb_irq(sb);
+		dev_consume_skb_irq(sb);
 
 		/*
 		 * .. and advance to the next buffer.

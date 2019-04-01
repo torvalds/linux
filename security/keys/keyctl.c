@@ -25,6 +25,7 @@
 #include <linux/security.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
+#include <keys/request_key_auth-type.h>
 #include "internal.h"
 
 #define KEY_MAX_DESC_SIZE 4096
@@ -1751,7 +1752,7 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			return -EINVAL;
 		return keyctl_pkey_query((key_serial_t)arg2,
 					 (const char __user *)arg4,
-					 (struct keyctl_pkey_query *)arg5);
+					 (struct keyctl_pkey_query __user *)arg5);
 
 	case KEYCTL_PKEY_ENCRYPT:
 	case KEYCTL_PKEY_DECRYPT:

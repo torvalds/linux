@@ -3,7 +3,7 @@
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -75,7 +75,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 		/*
 		 * On error, delete any namespace objects created by this table.
 		 * We cannot initialize these objects, so delete them. There are
-		 * a couple of expecially bad cases:
+		 * a couple of especially bad cases:
 		 * AE_ALREADY_EXISTS - namespace collision.
 		 * AE_NOT_FOUND - the target of a Scope operator does not
 		 * exist. This target of Scope must already exist in the

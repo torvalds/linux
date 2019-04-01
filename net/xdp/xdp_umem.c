@@ -13,11 +13,14 @@
 #include <linux/mm.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/idr.h>
 
 #include "xdp_umem.h"
 #include "xsk_queue.h"
 
 #define XDP_UMEM_MIN_CHUNK_SIZE 2048
+
+static DEFINE_IDA(umem_ida);
 
 void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 {
@@ -67,6 +70,7 @@ struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
 
 	return NULL;
 }
+EXPORT_SYMBOL(xdp_get_umem_from_qid);
 
 static void xdp_clear_umem_at_qid(struct net_device *dev, u16 queue_id)
 {
@@ -125,9 +129,10 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	return 0;
 
 err_unreg_umem:
-	xdp_clear_umem_at_qid(dev, queue_id);
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
+	if (err)
+		xdp_clear_umem_at_qid(dev, queue_id);
 out_rtnl_unlock:
 	rtnl_unlock();
 	return err;
@@ -188,10 +193,9 @@ static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 
 static void xdp_umem_release(struct xdp_umem *umem)
 {
-	struct task_struct *task;
-	struct mm_struct *mm;
-
 	xdp_umem_clear_dev(umem);
+
+	ida_simple_remove(&umem_ida, umem->id);
 
 	if (umem->fq) {
 		xskq_destroy(umem->fq);
@@ -207,21 +211,10 @@ static void xdp_umem_release(struct xdp_umem *umem)
 
 	xdp_umem_unpin_pages(umem);
 
-	task = get_pid_task(umem->pid, PIDTYPE_PID);
-	put_pid(umem->pid);
-	if (!task)
-		goto out;
-	mm = get_task_mm(task);
-	put_task_struct(task);
-	if (!mm)
-		goto out;
-
-	mmput(mm);
 	kfree(umem->pages);
 	umem->pages = NULL;
 
 	xdp_umem_unaccount_pages(umem);
-out:
 	kfree(umem);
 }
 
@@ -259,10 +252,10 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
 	if (!umem->pgs)
 		return -ENOMEM;
 
-	down_write(&current->mm->mmap_sem);
-	npgs = get_user_pages(umem->address, umem->npgs,
-			      gup_flags, &umem->pgs[0], NULL);
-	up_write(&current->mm->mmap_sem);
+	down_read(&current->mm->mmap_sem);
+	npgs = get_user_pages_longterm(umem->address, umem->npgs,
+				       gup_flags, &umem->pgs[0], NULL);
+	up_read(&current->mm->mmap_sem);
 
 	if (npgs != umem->npgs) {
 		if (npgs >= 0) {
@@ -350,7 +343,6 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (size_chk < 0)
 		return -EINVAL;
 
-	umem->pid = get_task_pid(current, PIDTYPE_PID);
 	umem->address = (unsigned long)addr;
 	umem->chunk_mask = ~((u64)chunk_size - 1);
 	umem->size = size;
@@ -366,7 +358,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 
 	err = xdp_umem_account_pages(umem);
 	if (err)
-		goto out;
+		return err;
 
 	err = xdp_umem_pin_pages(umem);
 	if (err)
@@ -385,8 +377,6 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 
 out_account:
 	xdp_umem_unaccount_pages(umem);
-out:
-	put_pid(umem->pid);
 	return err;
 }
 
@@ -399,8 +389,16 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 
+	err = ida_simple_get(&umem_ida, 0, 0, GFP_KERNEL);
+	if (err < 0) {
+		kfree(umem);
+		return ERR_PTR(err);
+	}
+	umem->id = err;
+
 	err = xdp_umem_reg(umem, mr);
 	if (err) {
+		ida_simple_remove(&umem_ida, umem->id);
 		kfree(umem);
 		return ERR_PTR(err);
 	}

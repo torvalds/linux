@@ -149,7 +149,6 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	disable-wp;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	non-removable;
 	pinctrl-names = "default";

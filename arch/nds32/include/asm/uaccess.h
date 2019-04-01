@@ -37,7 +37,6 @@ extern int fixup_exception(struct pt_regs *regs);
 #define KERNEL_DS 	((mm_segment_t) { ~0UL })
 #define USER_DS		((mm_segment_t) {TASK_SIZE - 1})
 
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 #define user_addr_max	get_fs
 

@@ -30,6 +30,10 @@
 #include <net/smc.h>
 #include <asm/ioctls.h>
 
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
+#include "smc_netns.h"
+
 #include "smc.h"
 #include "smc_clc.h"
 #include "smc_llc.h"
@@ -42,8 +46,11 @@
 #include "smc_rx.h"
 #include "smc_close.h"
 
-static DEFINE_MUTEX(smc_create_lgr_pending);	/* serialize link group
-						 * creation
+static DEFINE_MUTEX(smc_server_lgr_pending);	/* serialize link group
+						 * creation on server
+						 */
+static DEFINE_MUTEX(smc_client_lgr_pending);	/* serialize link group
+						 * creation on client
 						 */
 
 static void smc_tcp_listen_work(struct work_struct *);
@@ -145,32 +152,33 @@ static int smc_release(struct socket *sock)
 		rc = smc_close_active(smc);
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
+	} else {
+		if (sk->sk_state != SMC_LISTEN && sk->sk_state != SMC_INIT)
+			sock_put(sk); /* passive closing */
+		if (sk->sk_state == SMC_LISTEN) {
+			/* wake up clcsock accept */
+			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
+		}
+		sk->sk_state = SMC_CLOSED;
+		sk->sk_state_change(sk);
 	}
 
 	sk->sk_prot->unhash(sk);
 
-	if (smc->clcsock) {
-		if (smc->use_fallback && sk->sk_state == SMC_LISTEN) {
-			/* wake up clcsock accept */
-			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
+	if (sk->sk_state == SMC_CLOSED) {
+		if (smc->clcsock) {
+			mutex_lock(&smc->clcsock_release_lock);
+			sock_release(smc->clcsock);
+			smc->clcsock = NULL;
+			mutex_unlock(&smc->clcsock_release_lock);
 		}
-		mutex_lock(&smc->clcsock_release_lock);
-		sock_release(smc->clcsock);
-		smc->clcsock = NULL;
-		mutex_unlock(&smc->clcsock_release_lock);
-	}
-	if (smc->use_fallback) {
-		if (sk->sk_state != SMC_LISTEN && sk->sk_state != SMC_INIT)
-			sock_put(sk); /* passive closing */
-		sk->sk_state = SMC_CLOSED;
-		sk->sk_state_change(sk);
+		if (!smc->use_fallback)
+			smc_conn_free(&smc->conn);
 	}
 
 	/* detach socket */
 	sock_orphan(sk);
 	sock->sk = NULL;
-	if (!smc->use_fallback && sk->sk_state == SMC_CLOSED)
-		smc_conn_free(&smc->conn);
 	release_sock(sk);
 
 	sock_put(sk); /* final sock_put */
@@ -291,7 +299,8 @@ static void smc_copy_sock_settings(struct sock *nsk, struct sock *osk,
 			     (1UL << SOCK_RXQ_OVFL) | \
 			     (1UL << SOCK_WIFI_STATUS) | \
 			     (1UL << SOCK_NOFCS) | \
-			     (1UL << SOCK_FILTER_LOCKED))
+			     (1UL << SOCK_FILTER_LOCKED) | \
+			     (1UL << SOCK_TSTAMP_NEW))
 /* copy only relevant settings and flags of SOL_SOCKET level from smc to
  * clc socket (since smc is not called for these options from net/core)
  */
@@ -475,7 +484,12 @@ static int smc_connect_abort(struct smc_sock *smc, int reason_code,
 {
 	if (local_contact == SMC_FIRST_CONTACT)
 		smc_lgr_forget(smc->conn.lgr);
-	mutex_unlock(&smc_create_lgr_pending);
+	if (smc->conn.lgr->is_smcd)
+		/* there is only one lgr role for SMC-D; use server lock */
+		mutex_unlock(&smc_server_lgr_pending);
+	else
+		mutex_unlock(&smc_client_lgr_pending);
+
 	smc_conn_free(&smc->conn);
 	return reason_code;
 }
@@ -560,7 +574,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	struct smc_link *link;
 	int reason_code = 0;
 
-	mutex_lock(&smc_create_lgr_pending);
+	mutex_lock(&smc_client_lgr_pending);
 	local_contact = smc_conn_create(smc, false, aclc->hdr.flag, ibdev,
 					ibport, ntoh24(aclc->qpn), &aclc->lcl,
 					NULL, 0);
@@ -571,7 +585,8 @@ static int smc_connect_rdma(struct smc_sock *smc,
 			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
 		else
 			reason_code = SMC_CLC_DECL_INTERR; /* other error */
-		return smc_connect_abort(smc, reason_code, 0);
+		mutex_unlock(&smc_client_lgr_pending);
+		return reason_code;
 	}
 	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
@@ -615,7 +630,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 			return smc_connect_abort(smc, reason_code,
 						 local_contact);
 	}
-	mutex_unlock(&smc_create_lgr_pending);
+	mutex_unlock(&smc_client_lgr_pending);
 
 	smc_copy_sock_settings_to_clc(smc);
 	if (smc->sk.sk_state == SMC_INIT)
@@ -632,11 +647,14 @@ static int smc_connect_ism(struct smc_sock *smc,
 	int local_contact = SMC_FIRST_CONTACT;
 	int rc = 0;
 
-	mutex_lock(&smc_create_lgr_pending);
+	/* there is only one lgr role for SMC-D; use server lock */
+	mutex_lock(&smc_server_lgr_pending);
 	local_contact = smc_conn_create(smc, true, aclc->hdr.flag, NULL, 0, 0,
 					NULL, ismdev, aclc->gid);
-	if (local_contact < 0)
-		return smc_connect_abort(smc, SMC_CLC_DECL_MEM, 0);
+	if (local_contact < 0) {
+		mutex_unlock(&smc_server_lgr_pending);
+		return SMC_CLC_DECL_MEM;
+	}
 
 	/* Create send and receive buffers */
 	if (smc_buf_create(smc, true))
@@ -650,7 +668,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 	rc = smc_clc_send_confirm(smc);
 	if (rc)
 		return smc_connect_abort(smc, rc, local_contact);
-	mutex_unlock(&smc_create_lgr_pending);
+	mutex_unlock(&smc_server_lgr_pending);
 
 	smc_copy_sock_settings_to_clc(smc);
 	if (smc->sk.sk_state == SMC_INIT)
@@ -1249,7 +1267,7 @@ static void smc_listen_work(struct work_struct *work)
 		return;
 	}
 
-	mutex_lock(&smc_create_lgr_pending);
+	mutex_lock(&smc_server_lgr_pending);
 	smc_close_init(new_smc);
 	smc_rx_init(new_smc);
 	smc_tx_init(new_smc);
@@ -1271,7 +1289,7 @@ static void smc_listen_work(struct work_struct *work)
 				  &local_contact) ||
 	     smc_listen_rdma_reg(new_smc, local_contact))) {
 		/* SMC not supported, decline */
-		mutex_unlock(&smc_create_lgr_pending);
+		mutex_unlock(&smc_server_lgr_pending);
 		smc_listen_decline(new_smc, SMC_CLC_DECL_MODEUNSUPP,
 				   local_contact);
 		return;
@@ -1280,29 +1298,33 @@ static void smc_listen_work(struct work_struct *work)
 	/* send SMC Accept CLC message */
 	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc) {
-		mutex_unlock(&smc_create_lgr_pending);
+		mutex_unlock(&smc_server_lgr_pending);
 		smc_listen_decline(new_smc, rc, local_contact);
 		return;
 	}
+
+	/* SMC-D does not need this lock any more */
+	if (ism_supported)
+		mutex_unlock(&smc_server_lgr_pending);
 
 	/* receive SMC Confirm CLC message */
 	reason_code = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
 				       SMC_CLC_CONFIRM, CLC_WAIT_TIME);
 	if (reason_code) {
-		mutex_unlock(&smc_create_lgr_pending);
+		if (!ism_supported)
+			mutex_unlock(&smc_server_lgr_pending);
 		smc_listen_decline(new_smc, reason_code, local_contact);
 		return;
 	}
 
 	/* finish worker */
 	if (!ism_supported) {
-		if (smc_listen_rdma_finish(new_smc, &cclc, local_contact)) {
-			mutex_unlock(&smc_create_lgr_pending);
+		rc = smc_listen_rdma_finish(new_smc, &cclc, local_contact);
+		mutex_unlock(&smc_server_lgr_pending);
+		if (rc)
 			return;
-		}
 	}
 	smc_conn_save_peer_info(new_smc, &cclc);
-	mutex_unlock(&smc_create_lgr_pending);
 	smc_listen_out_connected(new_smc);
 }
 
@@ -1505,6 +1527,11 @@ static int smc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	smc = smc_sk(sk);
 	lock_sock(sk);
+	if (sk->sk_state == SMC_CLOSED && (sk->sk_shutdown & RCV_SHUTDOWN)) {
+		/* socket was connected before, no more data to read */
+		rc = 0;
+		goto out;
+	}
 	if ((sk->sk_state == SMC_INIT) ||
 	    (sk->sk_state == SMC_LISTEN) ||
 	    (sk->sk_state == SMC_CLOSED))
@@ -1840,7 +1867,11 @@ static ssize_t smc_splice_read(struct socket *sock, loff_t *ppos,
 
 	smc = smc_sk(sk);
 	lock_sock(sk);
-
+	if (sk->sk_state == SMC_CLOSED && (sk->sk_shutdown & RCV_SHUTDOWN)) {
+		/* socket was connected before, no more data to read */
+		rc = 0;
+		goto out;
+	}
 	if (sk->sk_state == SMC_INIT ||
 	    sk->sk_state == SMC_LISTEN ||
 	    sk->sk_state == SMC_CLOSED)
@@ -1939,9 +1970,32 @@ static const struct net_proto_family smc_sock_family_ops = {
 	.create	= smc_create,
 };
 
+unsigned int smc_net_id;
+
+static __net_init int smc_net_init(struct net *net)
+{
+	return smc_pnet_net_init(net);
+}
+
+static void __net_exit smc_net_exit(struct net *net)
+{
+	smc_pnet_net_exit(net);
+}
+
+static struct pernet_operations smc_net_ops = {
+	.init = smc_net_init,
+	.exit = smc_net_exit,
+	.id   = &smc_net_id,
+	.size = sizeof(struct smc_net),
+};
+
 static int __init smc_init(void)
 {
 	int rc;
+
+	rc = register_pernet_subsys(&smc_net_ops);
+	if (rc)
+		return rc;
 
 	rc = smc_pnet_init();
 	if (rc)
@@ -2008,6 +2062,7 @@ static void __exit smc_exit(void)
 	proto_unregister(&smc_proto6);
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();
+	unregister_pernet_subsys(&smc_net_ops);
 }
 
 module_init(smc_init);

@@ -103,7 +103,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	mlx5_core_err(dev, "start\n");
 	if (pci_channel_offline(dev->pdev) || in_fatal(dev) || force) {
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
-		mlx5_cmd_trigger_completions(dev);
+		mlx5_cmd_flush(dev);
 	}
 
 	mlx5_notifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_SYS_ERROR, (void *)1);

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PIC32 RTC driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (C) 2016 Microchip Technology Inc.  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -180,14 +172,8 @@ static int pic32_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
 	struct pic32_rtc_dev *pdata = dev_get_drvdata(dev);
 	void __iomem *base = pdata->reg_base;
-	int year = tm->tm_year - 100;
 
 	dev_dbg(dev, "set time %ptR\n", tm);
-
-	if (year < 0 || year >= 100) {
-		dev_err(dev, "rtc only supports 100 years\n");
-		return -EINVAL;
-	}
 
 	clk_enable(pdata->clk);
 	writeb(bin2bcd(tm->tm_sec),  base + PIC32_RTCSEC);
@@ -195,7 +181,7 @@ static int pic32_rtc_settime(struct device *dev, struct rtc_time *tm)
 	writeb(bin2bcd(tm->tm_hour), base + PIC32_RTCHOUR);
 	writeb(bin2bcd(tm->tm_mday), base + PIC32_RTCDAY);
 	writeb(bin2bcd(tm->tm_mon + 1), base + PIC32_RTCMON);
-	writeb(bin2bcd(year), base + PIC32_RTCYEAR);
+	writeb(bin2bcd(tm->tm_year - 100), base + PIC32_RTCYEAR);
 	clk_disable(pdata->clk);
 
 	return 0;
@@ -348,13 +334,17 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-						 &pic32_rtcops,
-						 THIS_MODULE);
-	if (IS_ERR(pdata->rtc)) {
-		ret = PTR_ERR(pdata->rtc);
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
+	pdata->rtc->ops = &pic32_rtcops;
+	pdata->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pdata->rtc->range_max = RTC_TIMESTAMP_END_2099;
+
+	ret = rtc_register_device(pdata->rtc);
+	if (ret)
 		goto err_nortc;
-	}
 
 	pdata->rtc->max_user_freq = 128;
 

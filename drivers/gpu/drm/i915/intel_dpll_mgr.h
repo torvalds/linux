@@ -138,14 +138,14 @@ enum intel_dpll_id {
 
 struct intel_dpll_hw_state {
 	/* i9xx, pch plls */
-	uint32_t dpll;
-	uint32_t dpll_md;
-	uint32_t fp0;
-	uint32_t fp1;
+	u32 dpll;
+	u32 dpll_md;
+	u32 fp0;
+	u32 fp1;
 
 	/* hsw, bdw */
-	uint32_t wrpll;
-	uint32_t spll;
+	u32 wrpll;
+	u32 spll;
 
 	/* skl */
 	/*
@@ -154,34 +154,33 @@ struct intel_dpll_hw_state {
 	 * the register.  This allows us to easily compare the state to share
 	 * the DPLL.
 	 */
-	uint32_t ctrl1;
+	u32 ctrl1;
 	/* HDMI only, 0 when used for DP */
-	uint32_t cfgcr1, cfgcr2;
+	u32 cfgcr1, cfgcr2;
 
 	/* cnl */
-	uint32_t cfgcr0;
+	u32 cfgcr0;
 	/* CNL also uses cfgcr1 */
 
 	/* bxt */
-	uint32_t ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10,
-		 pcsdw12;
+	u32 ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10, pcsdw12;
 
 	/*
 	 * ICL uses the following, already defined:
-	 * uint32_t cfgcr0, cfgcr1;
+	 * u32 cfgcr0, cfgcr1;
 	 */
-	uint32_t mg_refclkin_ctl;
-	uint32_t mg_clktop2_coreclkctl1;
-	uint32_t mg_clktop2_hsclkctl;
-	uint32_t mg_pll_div0;
-	uint32_t mg_pll_div1;
-	uint32_t mg_pll_lf;
-	uint32_t mg_pll_frac_lock;
-	uint32_t mg_pll_ssc;
-	uint32_t mg_pll_bias;
-	uint32_t mg_pll_tdc_coldst_bias;
-	uint32_t mg_pll_bias_mask;
-	uint32_t mg_pll_tdc_coldst_bias_mask;
+	u32 mg_refclkin_ctl;
+	u32 mg_clktop2_coreclkctl1;
+	u32 mg_clktop2_hsclkctl;
+	u32 mg_pll_div0;
+	u32 mg_pll_div1;
+	u32 mg_pll_lf;
+	u32 mg_pll_frac_lock;
+	u32 mg_pll_ssc;
+	u32 mg_pll_bias;
+	u32 mg_pll_tdc_coldst_bias;
+	u32 mg_pll_bias_mask;
+	u32 mg_pll_tdc_coldst_bias_mask;
 };
 
 /**
@@ -280,7 +279,7 @@ struct dpll_info {
 	 *     Inform the state checker that the DPLL is kept enabled even if
 	 *     not in use by any CRTC.
 	 */
-	uint32_t flags;
+	u32 flags;
 };
 
 /**
@@ -343,9 +342,9 @@ void intel_shared_dpll_init(struct drm_device *dev);
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state);
 int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
-			       uint32_t pll_id);
+			       u32 pll_id);
 int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv);
-enum intel_dpll_id icl_port_to_mg_pll_id(enum port port);
+enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

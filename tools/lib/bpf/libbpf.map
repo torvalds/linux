@@ -124,3 +124,36 @@ LIBBPF_0.0.1 {
 	local:
 		*;
 };
+
+LIBBPF_0.0.2 {
+	global:
+		bpf_probe_helper;
+		bpf_probe_map_type;
+		bpf_probe_prog_type;
+		bpf_map__resize;
+		bpf_map_lookup_elem_flags;
+		bpf_object__btf;
+		bpf_object__find_map_fd_by_name;
+		bpf_get_link_xdp_id;
+		btf__dedup;
+		btf__get_map_kv_tids;
+		btf__get_nr_types;
+		btf__get_raw_data;
+		btf__load;
+		btf_ext__free;
+		btf_ext__func_info_rec_size;
+		btf_ext__get_raw_data;
+		btf_ext__line_info_rec_size;
+		btf_ext__new;
+		btf_ext__reloc_func_info;
+		btf_ext__reloc_line_info;
+		xsk_umem__create;
+		xsk_socket__create;
+		xsk_umem__delete;
+		xsk_socket__delete;
+		xsk_umem__fd;
+		xsk_socket__fd;
+		bpf_program__get_prog_info_linear;
+		bpf_program__bpil_addr_to_offs;
+		bpf_program__bpil_offs_to_addr;
+} LIBBPF_0.0.1;

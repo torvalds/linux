@@ -382,7 +382,7 @@ static struct palmas_sleep_requestor_info tps65917_sleep_req_info[] = {
 	EXTERNAL_REQUESTOR_TPS65917(LDO5, 2, 4),
 };
 
-static unsigned int palmas_smps_ramp_delay[4] = {0, 10000, 5000, 2500};
+static const unsigned int palmas_smps_ramp_delay[4] = {0, 10000, 5000, 2500};
 
 #define SMPS_CTRL_MODE_OFF		0x00
 #define SMPS_CTRL_MODE_ON		0x01

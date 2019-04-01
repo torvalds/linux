@@ -320,8 +320,8 @@ etnaviv_iommuv2_domain_alloc(struct etnaviv_gpu *gpu)
 	domain = &etnaviv_domain->base;
 
 	domain->dev = gpu->dev;
-	domain->base = 0;
-	domain->size = (u64)SZ_1G * 4;
+	domain->base = SZ_4K;
+	domain->size = (u64)SZ_1G * 4 - SZ_4K;
 	domain->ops = &etnaviv_iommuv2_ops;
 
 	ret = etnaviv_iommuv2_init(etnaviv_domain);

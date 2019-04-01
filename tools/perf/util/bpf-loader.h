@@ -8,11 +8,7 @@
 
 #include <linux/compiler.h>
 #include <linux/err.h>
-#include <string.h>
 #include <bpf/libbpf.h>
-#include "probe-event.h"
-#include "evlist.h"
-#include "debug.h"
 
 enum bpf_loader_errno {
 	__BPF_LOADER_ERRNO__START = __LIBBPF_ERRNO__START - 100,
@@ -44,6 +40,7 @@ enum bpf_loader_errno {
 };
 
 struct perf_evsel;
+struct perf_evlist;
 struct bpf_object;
 struct parse_events_term;
 #define PERF_BPF_PROBE_GROUP "perf_bpf_probe"
@@ -87,6 +84,8 @@ struct perf_evsel *bpf__setup_output_event(struct perf_evlist *evlist, const cha
 int bpf__strerror_setup_output_event(struct perf_evlist *evlist, int err, char *buf, size_t size);
 #else
 #include <errno.h>
+#include <string.h>
+#include "debug.h"
 
 static inline struct bpf_object *
 bpf__prepare_load(const char *filename __maybe_unused,

@@ -431,7 +431,7 @@ static long __init flush_buffer(void *bufv, unsigned long len)
 			len -= written;
 			state = Reset;
 		} else
-			error("junk in compressed archive");
+			error("junk within compressed archive");
 	}
 	return origLen;
 }
@@ -488,9 +488,9 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 				message = msg_buf;
 			}
 		} else
-			error("junk in compressed archive");
+			error("invalid magic at start of compressed archive");
 		if (state != Reset)
-			error("junk in compressed archive");
+			error("junk at the end of compressed archive");
 		this_header = saved_offset + my_inptr;
 		buf += my_inptr;
 		len -= my_inptr;
@@ -550,6 +550,7 @@ skip:
 	initrd_end = 0;
 }
 
+#ifdef CONFIG_BLK_DEV_RAM
 #define BUF_SIZE 1024
 static void __init clean_rootfs(void)
 {
@@ -596,6 +597,7 @@ static void __init clean_rootfs(void)
 	ksys_close(fd);
 	kfree(buf);
 }
+#endif
 
 static int __init populate_rootfs(void)
 {
@@ -638,10 +640,8 @@ static int __init populate_rootfs(void)
 		printk(KERN_INFO "Unpacking initramfs...\n");
 		err = unpack_to_rootfs((char *)initrd_start,
 			initrd_end - initrd_start);
-		if (err) {
+		if (err)
 			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
-			clean_rootfs();
-		}
 		free_initrd();
 #endif
 	}

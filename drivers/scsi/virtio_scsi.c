@@ -100,16 +100,8 @@ static inline struct Scsi_Host *virtio_scsi_host(struct virtio_device *vdev)
 
 static void virtscsi_compute_resid(struct scsi_cmnd *sc, u32 resid)
 {
-	if (!resid)
-		return;
-
-	if (!scsi_bidi_cmnd(sc)) {
+	if (resid)
 		scsi_set_resid(sc, resid);
-		return;
-	}
-
-	scsi_in(sc)->resid = min(resid, scsi_in(sc)->length);
-	scsi_out(sc)->resid = resid - scsi_in(sc)->resid;
 }
 
 /**
@@ -403,9 +395,9 @@ static int virtscsi_add_cmd(struct virtqueue *vq,
 
 	if (sc && sc->sc_data_direction != DMA_NONE) {
 		if (sc->sc_data_direction != DMA_FROM_DEVICE)
-			out = &scsi_out(sc)->table;
+			out = &sc->sdb.table;
 		if (sc->sc_data_direction != DMA_TO_DEVICE)
-			in = &scsi_in(sc)->table;
+			in = &sc->sdb.table;
 	}
 
 	/* Request header.  */
@@ -594,7 +586,6 @@ static int virtscsi_device_reset(struct scsi_cmnd *sc)
 		return FAILED;
 
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->sc = sc;
 	cmd->req.tmf = (struct virtio_scsi_ctrl_tmf_req){
 		.type = VIRTIO_SCSI_T_TMF,
 		.subtype = cpu_to_virtio32(vscsi->vdev,
@@ -653,7 +644,6 @@ static int virtscsi_abort(struct scsi_cmnd *sc)
 		return FAILED;
 
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->sc = sc;
 	cmd->req.tmf = (struct virtio_scsi_ctrl_tmf_req){
 		.type = VIRTIO_SCSI_T_TMF,
 		.subtype = VIRTIO_SCSI_T_TMF_ABORT_TASK,

@@ -17,8 +17,22 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 
+/*
+ * Notify this @dir inode about a change in the directory entry @dentry.
+ *
+ * Unlike fsnotify_parent(), the event will be reported regardless of the
+ * FS_EVENT_ON_CHILD mask on the parent inode.
+ */
+static inline int fsnotify_dirent(struct inode *dir, struct dentry *dentry,
+				  __u32 mask)
+{
+	return fsnotify(dir, mask, d_inode(dentry), FSNOTIFY_EVENT_INODE,
+			dentry->d_name.name, 0);
+}
+
 /* Notify this dentry's parent about a child's events. */
-static inline int fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask)
+static inline int fsnotify_parent(const struct path *path,
+				  struct dentry *dentry, __u32 mask)
 {
 	if (!dentry)
 		dentry = path->dentry;
@@ -65,6 +79,9 @@ static inline int fsnotify_perm(struct file *file, int mask)
 		fsnotify_mask = FS_ACCESS_PERM;
 	}
 
+	if (S_ISDIR(inode->i_mode))
+		fsnotify_mask |= FS_ISDIR;
+
 	return fsnotify_path(inode, path, fsnotify_mask);
 }
 
@@ -73,7 +90,12 @@ static inline int fsnotify_perm(struct file *file, int mask)
  */
 static inline void fsnotify_link_count(struct inode *inode)
 {
-	fsnotify(inode, FS_ATTRIB, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+	__u32 mask = FS_ATTRIB;
+
+	if (S_ISDIR(inode->i_mode))
+		mask |= FS_ISDIR;
+
+	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 }
 
 /*
@@ -81,12 +103,14 @@ static inline void fsnotify_link_count(struct inode *inode)
  */
 static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 				 const unsigned char *old_name,
-				 int isdir, struct inode *target, struct dentry *moved)
+				 int isdir, struct inode *target,
+				 struct dentry *moved)
 {
 	struct inode *source = moved->d_inode;
 	u32 fs_cookie = fsnotify_get_cookie();
-	__u32 old_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_FROM);
-	__u32 new_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_TO);
+	__u32 old_dir_mask = FS_MOVED_FROM;
+	__u32 new_dir_mask = FS_MOVED_TO;
+	__u32 mask = FS_MOVE_SELF;
 	const unsigned char *new_name = moved->d_name.name;
 
 	if (old_dir == new_dir)
@@ -95,6 +119,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	if (isdir) {
 		old_dir_mask |= FS_ISDIR;
 		new_dir_mask |= FS_ISDIR;
+		mask |= FS_ISDIR;
 	}
 
 	fsnotify(old_dir, old_dir_mask, source, FSNOTIFY_EVENT_INODE, old_name,
@@ -106,7 +131,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 		fsnotify_link_count(target);
 
 	if (source)
-		fsnotify(source, FS_MOVE_SELF, moved->d_inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+		fsnotify(source, mask, source, FSNOTIFY_EVENT_INODE, NULL, 0);
 	audit_inode_child(new_dir, moved, AUDIT_TYPE_CHILD_CREATE);
 }
 
@@ -128,15 +153,35 @@ static inline void fsnotify_vfsmount_delete(struct vfsmount *mnt)
 
 /*
  * fsnotify_nameremove - a filename was removed from a directory
+ *
+ * This is mostly called under parent vfs inode lock so name and
+ * dentry->d_parent should be stable. However there are some corner cases where
+ * inode lock is not held. So to be on the safe side and be reselient to future
+ * callers and out of tree users of d_delete(), we do not assume that d_parent
+ * and d_name are stable and we use dget_parent() and
+ * take_dentry_name_snapshot() to grab stable references.
  */
 static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 {
+	struct dentry *parent;
+	struct name_snapshot name;
 	__u32 mask = FS_DELETE;
+
+	/* d_delete() of pseudo inode? (e.g. __ns_get_path() playing tricks) */
+	if (IS_ROOT(dentry))
+		return;
 
 	if (isdir)
 		mask |= FS_ISDIR;
 
-	fsnotify_parent(NULL, dentry, mask);
+	parent = dget_parent(dentry);
+	take_dentry_name_snapshot(&name, dentry);
+
+	fsnotify(d_inode(parent), mask, d_inode(dentry), FSNOTIFY_EVENT_INODE,
+		 name.name, 0);
+
+	release_dentry_name_snapshot(&name);
+	dput(parent);
 }
 
 /*
@@ -144,7 +189,12 @@ static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
  */
 static inline void fsnotify_inoderemove(struct inode *inode)
 {
-	fsnotify(inode, FS_DELETE_SELF, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+	__u32 mask = FS_DELETE_SELF;
+
+	if (S_ISDIR(inode->i_mode))
+		mask |= FS_ISDIR;
+
+	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 	__fsnotify_inode_delete(inode);
 }
 
@@ -155,7 +205,7 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
 	audit_inode_child(inode, dentry, AUDIT_TYPE_CHILD_CREATE);
 
-	fsnotify(inode, FS_CREATE, dentry->d_inode, FSNOTIFY_EVENT_INODE, dentry->d_name.name, 0);
+	fsnotify_dirent(inode, dentry, FS_CREATE);
 }
 
 /*
@@ -176,12 +226,9 @@ static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct 
  */
 static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 {
-	__u32 mask = (FS_CREATE | FS_ISDIR);
-	struct inode *d_inode = dentry->d_inode;
-
 	audit_inode_child(inode, dentry, AUDIT_TYPE_CHILD_CREATE);
 
-	fsnotify(inode, mask, d_inode, FSNOTIFY_EVENT_INODE, dentry->d_name.name, 0);
+	fsnotify_dirent(inode, dentry, FS_CREATE | FS_ISDIR);
 }
 
 /*

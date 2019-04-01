@@ -28,27 +28,10 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
-static int tcf_action_goto_chain_init(struct tc_action *a, struct tcf_proto *tp)
-{
-	u32 chain_index = a->tcfa_action & TC_ACT_EXT_VAL_MASK;
-
-	if (!tp)
-		return -EINVAL;
-	a->goto_chain = tcf_chain_get_by_act(tp->chain->block, chain_index);
-	if (!a->goto_chain)
-		return -ENOMEM;
-	return 0;
-}
-
-static void tcf_action_goto_chain_fini(struct tc_action *a)
-{
-	tcf_chain_put_by_act(a->goto_chain);
-}
-
 static void tcf_action_goto_chain_exec(const struct tc_action *a,
 				       struct tcf_result *res)
 {
-	const struct tcf_chain *chain = a->goto_chain;
+	const struct tcf_chain *chain = rcu_dereference_bh(a->goto_chain);
 
 	res->goto_tp = rcu_dereference_bh(chain->filter_chain);
 }
@@ -71,6 +54,51 @@ static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
 		call_rcu(&old->rcu, tcf_free_cookie_rcu);
 }
 
+int tcf_action_check_ctrlact(int action, struct tcf_proto *tp,
+			     struct tcf_chain **newchain,
+			     struct netlink_ext_ack *extack)
+{
+	int opcode = TC_ACT_EXT_OPCODE(action), ret = -EINVAL;
+	u32 chain_index;
+
+	if (!opcode)
+		ret = action > TC_ACT_VALUE_MAX ? -EINVAL : 0;
+	else if (opcode <= TC_ACT_EXT_OPCODE_MAX || action == TC_ACT_UNSPEC)
+		ret = 0;
+	if (ret) {
+		NL_SET_ERR_MSG(extack, "invalid control action");
+		goto end;
+	}
+
+	if (TC_ACT_EXT_CMP(action, TC_ACT_GOTO_CHAIN)) {
+		chain_index = action & TC_ACT_EXT_VAL_MASK;
+		if (!tp || !newchain) {
+			ret = -EINVAL;
+			NL_SET_ERR_MSG(extack,
+				       "can't goto NULL proto/chain");
+			goto end;
+		}
+		*newchain = tcf_chain_get_by_act(tp->chain->block, chain_index);
+		if (!*newchain) {
+			ret = -ENOMEM;
+			NL_SET_ERR_MSG(extack,
+				       "can't allocate goto_chain");
+		}
+	}
+end:
+	return ret;
+}
+EXPORT_SYMBOL(tcf_action_check_ctrlact);
+
+struct tcf_chain *tcf_action_set_ctrlact(struct tc_action *a, int action,
+					 struct tcf_chain *goto_chain)
+{
+	a->tcfa_action = action;
+	rcu_swap_protected(a->goto_chain, goto_chain, 1);
+	return goto_chain;
+}
+EXPORT_SYMBOL(tcf_action_set_ctrlact);
+
 /* XXX: For standalone actions, we don't need a RCU grace period either, because
  * actions are always connected to filters and filters are already destroyed in
  * RCU callbacks, so after a RCU grace period actions are already disconnected
@@ -78,13 +106,15 @@ static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
  */
 static void free_tcf(struct tc_action *p)
 {
+	struct tcf_chain *chain = rcu_dereference_protected(p->goto_chain, 1);
+
 	free_percpu(p->cpu_bstats);
 	free_percpu(p->cpu_bstats_hw);
 	free_percpu(p->cpu_qstats);
 
 	tcf_set_action_cookie(&p->act_cookie, NULL);
-	if (p->goto_chain)
-		tcf_action_goto_chain_fini(p);
+	if (chain)
+		tcf_chain_put_by_act(chain);
 
 	kfree(p);
 }
@@ -543,7 +573,7 @@ int tcf_register_action(struct tc_action_ops *act,
 
 	write_lock(&act_mod_lock);
 	list_for_each_entry(a, &act_base, head) {
-		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
+		if (act->id == a->id || (strcmp(act->kind, a->kind) == 0)) {
 			write_unlock(&act_mod_lock);
 			unregister_pernet_subsys(ops);
 			return -EEXIST;
@@ -654,6 +684,10 @@ repeat:
 					return TC_ACT_OK;
 			}
 		} else if (TC_ACT_EXT_CMP(ret, TC_ACT_GOTO_CHAIN)) {
+			if (unlikely(!rcu_access_pointer(a->goto_chain))) {
+				net_warn_ratelimited("can't go to NULL chain!\n");
+				return TC_ACT_SHOT;
+			}
 			tcf_action_goto_chain_exec(a, res);
 		}
 
@@ -800,15 +834,6 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 	return c;
 }
 
-static bool tcf_action_valid(int action)
-{
-	int opcode = TC_ACT_EXT_OPCODE(action);
-
-	if (!opcode)
-		return action <= TC_ACT_VALUE_MAX;
-	return opcode <= TC_ACT_EXT_OPCODE_MAX || action == TC_ACT_UNSPEC;
-}
-
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
 				    char *name, int ovr, int bind,
@@ -890,10 +915,10 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	/* backward compatibility for policer */
 	if (name == NULL)
 		err = a_o->init(net, tb[TCA_ACT_OPTIONS], est, &a, ovr, bind,
-				rtnl_held, extack);
+				rtnl_held, tp, extack);
 	else
 		err = a_o->init(net, nla, est, &a, ovr, bind, rtnl_held,
-				extack);
+				tp, extack);
 	if (err < 0)
 		goto err_mod;
 
@@ -907,18 +932,10 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
 
-	if (TC_ACT_EXT_CMP(a->tcfa_action, TC_ACT_GOTO_CHAIN)) {
-		err = tcf_action_goto_chain_init(a, tp);
-		if (err) {
-			tcf_action_destroy_1(a, bind);
-			NL_SET_ERR_MSG(extack, "Failed to init TC action chain");
-			return ERR_PTR(err);
-		}
-	}
-
-	if (!tcf_action_valid(a->tcfa_action)) {
+	if (TC_ACT_EXT_CMP(a->tcfa_action, TC_ACT_GOTO_CHAIN) &&
+	    !rcu_access_pointer(a->goto_chain)) {
 		tcf_action_destroy_1(a, bind);
-		NL_SET_ERR_MSG(extack, "Invalid control action value");
+		NL_SET_ERR_MSG(extack, "can't use goto chain with NULL chain");
 		return ERR_PTR(-EINVAL);
 	}
 

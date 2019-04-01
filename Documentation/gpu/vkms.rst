@@ -23,17 +23,6 @@ CRC API Improvements
 - Add igt test to check extreme alpha values i.e. fully opaque and fully
   transparent (intermediate values are affected by hw-specific rounding modes).
 
-Vblank issues
--------------
-
-Some IGT test cases are failing. Need to analyze why and fix the issues:
-
-- plain-flip-fb-recreate
-- plain-flip-ts-check
-- flip-vs-blocking-wf-vblank
-- plain-flip-fb-recreate-interruptible
-- flip-vs-wf_vblank-interruptible
-
 Runtime Configuration
 ---------------------
 

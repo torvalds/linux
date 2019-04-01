@@ -56,8 +56,6 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/sm750fb/Kconfig"
 
-source "drivers/staging/xgifb/Kconfig"
-
 source "drivers/staging/emxx_udc/Kconfig"
 
 source "drivers/staging/speakup/Kconfig"
@@ -104,15 +102,17 @@ source "drivers/staging/pi433/Kconfig"
 
 source "drivers/staging/mt7621-pci/Kconfig"
 
+source "drivers/staging/mt7621-pci-phy/Kconfig"
+
 source "drivers/staging/mt7621-pinctrl/Kconfig"
 
 source "drivers/staging/mt7621-spi/Kconfig"
 
 source "drivers/staging/mt7621-dma/Kconfig"
 
-source "drivers/staging/mt7621-mmc/Kconfig"
+source "drivers/staging/ralink-gdma/Kconfig"
 
-source "drivers/staging/mt7621-eth/Kconfig"
+source "drivers/staging/mt7621-mmc/Kconfig"
 
 source "drivers/staging/mt7621-dts/Kconfig"
 

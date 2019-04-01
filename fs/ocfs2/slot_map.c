@@ -55,7 +55,7 @@ struct ocfs2_slot_info {
 	unsigned int si_blocks;
 	struct buffer_head **si_bh;
 	unsigned int si_num_slots;
-	struct ocfs2_slot *si_slots;
+	struct ocfs2_slot si_slots[];
 };
 
 
@@ -420,9 +420,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	struct inode *inode = NULL;
 	struct ocfs2_slot_info *si;
 
-	si = kzalloc(sizeof(struct ocfs2_slot_info) +
-		     (sizeof(struct ocfs2_slot) * osb->max_slots),
-		     GFP_KERNEL);
+	si = kzalloc(struct_size(si, si_slots, osb->max_slots), GFP_KERNEL);
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -431,8 +429,6 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 
 	si->si_extended = ocfs2_uses_extended_slot_map(osb);
 	si->si_num_slots = osb->max_slots;
-	si->si_slots = (struct ocfs2_slot *)((char *)si +
-					     sizeof(struct ocfs2_slot_info));
 
 	inode = ocfs2_get_system_file_inode(osb, SLOT_MAP_SYSTEM_INODE,
 					    OCFS2_INVALID_SLOT);

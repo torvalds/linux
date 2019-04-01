@@ -919,15 +919,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 int snd_hda_codec_proc_new(struct hda_codec *codec)
 {
 	char name[32];
-	struct snd_info_entry *entry;
-	int err;
 
 	snprintf(name, sizeof(name), "codec#%d", codec->core.addr);
-	err = snd_card_proc_new(codec->card, name, &entry);
-	if (err < 0)
-		return err;
-
-	snd_info_set_text_ops(entry, codec, print_codec_info);
-	return 0;
+	return snd_card_ro_proc_new(codec->card, name, codec, print_codec_info);
 }
 

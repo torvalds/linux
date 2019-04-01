@@ -173,6 +173,7 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 
 		rcu_assign_pointer(cell->vl_servers, vllist);
 		cell->dns_expiry = TIME64_MAX;
+		__clear_bit(AFS_CELL_FL_NO_LOOKUP_YET, &cell->flags);
 	} else {
 		cell->dns_expiry = ktime_get_real_seconds();
 	}

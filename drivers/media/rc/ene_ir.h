@@ -118,7 +118,7 @@
 #define ENE_CIRDAT_IN		0xFEC7
 
 
-/* RLC configuration - sample period (1us resulution) + idle mode */
+/* RLC configuration - sample period (1us resolution) + idle mode */
 #define ENE_CIRRLC_CFG		0xFEC8
 #define ENE_CIRRLC_CFG_OVERFLOW	0x80	/* interrupt on overflows if set */
 #define ENE_DEFAULT_SAMPLE_PERIOD 50

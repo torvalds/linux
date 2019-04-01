@@ -10,7 +10,7 @@
 #include "ipu3-css-fw.h"
 #include "ipu3-dmamap.h"
 
-static void ipu3_css_fw_show_binary(struct device *dev, struct imgu_fw_info *bi,
+static void imgu_css_fw_show_binary(struct device *dev, struct imgu_fw_info *bi,
 				    const char *name)
 {
 	unsigned int i;
@@ -54,7 +54,7 @@ static void ipu3_css_fw_show_binary(struct device *dev, struct imgu_fw_info *bi,
 	dev_dbg(dev, "\n");
 }
 
-unsigned int ipu3_css_fw_obgrid_size(const struct imgu_fw_info *bi)
+unsigned int imgu_css_fw_obgrid_size(const struct imgu_fw_info *bi)
 {
 	unsigned int width = DIV_ROUND_UP(bi->info.isp.sp.internal.max_width,
 					  IMGU_OBGRID_TILE_SIZE * 2) + 1;
@@ -69,7 +69,7 @@ unsigned int ipu3_css_fw_obgrid_size(const struct imgu_fw_info *bi)
 	return obgrid_size;
 }
 
-void *ipu3_css_fw_pipeline_params(struct ipu3_css *css, unsigned int pipe,
+void *imgu_css_fw_pipeline_params(struct imgu_css *css, unsigned int pipe,
 				  enum imgu_abi_param_class cls,
 				  enum imgu_abi_memories mem,
 				  struct imgu_fw_isp_parameter *par,
@@ -91,7 +91,7 @@ void *ipu3_css_fw_pipeline_params(struct ipu3_css *css, unsigned int pipe,
 	return binary_params + par->offset;
 }
 
-void ipu3_css_fw_cleanup(struct ipu3_css *css)
+void imgu_css_fw_cleanup(struct imgu_css *css)
 {
 	struct imgu_device *imgu = dev_get_drvdata(css->dev);
 
@@ -99,7 +99,7 @@ void ipu3_css_fw_cleanup(struct ipu3_css *css)
 		unsigned int i;
 
 		for (i = 0; i < css->fwp->file_header.binary_nr; i++)
-			ipu3_dmamap_free(imgu, &css->binary[i]);
+			imgu_dmamap_free(imgu, &css->binary[i]);
 		kfree(css->binary);
 	}
 	if (css->fw)
@@ -109,7 +109,7 @@ void ipu3_css_fw_cleanup(struct ipu3_css *css)
 	css->fw = NULL;
 }
 
-int ipu3_css_fw_init(struct ipu3_css *css)
+int imgu_css_fw_init(struct imgu_css *css)
 {
 	static const u32 BLOCK_MAX = 65536;
 	struct imgu_device *imgu = dev_get_drvdata(css->dev);
@@ -227,7 +227,7 @@ int ipu3_css_fw_init(struct ipu3_css *css)
 		    css->fw->size)
 			goto bad_fw;
 
-		ipu3_css_fw_show_binary(dev, bi, name);
+		imgu_css_fw_show_binary(dev, bi, name);
 	}
 
 	if (css->fw_bl == -1 || css->fw_sp[0] == -1 || css->fw_sp[1] == -1)
@@ -246,7 +246,7 @@ int ipu3_css_fw_init(struct ipu3_css *css)
 		void *blob = (void *)css->fwp + bi->blob.offset;
 		size_t size = bi->blob.size;
 
-		if (!ipu3_dmamap_alloc(imgu, &css->binary[i], size)) {
+		if (!imgu_dmamap_alloc(imgu, &css->binary[i], size)) {
 			r = -ENOMEM;
 			goto error_out;
 		}
@@ -260,6 +260,6 @@ bad_fw:
 	r = -ENODEV;
 
 error_out:
-	ipu3_css_fw_cleanup(css);
+	imgu_css_fw_cleanup(css);
 	return r;
 }

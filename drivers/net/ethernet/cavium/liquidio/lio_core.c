@@ -661,7 +661,8 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		    (((rh->r_dh.encap_on) &&
 		      (rh->r_dh.csum_verified & CNNIC_TUN_CSUM_VERIFIED)) ||
 		     (!(rh->r_dh.encap_on) &&
-		      (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))))
+		      ((rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED) ==
+			CNNIC_CSUM_VERIFIED))))
 			/* checksum has already been verified */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
@@ -1210,6 +1211,11 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 
 	sc = (struct octeon_soft_command *)
 		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE, 16, 0);
+	if (!sc) {
+		netif_info(lio, rx_err, lio->netdev,
+			   "Failed to allocate soft command\n");
+		return -ENOMEM;
+	}
 
 	ncmd = (union octnet_cmd *)sc->virtdptr;
 
@@ -1683,6 +1689,11 @@ int liquidio_set_fec(struct lio *lio, int on_off)
 
 	sc = octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
 				       sizeof(struct oct_nic_seapi_resp), 0);
+	if (!sc) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to allocate soft command\n");
+		return -ENOMEM;
+	}
 
 	ncmd = sc->virtdptr;
 	resp = sc->virtrptr;

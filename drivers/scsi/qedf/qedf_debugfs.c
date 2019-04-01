@@ -27,30 +27,19 @@ qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
 		    const struct file_operations *fops)
 {
 	char host_dirname[32];
-	struct dentry *file_dentry = NULL;
 
 	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "Creating debugfs host node\n");
 	/* create pf dir */
 	sprintf(host_dirname, "host%u", qedf->host_no);
 	qedf->bdf_dentry = debugfs_create_dir(host_dirname, qedf_dbg_root);
-	if (!qedf->bdf_dentry)
-		return;
 
 	/* create debugfs files */
 	while (dops) {
 		if (!(dops->name))
 			break;
 
-		file_dentry = debugfs_create_file(dops->name, 0600,
-						  qedf->bdf_dentry, qedf,
-						  fops);
-		if (!file_dentry) {
-			QEDF_INFO(qedf, QEDF_LOG_DEBUGFS,
-				   "Debugfs entry %s creation failed\n",
-				   dops->name);
-			debugfs_remove_recursive(qedf->bdf_dentry);
-			return;
-		}
+		debugfs_create_file(dops->name, 0600, qedf->bdf_dentry, qedf,
+				    fops);
 		dops++;
 		fops++;
 	}
@@ -80,9 +69,6 @@ qedf_dbg_init(char *drv_name)
 
 	/* create qed dir in root of debugfs. NULL means debugfs root */
 	qedf_dbg_root = debugfs_create_dir(drv_name, NULL);
-	if (!qedf_dbg_root)
-		QEDF_INFO(NULL, QEDF_LOG_DEBUGFS, "Init of debugfs "
-			   "failed\n");
 }
 
 /**

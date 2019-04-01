@@ -22,6 +22,7 @@
 #include <linux/tc_act/tc_sample.h>
 #include <net/tc_act/tc_sample.h>
 #include <net/psample.h>
+#include <net/pkt_cls.h>
 
 #include <linux/if_arp.h>
 
@@ -37,12 +38,13 @@ static const struct nla_policy sample_policy[TCA_SAMPLE_MAX + 1] = {
 
 static int tcf_sample_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a, int ovr,
-			   int bind, bool rtnl_held,
+			   int bind, bool rtnl_held, struct tcf_proto *tp,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
 	struct psample_group *psample_group;
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_sample *parm;
 	u32 psample_group_num;
 	struct tcf_sample *s;
@@ -79,18 +81,21 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
 	psample_group = psample_group_get(net, psample_group_num);
 	if (!psample_group) {
-		tcf_idr_release(*a, bind);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto put_chain;
 	}
 
 	s = to_sample(*a);
 
 	spin_lock_bh(&s->tcf_lock);
-	s->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
 	s->psample_group_num = psample_group_num;
 	RCU_INIT_POINTER(s->psample_group, psample_group);
@@ -100,10 +105,18 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		s->trunc_size = nla_get_u32(tb[TCA_SAMPLE_TRUNC_SIZE]);
 	}
 	spin_unlock_bh(&s->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static void tcf_sample_cleanup(struct tc_action *a)
@@ -233,7 +246,7 @@ static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_sample_ops = {
 	.kind	  = "sample",
-	.type	  = TCA_ACT_SAMPLE,
+	.id	  = TCA_ID_SAMPLE,
 	.owner	  = THIS_MODULE,
 	.act	  = tcf_sample_act,
 	.dump	  = tcf_sample_dump,

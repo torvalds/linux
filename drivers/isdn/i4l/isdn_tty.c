@@ -3642,7 +3642,7 @@ isdn_tty_edit_at(const char *p, int count, modem_info *info)
 						break;
 					} else
 						m->mdmcmdl = 0;
-					/* Fall through, check for 'A' */
+					/* Fall through - check for 'A' */
 				case 0:
 					if (c == 'A') {
 						m->mdmcmd[m->mdmcmdl] = c;

@@ -12,6 +12,8 @@
 #define DRV_VERSION	"0.0.1-k"
 #define DRV_SUMMARY	"Intel(R) 2.5G Ethernet Linux Driver"
 
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
+
 static int debug = -1;
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
@@ -66,7 +68,7 @@ enum latency_range {
 	latency_invalid = 255
 };
 
-static void igc_reset(struct igc_adapter *adapter)
+void igc_reset(struct igc_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct igc_hw *hw = &adapter->hw;
@@ -150,7 +152,7 @@ static void igc_get_hw_control(struct igc_adapter *adapter)
  *
  * Free all transmit software resources
  */
-static void igc_free_tx_resources(struct igc_ring *tx_ring)
+void igc_free_tx_resources(struct igc_ring *tx_ring)
 {
 	igc_clean_tx_ring(tx_ring);
 
@@ -261,7 +263,7 @@ static void igc_clean_all_tx_rings(struct igc_adapter *adapter)
  *
  * Return 0 on success, negative on failure
  */
-static int igc_setup_tx_resources(struct igc_ring *tx_ring)
+int igc_setup_tx_resources(struct igc_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
 	int size = 0;
@@ -381,7 +383,7 @@ static void igc_clean_all_rx_rings(struct igc_adapter *adapter)
  *
  * Free all receive software resources
  */
-static void igc_free_rx_resources(struct igc_ring *rx_ring)
+void igc_free_rx_resources(struct igc_ring *rx_ring)
 {
 	igc_clean_rx_ring(rx_ring);
 
@@ -418,7 +420,7 @@ static void igc_free_all_rx_resources(struct igc_adapter *adapter)
  *
  * Returns 0 on success, negative on failure
  */
-static int igc_setup_rx_resources(struct igc_ring *rx_ring)
+int igc_setup_rx_resources(struct igc_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
 	int size, desc_len;
@@ -1703,7 +1705,7 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
  * igc_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
  */
-static void igc_up(struct igc_adapter *adapter)
+void igc_up(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int i = 0;
@@ -1748,7 +1750,7 @@ static void igc_nfc_filter_exit(struct igc_adapter *adapter)
  * igc_down - Close the interface
  * @adapter: board private structure
  */
-static void igc_down(struct igc_adapter *adapter)
+void igc_down(struct igc_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
@@ -1810,7 +1812,7 @@ static void igc_down(struct igc_adapter *adapter)
 	igc_clean_all_rx_rings(adapter);
 }
 
-static void igc_reinit_locked(struct igc_adapter *adapter)
+void igc_reinit_locked(struct igc_adapter *adapter)
 {
 	WARN_ON(in_interrupt());
 	while (test_and_set_bit(__IGC_RESETTING, &adapter->state))
@@ -1922,7 +1924,7 @@ static void igc_configure(struct igc_adapter *adapter)
 
 /**
  * igc_rar_set_index - Sync RAL[index] and RAH[index] registers with MAC table
- * @adapter: Pointer to adapter structure
+ * @adapter: address of board private structure
  * @index: Index of the RAR entry which need to be synced with MAC table
  */
 static void igc_rar_set_index(struct igc_adapter *adapter, u32 index)
@@ -2298,7 +2300,7 @@ static void igc_update_phy_info(struct timer_list *t)
  * igc_has_link - check shared code for link and determine up/down
  * @adapter: pointer to driver private info
  */
-static bool igc_has_link(struct igc_adapter *adapter)
+bool igc_has_link(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
 	bool link_active = false;
@@ -2956,22 +2958,21 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 {
 	struct igc_q_vector *q_vector;
 	struct igc_ring *ring;
-	int ring_count, size;
+	int ring_count;
 
 	/* igc only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
 		return -ENOMEM;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct igc_q_vector) +
-		(sizeof(struct igc_ring) * ring_count);
 
 	/* allocate q_vector and rings */
 	q_vector = adapter->q_vector[v_idx];
 	if (!q_vector)
-		q_vector = kzalloc(size, GFP_KERNEL);
+		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
+				   GFP_KERNEL);
 	else
-		memset(q_vector, 0, size);
+		memset(q_vector, 0, struct_size(q_vector, ring, ring_count));
 	if (!q_vector)
 		return -ENOMEM;
 
@@ -3501,6 +3502,57 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 	return value;
 }
 
+int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct igc_mac_info *mac = &adapter->hw.mac;
+
+	mac->autoneg = 0;
+
+	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	 * for the switch() below to work
+	 */
+	if ((spd & 1) || (dplx & ~1))
+		goto err_inval;
+
+	switch (spd + dplx) {
+	case SPEED_10 + DUPLEX_HALF:
+		mac->forced_speed_duplex = ADVERTISE_10_HALF;
+		break;
+	case SPEED_10 + DUPLEX_FULL:
+		mac->forced_speed_duplex = ADVERTISE_10_FULL;
+		break;
+	case SPEED_100 + DUPLEX_HALF:
+		mac->forced_speed_duplex = ADVERTISE_100_HALF;
+		break;
+	case SPEED_100 + DUPLEX_FULL:
+		mac->forced_speed_duplex = ADVERTISE_100_FULL;
+		break;
+	case SPEED_1000 + DUPLEX_FULL:
+		mac->autoneg = 1;
+		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
+		break;
+	case SPEED_1000 + DUPLEX_HALF: /* not supported */
+		goto err_inval;
+	case SPEED_2500 + DUPLEX_FULL:
+		mac->autoneg = 1;
+		adapter->hw.phy.autoneg_advertised = ADVERTISE_2500_FULL;
+		break;
+	case SPEED_2500 + DUPLEX_HALF: /* not supported */
+	default:
+		goto err_inval;
+	}
+
+	/* clear MDI, MDI(-X) override is only allowed when autoneg enabled */
+	adapter->hw.phy.mdix = AUTO_ALL_MODES;
+
+	return 0;
+
+err_inval:
+	dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
+	return -EINVAL;
+}
+
 /**
  * igc_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -3568,7 +3620,7 @@ static int igc_probe(struct pci_dev *pdev,
 	hw = &adapter->hw;
 	hw->back = adapter;
 	adapter->port_num = hw->bus.func;
-	adapter->msg_enable = GENMASK(debug - 1, 0);
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	err = pci_save_state(pdev);
 	if (err)
@@ -3584,7 +3636,7 @@ static int igc_probe(struct pci_dev *pdev,
 	hw->hw_addr = adapter->io_addr;
 
 	netdev->netdev_ops = &igc_netdev_ops;
-
+	igc_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 
 	netdev->mem_start = pci_resource_start(pdev, 0);
@@ -3744,8 +3796,8 @@ static struct pci_driver igc_driver = {
 	.remove   = igc_remove,
 };
 
-static void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
-				     const u32 max_rss_queues)
+void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
+			      const u32 max_rss_queues)
 {
 	/* Determine if we need to pair queues. */
 	/* If rss_queues > half of max_rss_queues, pair the queues in
@@ -3757,7 +3809,7 @@ static void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
 		adapter->flags &= ~IGC_FLAG_QUEUE_PAIRS;
 }
 
-static unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter)
+unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter)
 {
 	unsigned int max_rss_queues;
 
@@ -3834,6 +3886,32 @@ static int igc_sw_init(struct igc_adapter *adapter)
 	set_bit(__IGC_DOWN, &adapter->state);
 
 	return 0;
+}
+
+/**
+ * igc_reinit_queues - return error
+ * @adapter: pointer to adapter structure
+ */
+int igc_reinit_queues(struct igc_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+	int err = 0;
+
+	if (netif_running(netdev))
+		igc_close(netdev);
+
+	igc_reset_interrupt_capability(adapter);
+
+	if (igc_init_interrupt_scheme(adapter, true)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	if (netif_running(netdev))
+		err = igc_open(netdev);
+
+	return err;
 }
 
 /**

@@ -415,8 +415,17 @@ xchk_btree_check_owner(
 	struct xfs_btree_cur	*cur = bs->cur;
 	struct check_owner	*co;
 
-	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) && bp == NULL)
+	/*
+	 * In theory, xfs_btree_get_block should only give us a null buffer
+	 * pointer for the root of a root-in-inode btree type, but we need
+	 * to check defensively here in case the cursor state is also screwed
+	 * up.
+	 */
+	if (bp == NULL) {
+		if (!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE))
+			xchk_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
+	}
 
 	/*
 	 * We want to cross-reference each btree block with the bnobt

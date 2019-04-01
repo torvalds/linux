@@ -54,7 +54,6 @@ config CAVIUM_PTP
 	tristate "Cavium PTP coprocessor as PTP clock"
 	depends on 64BIT && PCI
 	imply PTP_1588_CLOCK
-	default y
 	---help---
 	  This driver adds support for the Precision Time Protocol Clocks and
 	  Timestamping coprocessor (PTP) found on Cavium processors.
@@ -65,7 +64,6 @@ config CAVIUM_PTP
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
 	depends on 64BIT && PCI
-	depends on MAY_USE_DEVLINK
 	depends on PCI
 	imply PTP_1588_CLOCK
 	select FW_LOADER

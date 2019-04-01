@@ -47,6 +47,6 @@ int gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *,
 int gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *,
 				  struct nvkm_engine *, bool);
 
-int tu104_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
+int tu102_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
 			  void *data, u32 size, struct nvkm_object **);
 #endif

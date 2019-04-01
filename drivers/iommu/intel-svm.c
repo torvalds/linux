@@ -180,14 +180,6 @@ static void intel_flush_svm_range(struct intel_svm *svm, unsigned long address,
 	rcu_read_unlock();
 }
 
-static void intel_change_pte(struct mmu_notifier *mn, struct mm_struct *mm,
-			     unsigned long address, pte_t pte)
-{
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
-
-	intel_flush_svm_range(svm, address, 1, 1, 0);
-}
-
 /* Pages have been freed at this point */
 static void intel_invalidate_range(struct mmu_notifier *mn,
 				   struct mm_struct *mm,
@@ -227,7 +219,6 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 static const struct mmu_notifier_ops intel_mmuops = {
 	.release = intel_mm_release,
-	.change_pte = intel_change_pte,
 	.invalidate_range = intel_invalidate_range,
 };
 
@@ -243,7 +234,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	int pasid_max;
 	int ret;
 
-	if (!iommu)
+	if (!iommu || dmar_disabled)
 		return -EINVAL;
 
 	if (dev_is_pci(dev)) {
@@ -470,20 +461,31 @@ EXPORT_SYMBOL_GPL(intel_svm_is_pasid_valid);
 
 /* Page request queue descriptor */
 struct page_req_dsc {
-	u64 srr:1;
-	u64 bof:1;
-	u64 pasid_present:1;
-	u64 lpig:1;
-	u64 pasid:20;
-	u64 bus:8;
-	u64 private:23;
-	u64 prg_index:9;
-	u64 rd_req:1;
-	u64 wr_req:1;
-	u64 exe_req:1;
-	u64 priv_req:1;
-	u64 devfn:8;
-	u64 addr:52;
+	union {
+		struct {
+			u64 type:8;
+			u64 pasid_present:1;
+			u64 priv_data_present:1;
+			u64 rsvd:6;
+			u64 rid:16;
+			u64 pasid:20;
+			u64 exe_req:1;
+			u64 pm_req:1;
+			u64 rsvd2:10;
+		};
+		u64 qw_0;
+	};
+	union {
+		struct {
+			u64 rd_req:1;
+			u64 wr_req:1;
+			u64 lpig:1;
+			u64 prg_index:9;
+			u64 addr:52;
+		};
+		u64 qw_1;
+	};
+	u64 priv_data[2];
 };
 
 #define PRQ_RING_MASK ((0x1000 << PRQ_ORDER) - 0x10)
@@ -596,7 +598,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		/* Accounting for major/minor faults? */
 		rcu_read_lock();
 		list_for_each_entry_rcu(sdev, &svm->devs, list) {
-			if (sdev->sid == PCI_DEVID(req->bus, req->devfn))
+			if (sdev->sid == req->rid)
 				break;
 		}
 		/* Other devices can go away, but the drivers are not permitted
@@ -609,33 +611,35 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 
 		if (sdev && sdev->ops && sdev->ops->fault_cb) {
 			int rwxp = (req->rd_req << 3) | (req->wr_req << 2) |
-				(req->exe_req << 1) | (req->priv_req);
-			sdev->ops->fault_cb(sdev->dev, req->pasid, req->addr, req->private, rwxp, result);
+				(req->exe_req << 1) | (req->pm_req);
+			sdev->ops->fault_cb(sdev->dev, req->pasid, req->addr,
+					    req->priv_data, rwxp, result);
 		}
 		/* We get here in the error case where the PASID lookup failed,
 		   and these can be NULL. Do not use them below this point! */
 		sdev = NULL;
 		svm = NULL;
 	no_pasid:
-		if (req->lpig) {
-			/* Page Group Response */
+		if (req->lpig || req->priv_data_present) {
+			/*
+			 * Per VT-d spec. v3.0 ch7.7, system software must
+			 * respond with page group response if private data
+			 * is present (PDP) or last page in group (LPIG) bit
+			 * is set. This is an additional VT-d feature beyond
+			 * PCI ATS spec.
+			 */
 			resp.qw0 = QI_PGRP_PASID(req->pasid) |
-				QI_PGRP_DID((req->bus << 8) | req->devfn) |
+				QI_PGRP_DID(req->rid) |
 				QI_PGRP_PASID_P(req->pasid_present) |
+				QI_PGRP_PDP(req->pasid_present) |
+				QI_PGRP_RESP_CODE(result) |
 				QI_PGRP_RESP_TYPE;
 			resp.qw1 = QI_PGRP_IDX(req->prg_index) |
-				QI_PGRP_PRIV(req->private) |
-				QI_PGRP_RESP_CODE(result);
-		} else if (req->srr) {
-			/* Page Stream Response */
-			resp.qw0 = QI_PSTRM_IDX(req->prg_index) |
-				QI_PSTRM_PRIV(req->private) |
-				QI_PSTRM_BUS(req->bus) |
-				QI_PSTRM_PASID(req->pasid) |
-				QI_PSTRM_RESP_TYPE;
-			resp.qw1 = QI_PSTRM_ADDR(address) |
-				QI_PSTRM_DEVFN(req->devfn) |
-				QI_PSTRM_RESP_CODE(result);
+				QI_PGRP_LPIG(req->lpig);
+
+			if (req->priv_data_present)
+				memcpy(&resp.qw2, req->priv_data,
+				       sizeof(req->priv_data));
 		}
 		resp.qw2 = 0;
 		resp.qw3 = 0;

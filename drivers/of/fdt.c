@@ -1181,7 +1181,13 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 
 static void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return memblock_alloc(size, align);
+	void *ptr = memblock_alloc(size, align);
+
+	if (!ptr)
+		panic("%s: Failed to allocate %llu bytes align=0x%llx\n",
+		      __func__, size, align);
+
+	return ptr;
 }
 
 bool __init early_init_dt_verify(void *params)

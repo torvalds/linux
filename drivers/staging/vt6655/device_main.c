@@ -805,12 +805,12 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 }
 
 static void device_free_rx_buf(struct vnt_private *priv,
-				struct vnt_rx_desc *rd)
+			       struct vnt_rx_desc *rd)
 {
 	struct vnt_rd_info *rd_info = rd->rd_info;
 
 	dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
-			priv->rx_buf_sz, DMA_FROM_DEVICE);
+			 priv->rx_buf_sz, DMA_FROM_DEVICE);
 	dev_kfree_skb(rd_info->skb);
 }
 
@@ -1033,8 +1033,6 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 		return;
 	}
 
-	MACvIntDisable(priv->PortOffset);
-
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Read low level stats */
@@ -1122,8 +1120,6 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	MACvIntEnable(priv->PortOffset, IMR_MASK_VALUE);
 }
 
 static void vnt_interrupt_work(struct work_struct *work)
@@ -1133,14 +1129,17 @@ static void vnt_interrupt_work(struct work_struct *work)
 
 	if (priv->vif)
 		vnt_interrupt_process(priv);
+
+	MACvIntEnable(priv->PortOffset, IMR_MASK_VALUE);
 }
 
 static irqreturn_t vnt_interrupt(int irq,  void *arg)
 {
 	struct vnt_private *priv = arg;
 
-	if (priv->vif)
-		schedule_work(&priv->interrupt_work);
+	schedule_work(&priv->interrupt_work);
+
+	MACvIntDisable(priv->PortOffset);
 
 	return IRQ_HANDLED;
 }

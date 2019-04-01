@@ -6,7 +6,7 @@ config HAVE_NET_DSA
 
 config NET_DSA
 	tristate "Distributed Switch Architecture"
-	depends on HAVE_NET_DSA && MAY_USE_DEVLINK
+	depends on HAVE_NET_DSA
 	depends on BRIDGE || BRIDGE=n
 	select NET_SWITCHDEV
 	select PHYLINK

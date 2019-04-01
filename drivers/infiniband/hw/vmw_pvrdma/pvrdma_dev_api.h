@@ -57,7 +57,8 @@
 
 #define PVRDMA_ROCEV1_VERSION		17
 #define PVRDMA_ROCEV2_VERSION		18
-#define PVRDMA_VERSION			PVRDMA_ROCEV2_VERSION
+#define PVRDMA_PPN64_VERSION		19
+#define PVRDMA_VERSION			PVRDMA_PPN64_VERSION
 
 #define PVRDMA_BOARD_ID			1
 #define PVRDMA_REV_ID			1
@@ -279,8 +280,10 @@ struct pvrdma_device_shared_region {
 						/* W: Async ring page info. */
 	struct pvrdma_ring_page_info cq_ring_pages;
 						/* W: CQ ring page info. */
-	u32 uar_pfn;				/* W: UAR pageframe. */
-	u32 pad2;				/* Pad to 8-byte align. */
+	union {
+		u32 uar_pfn;			/* W: UAR pageframe. */
+		u64 uar_pfn64;			/* W: 64-bit UAR page frame. */
+	};
 	struct pvrdma_device_caps caps;		/* R: Device capabilities. */
 };
 
@@ -411,8 +414,10 @@ struct pvrdma_cmd_query_pkey_resp {
 
 struct pvrdma_cmd_create_uc {
 	struct pvrdma_cmd_hdr hdr;
-	u32 pfn; /* UAR page frame number */
-	u8 reserved[4];
+	union {
+		u32 pfn; /* UAR page frame number */
+		u64 pfn64; /* 64-bit UAR page frame number */
+	};
 };
 
 struct pvrdma_cmd_create_uc_resp {

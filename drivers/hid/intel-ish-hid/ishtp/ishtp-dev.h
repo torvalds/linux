@@ -211,8 +211,6 @@ struct ishtp_device {
 	/* For both processing list  and free list */
 	spinlock_t wr_processing_spinlock;
 
-	spinlock_t out_ipc_spinlock;
-
 	struct ishtp_fw_client *fw_clients; /*Note:memory has to be allocated*/
 	DECLARE_BITMAP(fw_clients_map, ISHTP_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, ISHTP_CLIENTS_MAX);

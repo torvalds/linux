@@ -446,8 +446,10 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 			   unsigned long *link_mode_mask)
 {
 	#define SET_LMM(__lmm_name) \
-		__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
-			  link_mode_mask)
+		do { \
+			__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
+				  link_mode_mask); \
+		} while (0)
 
 	#define FW_CAPS_TO_LMM(__fw_name, __lmm_name) \
 		do { \
@@ -541,7 +543,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
 		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
-		FW_CAPS_TO_LMM(SPEED_10G, 10000baseSR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
@@ -550,6 +552,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	default:
 		break;
+	}
+
+	if (fw_caps & FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M)) {
+		FW_CAPS_TO_LMM(FEC_RS, FEC_RS);
+		FW_CAPS_TO_LMM(FEC_BASER_RS, FEC_BASER);
+	} else {
+		SET_LMM(FEC_NONE);
 	}
 
 	FW_CAPS_TO_LMM(ANEG, Autoneg);
@@ -679,18 +688,15 @@ static int set_link_ksettings(struct net_device *dev,
 	    base->autoneg == AUTONEG_DISABLE) {
 		fw_caps = speed_to_fw_caps(base->speed);
 
-		/* Must only specify a single speed which must be supported
-		 * as part of the Physical Port Capabilities.
-		 */
-		if ((fw_caps & (fw_caps - 1)) != 0 ||
-		    !(lc->pcaps & fw_caps))
+		/* Speed must be supported by Physical Port Capabilities. */
+		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
 
 		lc->speed_caps = fw_caps;
 		lc->acaps = fw_caps;
 	} else {
 		fw_caps =
-			 lmm_to_fw_caps(link_ksettings->link_modes.advertising);
+			lmm_to_fw_caps(link_ksettings->link_modes.advertising);
 		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
 		lc->speed_caps = 0;
@@ -869,7 +875,7 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	    e->rx_pending < MIN_FL_ENTRIES || e->tx_pending < MIN_TXQ_ENTRIES)
 		return -EINVAL;
 
-	if (adapter->flags & FULL_INIT_DONE)
+	if (adapter->flags & CXGB4_FULL_INIT_DONE)
 		return -EBUSY;
 
 	for (i = 0; i < pi->nqsets; ++i) {
@@ -926,11 +932,190 @@ static int get_adaptive_rx_setting(struct net_device *dev)
 	return q->rspq.adaptive_rx;
 }
 
-static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
+/* Return the current global Adapter SGE Doorbell Queue Timer Tick for all
+ * Ethernet TX Queues.
+ */
+static int get_dbqtimer_tick(struct net_device *dev)
 {
-	set_adaptive_rx_setting(dev, c->use_adaptive_rx_coalesce);
-	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
-				  c->rx_max_coalesced_frames);
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	return adap->sge.dbqtimer_tick;
+}
+
+/* Return the SGE Doorbell Queue Timer Value for the Ethernet TX Queues
+ * associated with a Network Device.
+ */
+static int get_dbqtimer(struct net_device *dev)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_txq *txq;
+
+	txq = &adap->sge.ethtxq[pi->first_qset];
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	/* all of the TX Queues use the same Timer Index */
+	return adap->sge.dbqtimer_val[txq->dbqtimerix];
+}
+
+/* Set the global Adapter SGE Doorbell Queue Timer Tick for all Ethernet TX
+ * Queues.  This is the fundamental "Tick" that sets the scale of values which
+ * can be used.  Individual Ethernet TX Queues index into a relatively small
+ * array of Tick Multipliers.  Changing the base Tick will thus change all of
+ * the resulting Timer Values associated with those multipliers for all
+ * Ethernet TX Queues.
+ */
+static int set_dbqtimer_tick(struct net_device *dev, int usecs)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge *s = &adap->sge;
+	u32 param, val;
+	int ret;
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	/* return early if it's the same Timer Tick we're already using */
+	if (s->dbqtimer_tick == usecs)
+		return 0;
+
+	/* attempt to set the new Timer Tick value */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK));
+	val = usecs;
+	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret)
+		return ret;
+	s->dbqtimer_tick = usecs;
+
+	/* if successful, reread resulting dependent Timer values */
+	ret = t4_read_sge_dbqtimers(adap, ARRAY_SIZE(s->dbqtimer_val),
+				    s->dbqtimer_val);
+	return ret;
+}
+
+/* Set the SGE Doorbell Queue Timer Value for the Ethernet TX Queues
+ * associated with a Network Device.  There is a relatively small array of
+ * possible Timer Values so we need to pick the closest value available.
+ */
+static int set_dbqtimer(struct net_device *dev, int usecs)
+{
+	int qix, timerix, min_timerix, delta, min_delta;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge *s = &adap->sge;
+	struct sge_eth_txq *txq;
+	u32 param, val;
+	int ret;
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	/* Find the SGE Doorbell Timer Value that's closest to the requested
+	 * value.
+	 */
+	min_delta = INT_MAX;
+	min_timerix = 0;
+	for (timerix = 0; timerix < ARRAY_SIZE(s->dbqtimer_val); timerix++) {
+		delta = s->dbqtimer_val[timerix] - usecs;
+		if (delta < 0)
+			delta = -delta;
+		if (delta < min_delta) {
+			min_delta = delta;
+			min_timerix = timerix;
+		}
+	}
+
+	/* Return early if it's the same Timer Index we're already using.
+	 * We use the same Timer Index for all of the TX Queues for an
+	 * interface so it's only necessary to check the first one.
+	 */
+	txq = &s->ethtxq[pi->first_qset];
+	if (txq->dbqtimerix == min_timerix)
+		return 0;
+
+	for (qix = 0; qix < pi->nqsets; qix++, txq++) {
+		if (adap->flags & CXGB4_FULL_INIT_DONE) {
+			param =
+			 (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			  FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX) |
+			  FW_PARAMS_PARAM_YZ_V(txq->q.cntxt_id));
+			val = min_timerix;
+			ret = t4_set_params(adap, adap->mbox, adap->pf, 0,
+					    1, &param, &val);
+			if (ret)
+				return ret;
+		}
+		txq->dbqtimerix = min_timerix;
+	}
+	return 0;
+}
+
+/* Set the global Adapter SGE Doorbell Queue Timer Tick for all Ethernet TX
+ * Queues and the Timer Value for the Ethernet TX Queues associated with a
+ * Network Device.  Since changing the global Tick changes all of the
+ * available Timer Values, we need to do this first before selecting the
+ * resulting closest Timer Value.  Moreover, since the Tick is global,
+ * changing it affects the Timer Values for all Network Devices on the
+ * adapter.  So, before changing the Tick, we grab all of the current Timer
+ * Values for other Network Devices on this Adapter and then attempt to select
+ * new Timer Values which are close to the old values ...
+ */
+static int set_dbqtimer_tickval(struct net_device *dev,
+				int tick_usecs, int timer_usecs)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	int timer[MAX_NPORTS];
+	unsigned int port;
+	int ret;
+
+	/* Grab the other adapter Network Interface current timers and fill in
+	 * the new one for this Network Interface.
+	 */
+	for_each_port(adap, port)
+		if (port == pi->port_id)
+			timer[port] = timer_usecs;
+		else
+			timer[port] = get_dbqtimer(adap->port[port]);
+
+	/* Change the global Tick first ... */
+	ret = set_dbqtimer_tick(dev, tick_usecs);
+	if (ret)
+		return ret;
+
+	/* ... and then set all of the Network Interface Timer Values ... */
+	for_each_port(adap, port) {
+		ret = set_dbqtimer(adap->port[port], timer[port]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int set_coalesce(struct net_device *dev,
+			struct ethtool_coalesce *coalesce)
+{
+	int ret;
+
+	set_adaptive_rx_setting(dev, coalesce->use_adaptive_rx_coalesce);
+
+	ret = set_rx_intr_params(dev, coalesce->rx_coalesce_usecs,
+				 coalesce->rx_max_coalesced_frames);
+	if (ret)
+		return ret;
+
+	return set_dbqtimer_tickval(dev,
+				    coalesce->tx_coalesce_usecs_irq,
+				    coalesce->tx_coalesce_usecs);
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -943,6 +1128,8 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	c->rx_max_coalesced_frames = (rq->intr_params & QINTR_CNT_EN_F) ?
 		adap->sge.counter_val[rq->pktcnt_idx] : 0;
 	c->use_adaptive_rx_coalesce = get_adaptive_rx_setting(dev);
+	c->tx_coalesce_usecs_irq = get_dbqtimer_tick(dev);
+	c->tx_coalesce_usecs = get_dbqtimer(dev);
 	return 0;
 }
 
@@ -1076,7 +1263,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	 * firmware image otherwise we'll try to do the entire job from the
 	 * host ... and we always "force" the operation in this path.
 	 */
-	if (adap->flags & FULL_INIT_DONE)
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		mbox = adap->mbox;
 
 	ret = t4_fw_upgrade(adap, mbox, fw->data, fw->size, 1);
@@ -1155,7 +1342,7 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 		return 0;
 
 	/* Interface must be brought up atleast once */
-	if (pi->adapter->flags & FULL_INIT_DONE) {
+	if (pi->adapter->flags & CXGB4_FULL_INIT_DONE) {
 		for (i = 0; i < pi->rss_size; i++)
 			pi->rss[i] = p[i];
 

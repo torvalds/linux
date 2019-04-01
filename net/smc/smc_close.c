@@ -345,14 +345,7 @@ static void smc_close_passive_work(struct work_struct *work)
 
 	switch (sk->sk_state) {
 	case SMC_INIT:
-		if (atomic_read(&conn->bytes_to_rcv) ||
-		    (rxflags->peer_done_writing &&
-		     !smc_cdc_rxed_any_close(conn))) {
-			sk->sk_state = SMC_APPCLOSEWAIT1;
-		} else {
-			sk->sk_state = SMC_CLOSED;
-			sock_put(sk); /* passive closing */
-		}
+		sk->sk_state = SMC_APPCLOSEWAIT1;
 		break;
 	case SMC_ACTIVE:
 		sk->sk_state = SMC_APPCLOSEWAIT1;
@@ -405,8 +398,13 @@ wakeup:
 	if (old_state != sk->sk_state) {
 		sk->sk_state_change(sk);
 		if ((sk->sk_state == SMC_CLOSED) &&
-		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket))
+		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket)) {
 			smc_conn_free(conn);
+			if (smc->clcsock) {
+				sock_release(smc->clcsock);
+				smc->clcsock = NULL;
+			}
+		}
 	}
 	release_sock(sk);
 	sock_put(sk); /* sock_hold done by schedulers of close_work */

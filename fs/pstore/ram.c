@@ -110,7 +110,6 @@ struct ramoops_context {
 };
 
 static struct platform_device *dummy;
-static struct ramoops_platform_data *dummy_data;
 
 static int ramoops_pstore_open(struct pstore_info *psi)
 {
@@ -346,17 +345,15 @@ out:
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 				     struct pstore_record *record)
 {
-	char *hdr;
+	char hdr[36]; /* "===="(4), %lld(20), "."(1), %06lu(6), "-%c\n"(3) */
 	size_t len;
 
-	hdr = kasprintf(GFP_ATOMIC, RAMOOPS_KERNMSG_HDR "%lld.%06lu-%c\n",
+	len = scnprintf(hdr, sizeof(hdr),
+		RAMOOPS_KERNMSG_HDR "%lld.%06lu-%c\n",
 		(time64_t)record->time.tv_sec,
 		record->time.tv_nsec / 1000,
 		record->compressed ? 'C' : 'D');
-	WARN_ON_ONCE(!hdr);
-	len = hdr ? strlen(hdr) : 0;
 	persistent_ram_write(prz, hdr, len);
-	kfree(hdr);
 
 	return len;
 }
@@ -424,6 +421,9 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 
 	/* Build header and append record contents. */
 	hlen = ramoops_write_kmsg_hdr(prz, record);
+	if (!hlen)
+		return -ENOMEM;
+
 	size = record->size;
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
@@ -716,15 +716,6 @@ static int ramoops_probe(struct platform_device *pdev)
 	phys_addr_t paddr;
 	int err = -EINVAL;
 
-	if (dev_of_node(dev) && !pdata) {
-		pdata = &pdata_local;
-		memset(pdata, 0, sizeof(*pdata));
-
-		err = ramoops_parse_dt(pdev, pdata);
-		if (err < 0)
-			goto fail_out;
-	}
-
 	/*
 	 * Only a single ramoops area allowed at a time, so fail extra
 	 * probes.
@@ -732,6 +723,15 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (cxt->max_dump_cnt) {
 		pr_err("already initialized\n");
 		goto fail_out;
+	}
+
+	if (dev_of_node(dev) && !pdata) {
+		pdata = &pdata_local;
+		memset(pdata, 0, sizeof(*pdata));
+
+		err = ramoops_parse_dt(pdev, pdata);
+		if (err < 0)
+			goto fail_out;
 	}
 
 	/* Make sure we didn't get bogus platform data pointer. */
@@ -892,13 +892,12 @@ static inline void ramoops_unregister_dummy(void)
 {
 	platform_device_unregister(dummy);
 	dummy = NULL;
-
-	kfree(dummy_data);
-	dummy_data = NULL;
 }
 
 static void __init ramoops_register_dummy(void)
 {
+	struct ramoops_platform_data pdata;
+
 	/*
 	 * Prepare a dummy platform data structure to carry the module
 	 * parameters. If mem_size isn't set, then there are no module
@@ -909,30 +908,25 @@ static void __init ramoops_register_dummy(void)
 
 	pr_info("using module parameters\n");
 
-	dummy_data = kzalloc(sizeof(*dummy_data), GFP_KERNEL);
-	if (!dummy_data) {
-		pr_info("could not allocate pdata\n");
-		return;
-	}
-
-	dummy_data->mem_size = mem_size;
-	dummy_data->mem_address = mem_address;
-	dummy_data->mem_type = mem_type;
-	dummy_data->record_size = record_size;
-	dummy_data->console_size = ramoops_console_size;
-	dummy_data->ftrace_size = ramoops_ftrace_size;
-	dummy_data->pmsg_size = ramoops_pmsg_size;
-	dummy_data->dump_oops = dump_oops;
-	dummy_data->flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
+	memset(&pdata, 0, sizeof(pdata));
+	pdata.mem_size = mem_size;
+	pdata.mem_address = mem_address;
+	pdata.mem_type = mem_type;
+	pdata.record_size = record_size;
+	pdata.console_size = ramoops_console_size;
+	pdata.ftrace_size = ramoops_ftrace_size;
+	pdata.pmsg_size = ramoops_pmsg_size;
+	pdata.dump_oops = dump_oops;
+	pdata.flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
 
 	/*
 	 * For backwards compatibility ramoops.ecc=1 means 16 bytes ECC
 	 * (using 1 byte for ECC isn't much of use anyway).
 	 */
-	dummy_data->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
+	pdata.ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 
 	dummy = platform_device_register_data(NULL, "ramoops", -1,
-			dummy_data, sizeof(struct ramoops_platform_data));
+			&pdata, sizeof(pdata));
 	if (IS_ERR(dummy)) {
 		pr_info("could not create platform device: %ld\n",
 			PTR_ERR(dummy));

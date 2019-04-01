@@ -82,6 +82,7 @@
 #define ECR_V_DTLB_MISS			0x05
 #define ECR_V_PROTV			0x06
 #define ECR_V_TRAP			0x09
+#define ECR_V_MISALIGN			0x0d
 #endif
 
 /* DTLB Miss and Protection Violation Cause Codes */
@@ -151,19 +152,19 @@ struct bcr_isa_arcv2 {
 #endif
 };
 
+struct bcr_uarch_build_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:8, prod:8, maj:8, min:8;
+#else
+	unsigned int min:8, maj:8, prod:8, pad:8;
+#endif
+};
+
 struct bcr_mpy {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:8, x1616:8, dsp:4, cycles:2, type:2, ver:8;
 #else
 	unsigned int ver:8, type:2, cycles:2, dsp:4, x1616:8, pad:8;
-#endif
-};
-
-struct bcr_extn_xymem {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ram_org:2, num_banks:4, bank_sz:4, ver:8;
-#else
-	unsigned int ver:8, bank_sz:4, num_banks:4, ram_org:2;
 #endif
 };
 
@@ -304,7 +305,7 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa_arcv2 isa;
-	const char *details, *name;
+	const char *release, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
@@ -314,7 +315,6 @@ struct cpuinfo_arc {
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;
 	struct bcr_mpy extn_mpy;
-	struct bcr_extn_xymem extn_xymem;
 };
 
 extern struct cpuinfo_arc cpuinfo_arc700[];

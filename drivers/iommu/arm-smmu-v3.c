@@ -18,6 +18,7 @@
 #include <linux/dma-iommu.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/init.h>
@@ -31,8 +32,6 @@
 #include <linux/platform_device.h>
 
 #include <linux/amba/bus.h>
-
-#include "io-pgtable.h"
 
 /* MMIO registers */
 #define ARM_SMMU_IDR0			0x0

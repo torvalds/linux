@@ -160,12 +160,12 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 		}
 
 		ACPI_EXCEPTION((AE_INFO, status,
-				"while executing %s from debugger",
+				"while executing %s from AML Debugger",
 				info->pathname));
 
 		if (status == AE_BUFFER_OVERFLOW) {
 			ACPI_ERROR((AE_INFO,
-				    "Possible overflow of internal debugger "
+				    "Possible buffer overflow within AML Debugger "
 				    "buffer (size 0x%X needed 0x%X)",
 				    ACPI_DEBUG_BUFFER_SIZE,
 				    (u32)return_obj->length));

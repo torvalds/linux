@@ -139,6 +139,7 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint32_t   ulEClk;
 	uint32_t   ulVClk;
 	uint32_t   ulDClk;
+	uint32_t   ulFClk;
 	uint16_t   usVddc;
 	uint16_t   usVddci;
 	uint16_t   usMvddc;
@@ -236,7 +237,8 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_smc_dpm_parameters *param);
 int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
-					uint8_t id, uint32_t *frequency);
+					uint8_t clk_id, uint8_t syspll_id,
+					uint32_t *frequency);
 
 #endif
 

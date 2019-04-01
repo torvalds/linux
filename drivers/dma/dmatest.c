@@ -200,15 +200,20 @@ struct dmatest_done {
 	wait_queue_head_t	*wait;
 };
 
+struct dmatest_data {
+	u8		**raw;
+	u8		**aligned;
+	unsigned int	cnt;
+	unsigned int	off;
+};
+
 struct dmatest_thread {
 	struct list_head	node;
 	struct dmatest_info	*info;
 	struct task_struct	*task;
 	struct dma_chan		*chan;
-	u8			**srcs;
-	u8			**usrcs;
-	u8			**dsts;
-	u8			**udsts;
+	struct dmatest_data	src;
+	struct dmatest_data	dst;
 	enum dma_transaction_type type;
 	wait_queue_head_t done_wait;
 	struct dmatest_done test_done;
@@ -481,6 +486,53 @@ static unsigned long long dmatest_KBs(s64 runtime, unsigned long long len)
 	return FIXPT_TO_INT(dmatest_persec(runtime, len >> 10));
 }
 
+static void __dmatest_free_test_data(struct dmatest_data *d, unsigned int cnt)
+{
+	unsigned int i;
+
+	for (i = 0; i < cnt; i++)
+		kfree(d->raw[i]);
+
+	kfree(d->aligned);
+	kfree(d->raw);
+}
+
+static void dmatest_free_test_data(struct dmatest_data *d)
+{
+	__dmatest_free_test_data(d, d->cnt);
+}
+
+static int dmatest_alloc_test_data(struct dmatest_data *d,
+		unsigned int buf_size, u8 align)
+{
+	unsigned int i = 0;
+
+	d->raw = kcalloc(d->cnt + 1, sizeof(u8 *), GFP_KERNEL);
+	if (!d->raw)
+		return -ENOMEM;
+
+	d->aligned = kcalloc(d->cnt + 1, sizeof(u8 *), GFP_KERNEL);
+	if (!d->aligned)
+		goto err;
+
+	for (i = 0; i < d->cnt; i++) {
+		d->raw[i] = kmalloc(buf_size + align, GFP_KERNEL);
+		if (!d->raw[i])
+			goto err;
+
+		/* align to alignment restriction */
+		if (align)
+			d->aligned[i] = PTR_ALIGN(d->raw[i], align);
+		else
+			d->aligned[i] = d->raw[i];
+	}
+
+	return 0;
+err:
+	__dmatest_free_test_data(d, i);
+	return -ENOMEM;
+}
+
 /*
  * This function repeatedly tests DMA transfers of various lengths and
  * offsets for a given operation type until it is told to exit by
@@ -511,8 +563,9 @@ static int dmatest_func(void *data)
 	enum dma_ctrl_flags 	flags;
 	u8			*pq_coefs = NULL;
 	int			ret;
-	int			src_cnt;
-	int			dst_cnt;
+	unsigned int 		buf_size;
+	struct dmatest_data	*src;
+	struct dmatest_data	*dst;
 	int			i;
 	ktime_t			ktime, start, diff;
 	ktime_t			filltime = 0;
@@ -535,25 +588,27 @@ static int dmatest_func(void *data)
 	params = &info->params;
 	chan = thread->chan;
 	dev = chan->device;
+	src = &thread->src;
+	dst = &thread->dst;
 	if (thread->type == DMA_MEMCPY) {
 		align = params->alignment < 0 ? dev->copy_align :
 						params->alignment;
-		src_cnt = dst_cnt = 1;
+		src->cnt = dst->cnt = 1;
 	} else if (thread->type == DMA_MEMSET) {
 		align = params->alignment < 0 ? dev->fill_align :
 						params->alignment;
-		src_cnt = dst_cnt = 1;
+		src->cnt = dst->cnt = 1;
 		is_memset = true;
 	} else if (thread->type == DMA_XOR) {
 		/* force odd to ensure dst = src */
-		src_cnt = min_odd(params->xor_sources | 1, dev->max_xor);
-		dst_cnt = 1;
+		src->cnt = min_odd(params->xor_sources | 1, dev->max_xor);
+		dst->cnt = 1;
 		align = params->alignment < 0 ? dev->xor_align :
 						params->alignment;
 	} else if (thread->type == DMA_PQ) {
 		/* force odd to ensure dst = src */
-		src_cnt = min_odd(params->pq_sources | 1, dma_maxpq(dev, 0));
-		dst_cnt = 2;
+		src->cnt = min_odd(params->pq_sources | 1, dma_maxpq(dev, 0));
+		dst->cnt = 2;
 		align = params->alignment < 0 ? dev->pq_align :
 						params->alignment;
 
@@ -561,75 +616,38 @@ static int dmatest_func(void *data)
 		if (!pq_coefs)
 			goto err_thread_type;
 
-		for (i = 0; i < src_cnt; i++)
+		for (i = 0; i < src->cnt; i++)
 			pq_coefs[i] = 1;
 	} else
 		goto err_thread_type;
 
 	/* Check if buffer count fits into map count variable (u8) */
-	if ((src_cnt + dst_cnt) >= 255) {
+	if ((src->cnt + dst->cnt) >= 255) {
 		pr_err("too many buffers (%d of 255 supported)\n",
-		       src_cnt + dst_cnt);
+		       src->cnt + dst->cnt);
 		goto err_free_coefs;
 	}
 
-	if (1 << align > params->buf_size) {
+	buf_size = params->buf_size;
+	if (1 << align > buf_size) {
 		pr_err("%u-byte buffer too small for %d-byte alignment\n",
-		       params->buf_size, 1 << align);
+		       buf_size, 1 << align);
 		goto err_free_coefs;
 	}
 
-	thread->srcs = kcalloc(src_cnt + 1, sizeof(u8 *), GFP_KERNEL);
-	if (!thread->srcs)
+	if (dmatest_alloc_test_data(src, buf_size, align) < 0)
 		goto err_free_coefs;
 
-	thread->usrcs = kcalloc(src_cnt + 1, sizeof(u8 *), GFP_KERNEL);
-	if (!thread->usrcs)
-		goto err_usrcs;
-
-	for (i = 0; i < src_cnt; i++) {
-		thread->usrcs[i] = kmalloc(params->buf_size + align,
-					   GFP_KERNEL);
-		if (!thread->usrcs[i])
-			goto err_srcbuf;
-
-		/* align srcs to alignment restriction */
-		if (align)
-			thread->srcs[i] = PTR_ALIGN(thread->usrcs[i], align);
-		else
-			thread->srcs[i] = thread->usrcs[i];
-	}
-	thread->srcs[i] = NULL;
-
-	thread->dsts = kcalloc(dst_cnt + 1, sizeof(u8 *), GFP_KERNEL);
-	if (!thread->dsts)
-		goto err_dsts;
-
-	thread->udsts = kcalloc(dst_cnt + 1, sizeof(u8 *), GFP_KERNEL);
-	if (!thread->udsts)
-		goto err_udsts;
-
-	for (i = 0; i < dst_cnt; i++) {
-		thread->udsts[i] = kmalloc(params->buf_size + align,
-					   GFP_KERNEL);
-		if (!thread->udsts[i])
-			goto err_dstbuf;
-
-		/* align dsts to alignment restriction */
-		if (align)
-			thread->dsts[i] = PTR_ALIGN(thread->udsts[i], align);
-		else
-			thread->dsts[i] = thread->udsts[i];
-	}
-	thread->dsts[i] = NULL;
+	if (dmatest_alloc_test_data(dst, buf_size, align) < 0)
+		goto err_src;
 
 	set_user_nice(current, 10);
 
-	srcs = kcalloc(src_cnt, sizeof(dma_addr_t), GFP_KERNEL);
+	srcs = kcalloc(src->cnt, sizeof(dma_addr_t), GFP_KERNEL);
 	if (!srcs)
-		goto err_dstbuf;
+		goto err_dst;
 
-	dma_pq = kcalloc(dst_cnt, sizeof(dma_addr_t), GFP_KERNEL);
+	dma_pq = kcalloc(dst->cnt, sizeof(dma_addr_t), GFP_KERNEL);
 	if (!dma_pq)
 		goto err_srcs_array;
 
@@ -644,21 +662,21 @@ static int dmatest_func(void *data)
 		struct dma_async_tx_descriptor *tx = NULL;
 		struct dmaengine_unmap_data *um;
 		dma_addr_t *dsts;
-		unsigned int src_off, dst_off, len;
+		unsigned int len;
 
 		total_tests++;
 
 		if (params->transfer_size) {
-			if (params->transfer_size >= params->buf_size) {
+			if (params->transfer_size >= buf_size) {
 				pr_err("%u-byte transfer size must be lower than %u-buffer size\n",
-				       params->transfer_size, params->buf_size);
+				       params->transfer_size, buf_size);
 				break;
 			}
 			len = params->transfer_size;
 		} else if (params->norandom) {
-			len = params->buf_size;
+			len = buf_size;
 		} else {
-			len = dmatest_random() % params->buf_size + 1;
+			len = dmatest_random() % buf_size + 1;
 		}
 
 		/* Do not alter transfer size explicitly defined by user */
@@ -670,59 +688,57 @@ static int dmatest_func(void *data)
 		total_len += len;
 
 		if (params->norandom) {
-			src_off = 0;
-			dst_off = 0;
+			src->off = 0;
+			dst->off = 0;
 		} else {
-			src_off = dmatest_random() % (params->buf_size - len + 1);
-			dst_off = dmatest_random() % (params->buf_size - len + 1);
+			src->off = dmatest_random() % (buf_size - len + 1);
+			dst->off = dmatest_random() % (buf_size - len + 1);
 
-			src_off = (src_off >> align) << align;
-			dst_off = (dst_off >> align) << align;
+			src->off = (src->off >> align) << align;
+			dst->off = (dst->off >> align) << align;
 		}
 
 		if (!params->noverify) {
 			start = ktime_get();
-			dmatest_init_srcs(thread->srcs, src_off, len,
-					  params->buf_size, is_memset);
-			dmatest_init_dsts(thread->dsts, dst_off, len,
-					  params->buf_size, is_memset);
+			dmatest_init_srcs(src->aligned, src->off, len,
+					  buf_size, is_memset);
+			dmatest_init_dsts(dst->aligned, dst->off, len,
+					  buf_size, is_memset);
 
 			diff = ktime_sub(ktime_get(), start);
 			filltime = ktime_add(filltime, diff);
 		}
 
-		um = dmaengine_get_unmap_data(dev->dev, src_cnt + dst_cnt,
+		um = dmaengine_get_unmap_data(dev->dev, src->cnt + dst->cnt,
 					      GFP_KERNEL);
 		if (!um) {
 			failed_tests++;
 			result("unmap data NULL", total_tests,
-			       src_off, dst_off, len, ret);
+			       src->off, dst->off, len, ret);
 			continue;
 		}
 
-		um->len = params->buf_size;
-		for (i = 0; i < src_cnt; i++) {
-			void *buf = thread->srcs[i];
+		um->len = buf_size;
+		for (i = 0; i < src->cnt; i++) {
+			void *buf = src->aligned[i];
 			struct page *pg = virt_to_page(buf);
 			unsigned long pg_off = offset_in_page(buf);
 
 			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
-			srcs[i] = um->addr[i] + src_off;
+			srcs[i] = um->addr[i] + src->off;
 			ret = dma_mapping_error(dev->dev, um->addr[i]);
 			if (ret) {
-				dmaengine_unmap_put(um);
 				result("src mapping error", total_tests,
-				       src_off, dst_off, len, ret);
-				failed_tests++;
-				continue;
+				       src->off, dst->off, len, ret);
+				goto error_unmap_continue;
 			}
 			um->to_cnt++;
 		}
 		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
-		dsts = &um->addr[src_cnt];
-		for (i = 0; i < dst_cnt; i++) {
-			void *buf = thread->dsts[i];
+		dsts = &um->addr[src->cnt];
+		for (i = 0; i < dst->cnt; i++) {
+			void *buf = dst->aligned[i];
 			struct page *pg = virt_to_page(buf);
 			unsigned long pg_off = offset_in_page(buf);
 
@@ -730,44 +746,40 @@ static int dmatest_func(void *data)
 					       DMA_BIDIRECTIONAL);
 			ret = dma_mapping_error(dev->dev, dsts[i]);
 			if (ret) {
-				dmaengine_unmap_put(um);
 				result("dst mapping error", total_tests,
-				       src_off, dst_off, len, ret);
-				failed_tests++;
-				continue;
+				       src->off, dst->off, len, ret);
+				goto error_unmap_continue;
 			}
 			um->bidi_cnt++;
 		}
 
 		if (thread->type == DMA_MEMCPY)
 			tx = dev->device_prep_dma_memcpy(chan,
-							 dsts[0] + dst_off,
+							 dsts[0] + dst->off,
 							 srcs[0], len, flags);
 		else if (thread->type == DMA_MEMSET)
 			tx = dev->device_prep_dma_memset(chan,
-						dsts[0] + dst_off,
-						*(thread->srcs[0] + src_off),
+						dsts[0] + dst->off,
+						*(src->aligned[0] + src->off),
 						len, flags);
 		else if (thread->type == DMA_XOR)
 			tx = dev->device_prep_dma_xor(chan,
-						      dsts[0] + dst_off,
-						      srcs, src_cnt,
+						      dsts[0] + dst->off,
+						      srcs, src->cnt,
 						      len, flags);
 		else if (thread->type == DMA_PQ) {
-			for (i = 0; i < dst_cnt; i++)
-				dma_pq[i] = dsts[i] + dst_off;
+			for (i = 0; i < dst->cnt; i++)
+				dma_pq[i] = dsts[i] + dst->off;
 			tx = dev->device_prep_dma_pq(chan, dma_pq, srcs,
-						     src_cnt, pq_coefs,
+						     src->cnt, pq_coefs,
 						     len, flags);
 		}
 
 		if (!tx) {
-			dmaengine_unmap_put(um);
-			result("prep error", total_tests, src_off,
-			       dst_off, len, ret);
+			result("prep error", total_tests, src->off,
+			       dst->off, len, ret);
 			msleep(100);
-			failed_tests++;
-			continue;
+			goto error_unmap_continue;
 		}
 
 		done->done = false;
@@ -776,12 +788,10 @@ static int dmatest_func(void *data)
 		cookie = tx->tx_submit(tx);
 
 		if (dma_submit_error(cookie)) {
-			dmaengine_unmap_put(um);
-			result("submit error", total_tests, src_off,
-			       dst_off, len, ret);
+			result("submit error", total_tests, src->off,
+			       dst->off, len, ret);
 			msleep(100);
-			failed_tests++;
-			continue;
+			goto error_unmap_continue;
 		}
 		dma_async_issue_pending(chan);
 
@@ -790,62 +800,66 @@ static int dmatest_func(void *data)
 
 		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
 
-		dmaengine_unmap_put(um);
-
 		if (!done->done) {
-			result("test timed out", total_tests, src_off, dst_off,
+			result("test timed out", total_tests, src->off, dst->off,
 			       len, 0);
-			failed_tests++;
-			continue;
+			goto error_unmap_continue;
 		} else if (status != DMA_COMPLETE) {
 			result(status == DMA_ERROR ?
 			       "completion error status" :
-			       "completion busy status", total_tests, src_off,
-			       dst_off, len, ret);
-			failed_tests++;
-			continue;
+			       "completion busy status", total_tests, src->off,
+			       dst->off, len, ret);
+			goto error_unmap_continue;
 		}
 
+		dmaengine_unmap_put(um);
+
 		if (params->noverify) {
-			verbose_result("test passed", total_tests, src_off,
-				       dst_off, len, 0);
+			verbose_result("test passed", total_tests, src->off,
+				       dst->off, len, 0);
 			continue;
 		}
 
 		start = ktime_get();
 		pr_debug("%s: verifying source buffer...\n", current->comm);
-		error_count = dmatest_verify(thread->srcs, 0, src_off,
+		error_count = dmatest_verify(src->aligned, 0, src->off,
 				0, PATTERN_SRC, true, is_memset);
-		error_count += dmatest_verify(thread->srcs, src_off,
-				src_off + len, src_off,
+		error_count += dmatest_verify(src->aligned, src->off,
+				src->off + len, src->off,
 				PATTERN_SRC | PATTERN_COPY, true, is_memset);
-		error_count += dmatest_verify(thread->srcs, src_off + len,
-				params->buf_size, src_off + len,
+		error_count += dmatest_verify(src->aligned, src->off + len,
+				buf_size, src->off + len,
 				PATTERN_SRC, true, is_memset);
 
 		pr_debug("%s: verifying dest buffer...\n", current->comm);
-		error_count += dmatest_verify(thread->dsts, 0, dst_off,
+		error_count += dmatest_verify(dst->aligned, 0, dst->off,
 				0, PATTERN_DST, false, is_memset);
 
-		error_count += dmatest_verify(thread->dsts, dst_off,
-				dst_off + len, src_off,
+		error_count += dmatest_verify(dst->aligned, dst->off,
+				dst->off + len, src->off,
 				PATTERN_SRC | PATTERN_COPY, false, is_memset);
 
-		error_count += dmatest_verify(thread->dsts, dst_off + len,
-				params->buf_size, dst_off + len,
+		error_count += dmatest_verify(dst->aligned, dst->off + len,
+				buf_size, dst->off + len,
 				PATTERN_DST, false, is_memset);
 
 		diff = ktime_sub(ktime_get(), start);
 		comparetime = ktime_add(comparetime, diff);
 
 		if (error_count) {
-			result("data error", total_tests, src_off, dst_off,
+			result("data error", total_tests, src->off, dst->off,
 			       len, error_count);
 			failed_tests++;
 		} else {
-			verbose_result("test passed", total_tests, src_off,
-				       dst_off, len, 0);
+			verbose_result("test passed", total_tests, src->off,
+				       dst->off, len, 0);
 		}
+
+		continue;
+
+error_unmap_continue:
+		dmaengine_unmap_put(um);
+		failed_tests++;
 	}
 	ktime = ktime_sub(ktime_get(), ktime);
 	ktime = ktime_sub(ktime, comparetime);
@@ -856,19 +870,10 @@ static int dmatest_func(void *data)
 	kfree(dma_pq);
 err_srcs_array:
 	kfree(srcs);
-err_dstbuf:
-	for (i = 0; thread->udsts[i]; i++)
-		kfree(thread->udsts[i]);
-	kfree(thread->udsts);
-err_udsts:
-	kfree(thread->dsts);
-err_dsts:
-err_srcbuf:
-	for (i = 0; thread->usrcs[i]; i++)
-		kfree(thread->usrcs[i]);
-	kfree(thread->usrcs);
-err_usrcs:
-	kfree(thread->srcs);
+err_dst:
+	dmatest_free_test_data(dst);
+err_src:
+	dmatest_free_test_data(src);
 err_free_coefs:
 	kfree(pq_coefs);
 err_thread_type:

@@ -311,8 +311,8 @@ int bdc_ep_clear_stall(struct bdc *bdc, int epnum)
 		/* if the endpoint it not stallled */
 		if (!(ep->flags & BDC_EP_STALL)) {
 			ret = bdc_ep_set_stall(bdc, epnum);
-				if (ret)
-					return ret;
+			if (ret)
+				return ret;
 		}
 	}
 	/* Preserve the seq number for ep0 only */

@@ -290,6 +290,12 @@ config COMMON_CLK_BD718XX
 	  This driver supports ROHM BD71837 and ROHM BD71847
 	  PMICs clock gates.
 
+config COMMON_CLK_FIXED_MMIO
+	bool "Clock driver for Memory Mapped Fixed values"
+	depends on COMMON_CLK && OF
+	help
+	  Support for Memory Mapped IO Fixed clocks
+
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"

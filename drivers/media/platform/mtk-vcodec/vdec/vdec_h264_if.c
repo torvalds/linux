@@ -55,7 +55,7 @@ struct h264_fb {
 
 /**
  * struct h264_ring_fb_list - ring frame buffer list
- * @fb_list   : frame buffer arrary
+ * @fb_list   : frame buffer array
  * @read_idx  : read index
  * @write_idx : write index
  * @count     : buffer count in list
@@ -72,7 +72,7 @@ struct h264_ring_fb_list {
 /**
  * struct vdec_h264_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
- * @resolution_changed  : resoltion change happen
+ * @resolution_changed  : resolution change happen
  * @realloc_mv_buf	: flag to notify driver to re-allocate mv buffer
  * @reserved		: for 8 bytes alignment
  * @bs_dma		: Input bit-stream buffer dma address

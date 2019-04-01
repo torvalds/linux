@@ -106,6 +106,15 @@ static const struct pci_device_id dwc3_haps_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
 			   PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),
+		/*
+		 * i.MX6QP and i.MX7D platform use a PCIe controller with the
+		 * same VID and PID as this USB controller. The system may
+		 * incorrectly match this driver to that PCIe controller. To
+		 * workaround this, specifically use class type USB to prevent
+		 * incorrect driver matching.
+		 */
+		.class = (PCI_CLASS_SERIAL_USB << 8),
+		.class_mask = 0xffff00,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,

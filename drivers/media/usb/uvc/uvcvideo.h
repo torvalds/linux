@@ -620,8 +620,10 @@ struct uvc_streaming {
 	     (uvc_urb) < &(uvc_streaming)->uvc_urb[UVC_URBS]; \
 	     ++(uvc_urb))
 
-#define uvc_urb_index(uvc_urb) \
-	(unsigned int)((uvc_urb) - (&(uvc_urb)->stream->uvc_urb[0]))
+static inline u32 uvc_urb_index(const struct uvc_urb *uvc_urb)
+{
+	return uvc_urb - &uvc_urb->stream->uvc_urb[0];
+}
 
 struct uvc_device_info {
 	u32	quirks;

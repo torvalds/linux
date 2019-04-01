@@ -67,6 +67,18 @@ Optional standard bitfield specifiers for the last cell:
            https://en.wikipedia.org/wiki/Open_collector
 - Bit 3: 0 means the output should be maintained during sleep/low-power mode
          1 means the output state can be lost during sleep/low-power mode
+- Bit 4: 0 means no pull-up resistor should be enabled
+         1 means a pull-up resistor should be enabled
+         This setting only applies to hardware with a simple on/off
+         control for pull-up configuration. If the hardware has more
+         elaborate pull-up configuration, it should be represented
+         using a pin control binding.
+- Bit 5: 0 means no pull-down resistor should be enabled
+         1 means a pull-down resistor should be enabled
+         This setting only applies to hardware with a simple on/off
+         control for pull-down configuration. If the hardware has more
+         elaborate pull-down configuration, it should be represented
+         using a pin control binding.
 
 1.1) GPIO specifier best practices
 ----------------------------------

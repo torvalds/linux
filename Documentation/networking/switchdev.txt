@@ -92,11 +92,11 @@ device.
 Switch ID
 ^^^^^^^^^
 
-The switchdev driver must implement the switchdev op switchdev_port_attr_get
-for SWITCHDEV_ATTR_ID_PORT_PARENT_ID for each port netdev, returning the same
-physical ID for each port of a switch.  The ID must be unique between switches
-on the same system.  The ID does not need to be unique between switches on
-different systems.
+The switchdev driver must implement the net_device operation
+ndo_get_port_parent_id for each port netdev, returning the same physical ID for
+each port of a switch. The ID must be unique between switches on the same
+system. The ID does not need to be unique between switches on different
+systems.
 
 The switch ID is used to locate ports on a switch and to know if aggregated
 ports belong to the same switch.
@@ -196,7 +196,7 @@ The switch device will learn/forget source MAC address/VLAN on ingress packets
 and notify the switch driver of the mac/vlan/port tuples.  The switch driver,
 in turn, will notify the bridge driver using the switchdev notifier call:
 
-	err = call_switchdev_notifiers(val, dev, info);
+	err = call_switchdev_notifiers(val, dev, info, extack);
 
 Where val is SWITCHDEV_FDB_ADD when learning and SWITCHDEV_FDB_DEL when
 forgetting, and info points to a struct switchdev_notifier_fdb_info.  On
@@ -232,10 +232,8 @@ Learning_sync attribute enables syncing of the learned/forgotten FDB entry to
 the bridge's FDB.  It's possible, but not optimal, to enable learning on the
 device port and on the bridge port, and disable learning_sync.
 
-To support learning and learning_sync port attributes, the driver implements
-switchdev op switchdev_port_attr_get/set for
-SWITCHDEV_ATTR_PORT_ID_BRIDGE_FLAGS. The driver should initialize the attributes
-to the hardware defaults.
+To support learning, the driver implements switchdev op
+switchdev_port_attr_set for SWITCHDEV_ATTR_PORT_ID_{PRE}_BRIDGE_FLAGS.
 
 FDB Ageing
 ^^^^^^^^^^
@@ -373,22 +371,3 @@ The driver can monitor for updates to arp_tbl using the netevent notifier
 NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
 for the routes as arp_tbl updates.  The driver implements ndo_neigh_destroy
 to know when arp_tbl neighbor entries are purged from the port.
-
-Transaction item queue
-^^^^^^^^^^^^^^^^^^^^^^
-
-For switchdev ops attr_set and obj_add, there is a 2 phase transaction model
-used. First phase is to "prepare" anything needed, including various checks,
-memory allocation, etc. The goal is to handle the stuff that is not unlikely
-to fail here. The second phase is to "commit" the actual changes.
-
-Switchdev provides an infrastructure for sharing items (for example memory
-allocations) between the two phases.
-
-The object created by a driver in "prepare" phase and it is queued up by:
-switchdev_trans_item_enqueue()
-During the "commit" phase, the driver gets the object by:
-switchdev_trans_item_dequeue()
-
-If a transaction is aborted during "prepare" phase, switchdev code will handle
-cleanup of the queued-up objects.

@@ -107,15 +107,26 @@ struct pci_bridge_emul_ops {
 			   u32 old, u32 new, u32 mask);
 };
 
+struct pci_bridge_reg_behavior;
+
 struct pci_bridge_emul {
 	struct pci_bridge_emul_conf conf;
 	struct pci_bridge_emul_pcie_conf pcie_conf;
 	struct pci_bridge_emul_ops *ops;
+	struct pci_bridge_reg_behavior *pci_regs_behavior;
+	struct pci_bridge_reg_behavior *pcie_cap_regs_behavior;
 	void *data;
 	bool has_pcie;
 };
 
-void pci_bridge_emul_init(struct pci_bridge_emul *bridge);
+enum {
+	PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR = BIT(0),
+};
+
+int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
+			 unsigned int flags);
+void pci_bridge_emul_cleanup(struct pci_bridge_emul *bridge);
+
 int pci_bridge_emul_conf_read(struct pci_bridge_emul *bridge, int where,
 			      int size, u32 *value);
 int pci_bridge_emul_conf_write(struct pci_bridge_emul *bridge, int where,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * spi-mt7621.c -- MediaTek MT7621 SPI controller driver
  *
@@ -8,34 +9,23 @@
  * Some parts are based on spi-orion.c:
  *   Author: Shadi Ammouri <shadi@marvell.com>
  *   Copyright (C) 2007-2008 Marvell Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
-#include <linux/swab.h>
 
-#include <ralink_regs.h>
+#define DRIVER_NAME		"spi-mt7621"
 
-#define SPI_BPW_MASK(bits) BIT((bits) - 1)
-
-#define DRIVER_NAME			"spi-mt7621"
 /* in usec */
-#define RALINK_SPI_WAIT_MAX_LOOP	2000
+#define RALINK_SPI_WAIT_MAX_LOOP 2000
 
 /* SPISTAT register bit field */
-#define SPISTAT_BUSY			BIT(0)
+#define SPISTAT_BUSY		BIT(0)
 
 #define MT7621_SPI_TRANS	0x00
 #define SPITRANS_BUSY		BIT(16)
@@ -46,16 +36,20 @@
 #define SPI_CTL_TX_RX_CNT_MASK	0xff
 #define SPI_CTL_START		BIT(8)
 
-#define MT7621_SPI_POLAR	0x38
 #define MT7621_SPI_MASTER	0x28
+#define MASTER_MORE_BUFMODE	BIT(2)
+#define MASTER_FULL_DUPLEX	BIT(10)
+#define MASTER_RS_CLK_SEL	GENMASK(27, 16)
+#define MASTER_RS_CLK_SEL_SHIFT	16
+#define MASTER_RS_SLAVE_SEL	GENMASK(31, 29)
+
 #define MT7621_SPI_MOREBUF	0x2c
+#define MT7621_SPI_POLAR	0x38
 #define MT7621_SPI_SPACE	0x3c
 
 #define MT7621_CPHA		BIT(5)
 #define MT7621_CPOL		BIT(4)
 #define MT7621_LSB_FIRST	BIT(3)
-
-struct mt7621_spi;
 
 struct mt7621_spi {
 	struct spi_master	*master;
@@ -87,9 +81,13 @@ static void mt7621_spi_reset(struct mt7621_spi *rs)
 {
 	u32 master = mt7621_spi_read(rs, MT7621_SPI_MASTER);
 
-	master |= 7 << 29;
-	master |= 1 << 2;
-	master &= ~(1 << 10);
+	/*
+	 * Select SPI device 7, enable "more buffer mode" and disable
+	 * full-duplex (only half-duplex really works on this chip
+	 * reliably)
+	 */
+	master |= MASTER_RS_SLAVE_SEL | MASTER_MORE_BUFMODE;
+	master &= ~MASTER_FULL_DUPLEX;
 
 	mt7621_spi_write(rs, MT7621_SPI_MASTER, master);
 	rs->pending_write = 0;
@@ -125,18 +123,18 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 		rate = 2;
 
 	reg = mt7621_spi_read(rs, MT7621_SPI_MASTER);
-	reg &= ~(0xfff << 16);
-	reg |= (rate - 2) << 16;
+	reg &= ~MASTER_RS_CLK_SEL;
+	reg |= (rate - 2) << MASTER_RS_CLK_SEL_SHIFT;
 	rs->speed = speed;
 
 	reg &= ~MT7621_LSB_FIRST;
 	if (spi->mode & SPI_LSB_FIRST)
 		reg |= MT7621_LSB_FIRST;
 
-	/* This SPI controller seems to be tested on SPI flash only
-	 * and some bits are swizzled under other SPI modes probably
-	 * due to incorrect wiring inside the silicon. Only mode 0
-	 * works correctly.
+	/*
+	 * This SPI controller seems to be tested on SPI flash only and some
+	 * bits are swizzled under other SPI modes probably due to incorrect
+	 * wiring inside the silicon. Only mode 0 works correctly.
 	 */
 	reg &= ~(MT7621_CPHA | MT7621_CPOL);
 
@@ -165,9 +163,10 @@ static inline int mt7621_spi_wait_till_ready(struct mt7621_spi *rs)
 static void mt7621_spi_read_half_duplex(struct mt7621_spi *rs,
 					int rx_len, u8 *buf)
 {
-	/* Combine with any pending write, and perform one or
-	 * more half-duplex transactions reading 'len' bytes.
-	 * Data to be written is already in MT7621_SPI_DATA*
+	/*
+	 * Combine with any pending write, and perform one or more half-duplex
+	 * transactions reading 'len' bytes. Data to be written is already in
+	 * MT7621_SPI_DATA.
 	 */
 	int tx_len = rs->pending_write;
 
@@ -197,6 +196,7 @@ static void mt7621_spi_read_half_duplex(struct mt7621_spi *rs,
 			*buf++ = val & 0xff;
 			val >>= 8;
 		}
+
 		rx_len -= i;
 	}
 }
@@ -290,6 +290,7 @@ static int mt7621_spi_transfer_one_message(struct spi_master *master,
 	mt7621_spi_flush(rs);
 
 	mt7621_spi_set_cs(spi, 0);
+
 msg_done:
 	m->status = status;
 	spi_finalize_current_message(master);
@@ -330,6 +331,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	int status = 0;
 	struct clk *clk;
 	struct mt7621_spi_ops *ops;
+	int ret;
 
 	match = of_match_device(mt7621_spi_match, &pdev->dev);
 	if (!match)
@@ -353,7 +355,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 		return status;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*rs));
-	if (master == NULL) {
+	if (!master) {
 		dev_info(&pdev->dev, "master allocation failed\n");
 		return -ENOMEM;
 	}
@@ -377,7 +379,11 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	rs->pending_write = 0;
 	dev_info(&pdev->dev, "sys_freq: %u\n", rs->sys_freq);
 
-	device_reset(&pdev->dev);
+	ret = device_reset(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "SPI reset failed!\n");
+		return ret;
+	}
 
 	mt7621_spi_reset(rs);
 

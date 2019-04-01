@@ -183,25 +183,20 @@ int pvrdma_page_dir_insert_umem(struct pvrdma_page_dir *pdir,
 				struct ib_umem *umem, u64 offset)
 {
 	u64 i = offset;
-	int j, entry;
-	int ret = 0, len = 0;
-	struct scatterlist *sg;
+	int ret = 0;
+	struct sg_dma_page_iter sg_iter;
 
 	if (offset >= pdir->npages)
 		return -EINVAL;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (j = 0; j < len; j++) {
-			dma_addr_t addr = sg_dma_address(sg) +
-					  (j << umem->page_shift);
+	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		dma_addr_t addr = sg_page_iter_dma_address(&sg_iter);
 
-			ret = pvrdma_page_dir_insert_dma(pdir, i, addr);
-			if (ret)
-				goto exit;
+		ret = pvrdma_page_dir_insert_dma(pdir, i, addr);
+		if (ret)
+			goto exit;
 
-			i++;
-		}
+		i++;
 	}
 
 exit:

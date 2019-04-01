@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -20,6 +20,10 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
+#define CONFIG_SCSI_LPFC_DEBUG_FS
+#endif
+
 /* forward declaration for LPFC_IOCB_t's use */
 struct lpfc_hba;
 struct lpfc_vport;
@@ -33,6 +37,7 @@ typedef enum _lpfc_ctx_cmd {
 
 struct lpfc_cq_event {
 	struct list_head list;
+	uint16_t hdwq;
 	union {
 		struct lpfc_mcqe		mcqe_cmpl;
 		struct lpfc_acqe_link		acqe_link;
@@ -351,3 +356,85 @@ struct lpfc_sli {
 #define LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO	300
 /* Timeout for other flash-based outstanding mbox command (Seconds) */
 #define LPFC_MBOX_TMO_FLASH_CMD			300
+
+struct lpfc_io_buf {
+	/* Common fields */
+	struct list_head list;
+	void *data;
+	dma_addr_t dma_handle;
+	dma_addr_t dma_phys_sgl;
+	struct sli4_sge *dma_sgl;
+	struct lpfc_iocbq cur_iocbq;
+	struct lpfc_sli4_hdw_queue *hdwq;
+	uint16_t hdwq_no;
+	uint16_t cpu;
+
+	struct lpfc_nodelist *ndlp;
+	uint32_t timeout;
+	uint16_t flags;  /* TBD convert exch_busy to flags */
+#define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
+#define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
+					/* External DIF device IO conversions */
+#define LPFC_SBUF_NORMAL_DIF	0x4	/* normal mode to insert/strip */
+#define LPFC_SBUF_PASS_DIF	0x8	/* insert/strip mode to passthru */
+#define LPFC_SBUF_NOT_POSTED    0x10    /* SGL failed post to FW. */
+	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
+	uint16_t status;	/* From IOCB Word 7- ulpStatus */
+	uint32_t result;	/* From IOCB Word 4. */
+
+	uint32_t   seg_cnt;	/* Number of scatter-gather segments returned by
+				 * dma_map_sg.  The driver needs this for calls
+				 * to dma_unmap_sg.
+				 */
+	unsigned long start_time;
+	spinlock_t buf_lock;	/* lock used in case of simultaneous abort */
+	bool expedite;		/* this is an expedite io_buf */
+
+	union {
+		/* SCSI specific fields */
+		struct {
+			struct scsi_cmnd *pCmd;
+			struct lpfc_rport_data *rdata;
+			uint32_t prot_seg_cnt;  /* seg_cnt's counterpart for
+						 * protection data
+						 */
+
+			/*
+			 * data and dma_handle are the kernel virtual and bus
+			 * address of the dma-able buffer containing the
+			 * fcp_cmd, fcp_rsp and a scatter gather bde list that
+			 * supports the sg_tablesize value.
+			 */
+			struct fcp_cmnd *fcp_cmnd;
+			struct fcp_rsp *fcp_rsp;
+
+			wait_queue_head_t *waitq;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+			/* Used to restore any changes to protection data for
+			 * error injection
+			 */
+			void *prot_data_segment;
+			uint32_t prot_data;
+			uint32_t prot_data_type;
+#define	LPFC_INJERR_REFTAG	1
+#define	LPFC_INJERR_APPTAG	2
+#define	LPFC_INJERR_GUARD	3
+#endif
+		};
+
+		/* NVME specific fields */
+		struct {
+			struct nvmefc_fcp_req *nvmeCmd;
+			uint16_t qidx;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+			uint64_t ts_cmd_start;
+			uint64_t ts_last_cmd;
+			uint64_t ts_cmd_wqput;
+			uint64_t ts_isr_cmpl;
+			uint64_t ts_data_nvme;
+#endif
+		};
+	};
+};

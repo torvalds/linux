@@ -11,7 +11,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
@@ -52,7 +52,8 @@ static int sun4i_hdmi_setup_avi_infoframes(struct sun4i_hdmi *hdmi,
 	u8 buffer[17];
 	int i, ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &hdmi->connector, mode);
 	if (ret < 0) {
 		DRM_ERROR("Failed to get infoframes from mode\n");
 		return ret;

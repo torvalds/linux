@@ -39,6 +39,10 @@
 			.ramp_delay		= _delay,		\
 			.linear_ranges		= _lr,			\
 			.n_linear_ranges	= ARRAY_SIZE(_lr),	\
+			.curr_table	= lp873x_buck_uA,		\
+			.n_current_limits = ARRAY_SIZE(lp873x_buck_uA),	\
+			.csel_reg	= (_cr),			\
+			.csel_mask	= LP873X_BUCK0_CTRL_2_BUCK0_ILIM,\
 		},							\
 		.ctrl2_reg = _cr,					\
 	}
@@ -61,7 +65,7 @@ static const struct regulator_linear_range ldo0_ldo1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x19, 100000),
 };
 
-static unsigned int lp873x_buck_ramp_delay[] = {
+static const unsigned int lp873x_buck_ramp_delay[] = {
 	30000, 15000, 10000, 7500, 3800, 1900, 940, 470
 };
 
@@ -108,45 +112,8 @@ static int lp873x_buck_set_ramp_delay(struct regulator_dev *rdev,
 	return 0;
 }
 
-static int lp873x_buck_set_current_limit(struct regulator_dev *rdev,
-					 int min_uA, int max_uA)
-{
-	int id = rdev_get_id(rdev);
-	struct lp873x *lp873 = rdev_get_drvdata(rdev);
-	int i;
-
-	for (i = ARRAY_SIZE(lp873x_buck_uA) - 1; i >= 0; i--) {
-		if (lp873x_buck_uA[i] >= min_uA &&
-		    lp873x_buck_uA[i] <= max_uA)
-			return regmap_update_bits(lp873->regmap,
-						  regulators[id].ctrl2_reg,
-						  LP873X_BUCK0_CTRL_2_BUCK0_ILIM,
-						  i << __ffs(LP873X_BUCK0_CTRL_2_BUCK0_ILIM));
-	}
-
-	return -EINVAL;
-}
-
-static int lp873x_buck_get_current_limit(struct regulator_dev *rdev)
-{
-	int id = rdev_get_id(rdev);
-	struct lp873x *lp873 = rdev_get_drvdata(rdev);
-	int ret;
-	unsigned int val;
-
-	ret = regmap_read(lp873->regmap, regulators[id].ctrl2_reg, &val);
-	if (ret)
-		return ret;
-
-	val = (val & LP873X_BUCK0_CTRL_2_BUCK0_ILIM) >>
-	       __ffs(LP873X_BUCK0_CTRL_2_BUCK0_ILIM);
-
-	return (val < ARRAY_SIZE(lp873x_buck_uA)) ?
-			lp873x_buck_uA[val] : -EINVAL;
-}
-
 /* Operations permitted on BUCK0, BUCK1 */
-static struct regulator_ops lp873x_buck01_ops = {
+static const struct regulator_ops lp873x_buck01_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -156,12 +123,12 @@ static struct regulator_ops lp873x_buck01_ops = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= lp873x_buck_set_ramp_delay,
-	.set_current_limit	= lp873x_buck_set_current_limit,
-	.get_current_limit	= lp873x_buck_get_current_limit,
+	.set_current_limit	= regulator_set_current_limit_regmap,
+	.get_current_limit	= regulator_get_current_limit_regmap,
 };
 
 /* Operations permitted on LDO0 and LDO1 */
-static struct regulator_ops lp873x_ldo01_ops = {
+static const struct regulator_ops lp873x_ldo01_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

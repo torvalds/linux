@@ -2,7 +2,7 @@
 
     bttv-cards.c
 
-    this file has configuration informations - card-specific stuff
+    this file has configuration information - card-specific stuff
     like the big tvcards array for the most part
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
@@ -1391,7 +1391,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = {0x947fff, 0x987fff,0x947fff,0x947fff },
 		.gpiomute	= 0x947fff,
 		/* tvtuner, radio,   external,internal, mute,  stereo
-		* tuner, Composit, SVid, Composit-on-Svid-adapter */
+		* tuner, Composite, SVid, Composite-on-Svid-adapter */
 		.muxsel         = MUXSEL(2, 3, 0, 1),
 		.tuner_type     = TUNER_MT2032,
 		.tuner_addr	= ADDR_UNSET,
@@ -1411,7 +1411,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = {0x947fff, 0x987fff,0x947fff,0x947fff },
 		.gpiomute	= 0x947fff,
 		/* tvtuner, radio,   external,internal, mute,  stereo
-		* tuner, Composit, SVid, Composit-on-Svid-adapter */
+		* tuner, Composite, SVid, Composite-on-Svid-adapter */
 		.muxsel         = MUXSEL(2, 3, 0, 1),
 		.tuner_type     = TUNER_MT2032,
 		.tuner_addr	= ADDR_UNSET,
@@ -4180,7 +4180,7 @@ static void init_PXC200(struct bttv *btv)
 	bttv_I2CWrite(btv,0x5E,0,0x80,1);
 
 	/*	Initialise 12C508 PIC */
-	/*	The I2CWrite and I2CRead commmands are actually to the
+	/*	The I2CWrite and I2CRead commands are actually to the
 	 *	same chips - but the R/W bit is included in the address
 	 *	argument so the numbers are different */
 
@@ -4289,7 +4289,7 @@ init_RTV24 (struct bttv *btv)
 /* ----------------------------------------------------------------------- */
 /*
  *  The PCI-8604PW contains a CPLD, probably an ispMACH 4A, that filters
- *  the PCI REQ signals comming from the four BT878 chips. After power
+ *  the PCI REQ signals coming from the four BT878 chips. After power
  *  up, the CPLD does not forward requests to the bus, which prevents
  *  the BT878 from fetching RISC instructions from memory. While the
  *  CPLD is connected to most of the GPIOs of PCI device 0xD, only
@@ -4405,7 +4405,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
 
 	gpio_bits(0x07f, muxgpio[input]);
 
-	/* reset all conections */
+	/* reset all connections */
 	gpio_bits(0x200,0x200);
 	mdelay(1);
 	gpio_bits(0x200,0x000);

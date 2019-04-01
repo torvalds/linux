@@ -269,7 +269,7 @@ done:
  * Sysfs stuff
  */
 
-static ssize_t show_in(struct device *dev, struct device_attribute *attr,
+static ssize_t in_show(struct device *dev, struct device_attribute *attr,
 		       char *buf)
 {
 	struct lm80_data *data = lm80_update_device(dev);
@@ -281,8 +281,8 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", IN_FROM_REG(data->in[nr][index]));
 }
 
-static ssize_t set_in(struct device *dev, struct device_attribute *attr,
-		      const char *buf, size_t count)
+static ssize_t in_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct lm80_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -303,7 +303,7 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
+static ssize_t fan_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	int index = to_sensor_dev_attr_2(attr)->index;
@@ -315,8 +315,8 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 		       DIV_FROM_REG(data->fan_div[index])));
 }
 
-static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
-	char *buf)
+static ssize_t fan_div_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm80_data *data = lm80_update_device(dev);
@@ -325,8 +325,8 @@ static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[nr]));
 }
 
-static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t fan_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	int index = to_sensor_dev_attr_2(attr)->index;
 	int nr = to_sensor_dev_attr_2(attr)->nr;
@@ -352,8 +352,9 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
  */
-static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t fan_div_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm80_data *data = dev_get_drvdata(dev);
@@ -410,7 +411,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -420,8 +421,9 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
-			const char *buf, size_t count)
+static ssize_t temp_store(struct device *dev,
+			  struct device_attribute *devattr, const char *buf,
+			  size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm80_data *data = dev_get_drvdata(dev);
@@ -448,7 +450,7 @@ static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", data->alarms);
 }
 
-static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
@@ -458,72 +460,50 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
 
-static SENSOR_DEVICE_ATTR_2(in0_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 0);
-static SENSOR_DEVICE_ATTR_2(in1_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 1);
-static SENSOR_DEVICE_ATTR_2(in2_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 2);
-static SENSOR_DEVICE_ATTR_2(in3_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 3);
-static SENSOR_DEVICE_ATTR_2(in4_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 4);
-static SENSOR_DEVICE_ATTR_2(in5_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 5);
-static SENSOR_DEVICE_ATTR_2(in6_min, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_min, 6);
-static SENSOR_DEVICE_ATTR_2(in0_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 0);
-static SENSOR_DEVICE_ATTR_2(in1_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 1);
-static SENSOR_DEVICE_ATTR_2(in2_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 2);
-static SENSOR_DEVICE_ATTR_2(in3_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 3);
-static SENSOR_DEVICE_ATTR_2(in4_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 4);
-static SENSOR_DEVICE_ATTR_2(in5_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 5);
-static SENSOR_DEVICE_ATTR_2(in6_max, S_IWUSR | S_IRUGO,
-		show_in, set_in, i_max, 6);
-static SENSOR_DEVICE_ATTR_2(in0_input, S_IRUGO, show_in, NULL, i_input, 0);
-static SENSOR_DEVICE_ATTR_2(in1_input, S_IRUGO, show_in, NULL, i_input, 1);
-static SENSOR_DEVICE_ATTR_2(in2_input, S_IRUGO, show_in, NULL, i_input, 2);
-static SENSOR_DEVICE_ATTR_2(in3_input, S_IRUGO, show_in, NULL, i_input, 3);
-static SENSOR_DEVICE_ATTR_2(in4_input, S_IRUGO, show_in, NULL, i_input, 4);
-static SENSOR_DEVICE_ATTR_2(in5_input, S_IRUGO, show_in, NULL, i_input, 5);
-static SENSOR_DEVICE_ATTR_2(in6_input, S_IRUGO, show_in, NULL, i_input, 6);
-static SENSOR_DEVICE_ATTR_2(fan1_min, S_IWUSR | S_IRUGO,
-		show_fan, set_fan_min, f_min, 0);
-static SENSOR_DEVICE_ATTR_2(fan2_min, S_IWUSR | S_IRUGO,
-		show_fan, set_fan_min, f_min, 1);
-static SENSOR_DEVICE_ATTR_2(fan1_input, S_IRUGO, show_fan, NULL, f_input, 0);
-static SENSOR_DEVICE_ATTR_2(fan2_input, S_IRUGO, show_fan, NULL, f_input, 1);
-static SENSOR_DEVICE_ATTR(fan1_div, S_IWUSR | S_IRUGO,
-		show_fan_div, set_fan_div, 0);
-static SENSOR_DEVICE_ATTR(fan2_div, S_IWUSR | S_IRUGO,
-		show_fan_div, set_fan_div, 1);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, t_input);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp,
-		set_temp, t_hot_max);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO, show_temp,
-		set_temp, t_hot_hyst);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO, show_temp,
-		set_temp, t_os_max);
-static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temp,
-		set_temp, t_os_hyst);
+static SENSOR_DEVICE_ATTR_2_RW(in0_min, in, i_min, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in1_min, in, i_min, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in2_min, in, i_min, 2);
+static SENSOR_DEVICE_ATTR_2_RW(in3_min, in, i_min, 3);
+static SENSOR_DEVICE_ATTR_2_RW(in4_min, in, i_min, 4);
+static SENSOR_DEVICE_ATTR_2_RW(in5_min, in, i_min, 5);
+static SENSOR_DEVICE_ATTR_2_RW(in6_min, in, i_min, 6);
+static SENSOR_DEVICE_ATTR_2_RW(in0_max, in, i_max, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in1_max, in, i_max, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in2_max, in, i_max, 2);
+static SENSOR_DEVICE_ATTR_2_RW(in3_max, in, i_max, 3);
+static SENSOR_DEVICE_ATTR_2_RW(in4_max, in, i_max, 4);
+static SENSOR_DEVICE_ATTR_2_RW(in5_max, in, i_max, 5);
+static SENSOR_DEVICE_ATTR_2_RW(in6_max, in, i_max, 6);
+static SENSOR_DEVICE_ATTR_2_RO(in0_input, in, i_input, 0);
+static SENSOR_DEVICE_ATTR_2_RO(in1_input, in, i_input, 1);
+static SENSOR_DEVICE_ATTR_2_RO(in2_input, in, i_input, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in3_input, in, i_input, 3);
+static SENSOR_DEVICE_ATTR_2_RO(in4_input, in, i_input, 4);
+static SENSOR_DEVICE_ATTR_2_RO(in5_input, in, i_input, 5);
+static SENSOR_DEVICE_ATTR_2_RO(in6_input, in, i_input, 6);
+static SENSOR_DEVICE_ATTR_2_RW(fan1_min, fan, f_min, 0);
+static SENSOR_DEVICE_ATTR_2_RW(fan2_min, fan, f_min, 1);
+static SENSOR_DEVICE_ATTR_2_RO(fan1_input, fan, f_input, 0);
+static SENSOR_DEVICE_ATTR_2_RO(fan2_input, fan, f_input, 1);
+static SENSOR_DEVICE_ATTR_RW(fan1_div, fan_div, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_div, fan_div, 1);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, t_input);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, t_hot_max);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, temp, t_hot_hyst);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit, temp, t_os_max);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit_hyst, temp, t_os_hyst);
 static DEVICE_ATTR_RO(alarms);
-static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 6);
-static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 10);
-static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 11);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 8);
-static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 13);
+static SENSOR_DEVICE_ATTR_RO(in0_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_alarm, alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_alarm, alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_alarm, alarm, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_alarm, alarm, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_alarm, alarm, 6);
+static SENSOR_DEVICE_ATTR_RO(fan1_alarm, alarm, 10);
+static SENSOR_DEVICE_ATTR_RO(fan2_alarm, alarm, 11);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 8);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, alarm, 13);
 
 /*
  * Real code
