@@ -130,7 +130,8 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     如果你认为自己发现了Linux内核的安全性问题，请根据这篇文档中的步骤来
     提醒其他内核开发者并帮助解决这个问题。
 
-  :ref:`Documentation/process/management-style.rst <managementstyle>`
+  :ref:`Documentation/translations/zh_CN/process/management-style.rst <cn_managementstyle>`
+
     描述内核维护者的工作方法及其共有特点。这对于刚刚接触内核开发（或者对
     它感到好奇）的人来说很重要，因为它解释了很多对于内核维护者独特行为的
     普遍误解与迷惑。
