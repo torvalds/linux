@@ -1891,7 +1891,7 @@ static int rcu_nocb_gp_kthread(void *arg)
  */
 static bool nocb_cb_wait(struct rcu_data *rdp)
 {
-	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("FollowerSleep"));
+	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("CBSleep"));
 	swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
 				 READ_ONCE(rdp->nocb_cb_head));
 	if (smp_load_acquire(&rdp->nocb_cb_head)) { /* VVV */
