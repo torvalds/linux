@@ -596,7 +596,7 @@ static int dlfb_render_hline(struct dlfb_data *dlfb, struct urb **urb_ptr,
 
 static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y, int width, int height)
 {
-	int i;
+	int i, ret;
 	char *cmd;
 	cycles_t start_cycles, end_cycles;
 	int bytes_sent = 0;
@@ -606,21 +606,29 @@ static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y, int width, i
 
 	start_cycles = get_cycles();
 
+	mutex_lock(&dlfb->render_mutex);
+
 	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
 	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
 	x = aligned_x;
 
 	if ((width <= 0) ||
 	    (x + width > dlfb->info->var.xres) ||
-	    (y + height > dlfb->info->var.yres))
-		return -EINVAL;
+	    (y + height > dlfb->info->var.yres)) {
+		ret = -EINVAL;
+		goto unlock_ret;
+	}
 
-	if (!atomic_read(&dlfb->usb_active))
-		return 0;
+	if (!atomic_read(&dlfb->usb_active)) {
+		ret = 0;
+		goto unlock_ret;
+	}
 
 	urb = dlfb_get_urb(dlfb);
-	if (!urb)
-		return 0;
+	if (!urb) {
+		ret = 0;
+		goto unlock_ret;
+	}
 	cmd = urb->transfer_buffer;
 
 	for (i = y; i < y + height ; i++) {
@@ -654,7 +662,11 @@ error:
 		    >> 10)), /* Kcycles */
 		   &dlfb->cpu_kcycles_used);
 
-	return 0;
+	ret = 0;
+
+unlock_ret:
+	mutex_unlock(&dlfb->render_mutex);
+	return ret;
 }
 
 static void dlfb_init_damage(struct dlfb_data *dlfb)
@@ -782,17 +794,19 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	int bytes_identical = 0;
 	int bytes_rendered = 0;
 
+	mutex_lock(&dlfb->render_mutex);
+
 	if (!fb_defio)
-		return;
+		goto unlock_ret;
 
 	if (!atomic_read(&dlfb->usb_active))
-		return;
+		goto unlock_ret;
 
 	start_cycles = get_cycles();
 
 	urb = dlfb_get_urb(dlfb);
 	if (!urb)
-		return;
+		goto unlock_ret;
 
 	cmd = urb->transfer_buffer;
 
@@ -825,6 +839,8 @@ error:
 	atomic_add(((unsigned int) ((end_cycles - start_cycles)
 		    >> 10)), /* Kcycles */
 		   &dlfb->cpu_kcycles_used);
+unlock_ret:
+	mutex_unlock(&dlfb->render_mutex);
 }
 
 static int dlfb_get_edid(struct dlfb_data *dlfb, char *edid, int len)
@@ -985,6 +1001,8 @@ static void dlfb_ops_destroy(struct fb_info *info)
 	struct dlfb_data *dlfb = info->par;
 
 	cancel_work_sync(&dlfb->damage_work);
+
+	mutex_destroy(&dlfb->render_mutex);
 
 	if (info->cmap.len != 0)
 		fb_dealloc_cmap(&info->cmap);
@@ -1682,6 +1700,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	dlfb->ops = dlfb_ops;
 	info->fbops = &dlfb->ops;
 
+	mutex_init(&dlfb->render_mutex);
 	dlfb_init_damage(dlfb);
 	spin_lock_init(&dlfb->damage_lock);
 	INIT_WORK(&dlfb->damage_work, dlfb_damage_work);
