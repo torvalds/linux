@@ -335,6 +335,107 @@ union hl_mem_args {
 	struct hl_mem_out out;
 };
 
+#define HL_DEBUG_MAX_AUX_VALUES		10
+
+struct hl_debug_params_etr {
+	/* Address in memory to allocate buffer */
+	__u64 buffer_address;
+
+	/* Size of buffer to allocate */
+	__u64 buffer_size;
+
+	/* Sink operation mode: SW fifo, HW fifo, Circular buffer */
+	__u32 sink_mode;
+	__u32 pad;
+};
+
+struct hl_debug_params_etf {
+	/* Address in memory to allocate buffer */
+	__u64 buffer_address;
+
+	/* Size of buffer to allocate */
+	__u64 buffer_size;
+
+	/* Sink operation mode: SW fifo, HW fifo, Circular buffer */
+	__u32 sink_mode;
+	__u32 pad;
+};
+
+struct hl_debug_params_stm {
+	/* Two bit masks for HW event and Stimulus Port */
+	__u64 he_mask;
+	__u64 sp_mask;
+
+	/* Trace source ID */
+	__u32 id;
+
+	/* Frequency for the timestamp register */
+	__u32 frequency;
+};
+
+struct hl_debug_params_bmon {
+	/* Transaction address filter */
+	__u64 addr_range0;
+	__u64 addr_range1;
+
+	/* Capture window configuration */
+	__u32 bw_win;
+	__u32 win_capture;
+
+	/* Trace source ID */
+	__u32 id;
+	__u32 pad;
+};
+
+struct hl_debug_params_spmu {
+	/* Event types selection */
+	__u64 event_types[HL_DEBUG_MAX_AUX_VALUES];
+
+	/* Number of event types selection */
+	__u32 event_types_num;
+	__u32 pad;
+};
+
+/* Opcode for ETR component */
+#define HL_DEBUG_OP_ETR		0
+/* Opcode for ETF component */
+#define HL_DEBUG_OP_ETF		1
+/* Opcode for STM component */
+#define HL_DEBUG_OP_STM		2
+/* Opcode for FUNNEL component */
+#define HL_DEBUG_OP_FUNNEL	3
+/* Opcode for BMON component */
+#define HL_DEBUG_OP_BMON	4
+/* Opcode for SPMU component */
+#define HL_DEBUG_OP_SPMU	5
+/* Opcode for timestamp */
+#define HL_DEBUG_OP_TIMESTAMP	6
+
+struct hl_debug_args {
+	/*
+	 * Pointer to user input structure.
+	 * This field is relevant to specific opcodes.
+	 */
+	__u64 input_ptr;
+	/* Pointer to user output structure */
+	__u64 output_ptr;
+	/* Size of user input structure */
+	__u32 input_size;
+	/* Size of user output structure */
+	__u32 output_size;
+	/* HL_DEBUG_OP_* */
+	__u32 op;
+	/*
+	 * Register index in the component, taken from the debug_regs_index enum
+	 * in the various ASIC header files
+	 */
+	__u32 reg_idx;
+	/* Enable/disable */
+	__u32 enable;
+	/* Context ID - Currently not in use */
+	__u32 ctx_id;
+};
+
 /*
  * Various information operations such as:
  * - H/W IP information
@@ -459,7 +560,20 @@ union hl_mem_args {
 #define HL_IOCTL_MEMORY		\
 		_IOWR('H', 0x05, union hl_mem_args)
 
+/*
+ * Debug
+ * - Enable/disable the ETR/ETF/FUNNEL/STM/BMON/SPMU debug traces
+ *
+ * This IOCTL allows the user to get debug traces from the chip.
+ *
+ * The user needs to provide the register index and essential data such as
+ * buffer address and size.
+ *
+ */
+#define HL_IOCTL_DEBUG		\
+		_IOWR('H', 0x06, struct hl_debug_args)
+
 #define HL_COMMAND_START	0x01
-#define HL_COMMAND_END		0x06
+#define HL_COMMAND_END		0x07
 
 #endif /* HABANALABS_H_ */

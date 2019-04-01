@@ -483,6 +483,7 @@ enum hl_pll_frequency {
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
  * @enable_clock_gating: enable clock gating for reducing power consumption.
  * @disable_clock_gating: disable clock for accessing registers on HBW.
+ * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
  * @soft_reset_late_init: perform certain actions needed after soft reset.
  * @hw_queues_lock: acquire H/W queues lock.
@@ -557,6 +558,7 @@ struct hl_asic_funcs {
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
+	int (*debug_coresight)(struct hl_device *hdev, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, char *buf, size_t size);
 	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
@@ -865,6 +867,29 @@ struct hl_vm {
 	spinlock_t		idr_lock;
 	struct idr		phys_pg_pack_handles;
 	u8			init_done;
+};
+
+
+/*
+ * DEBUG, PROFILING STRUCTURE
+ */
+
+/**
+ * struct hl_debug_params - Coresight debug parameters.
+ * @input: pointer to component specific input parameters.
+ * @output: pointer to component specific output parameters.
+ * @output_size: size of output buffer.
+ * @reg_idx: relevant register ID.
+ * @op: component operation to execute.
+ * @enable: true if to enable component debugging, false otherwise.
+ */
+struct hl_debug_params {
+	void *input;
+	void *output;
+	u32 output_size;
+	u32 reg_idx;
+	u32 op;
+	bool enable;
 };
 
 /*
