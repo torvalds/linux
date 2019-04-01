@@ -615,6 +615,7 @@ void cirrus_modeset_fini(struct cirrus_device *cdev)
 	cirrus_fbdev_fini(cdev);
 
 	if (cdev->mode_info.mode_config_initialized) {
+		drm_helper_force_disable_all(cdev->dev);
 		drm_mode_config_cleanup(cdev->dev);
 		cdev->mode_info.mode_config_initialized = false;
 	}
