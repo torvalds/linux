@@ -38,6 +38,12 @@
 #define PCF85063_CTRL2_AF		BIT(6)
 #define PCF85063_CTRL2_AIE		BIT(7)
 
+#define PCF85063_REG_OFFSET		0x02
+#define PCF85063_OFFSET_SIGN_BIT	6	/* 2's complement sign bit */
+#define PCF85063_OFFSET_MODE		BIT(7)
+#define PCF85063_OFFSET_STEP0		4340
+#define PCF85063_OFFSET_STEP1		4069
+
 #define PCF85063_REG_RAM		0x03
 
 #define PCF85063_REG_SC			0x04 /* datetime */
@@ -225,14 +231,64 @@ static irqreturn_t pcf85063_rtc_handle_irq(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+static int pcf85063_read_offset(struct device *dev, long *offset)
+{
+	struct pcf85063 *pcf85063 = dev_get_drvdata(dev);
+	long val;
+	u32 reg;
+	int ret;
+
+	ret = regmap_read(pcf85063->regmap, PCF85063_REG_OFFSET, &reg);
+	if (ret < 0)
+		return ret;
+
+	val = sign_extend32(reg & ~PCF85063_OFFSET_MODE,
+			    PCF85063_OFFSET_SIGN_BIT);
+
+	if (reg & PCF85063_OFFSET_MODE)
+		*offset = val * PCF85063_OFFSET_STEP1;
+	else
+		*offset = val * PCF85063_OFFSET_STEP0;
+
+	return 0;
+}
+
+static int pcf85063_set_offset(struct device *dev, long offset)
+{
+	struct pcf85063 *pcf85063 = dev_get_drvdata(dev);
+	s8 mode0, mode1, reg;
+	unsigned int error0, error1;
+
+	if (offset > PCF85063_OFFSET_STEP0 * 63)
+		return -ERANGE;
+	if (offset < PCF85063_OFFSET_STEP0 * -64)
+		return -ERANGE;
+
+	mode0 = DIV_ROUND_CLOSEST(offset, PCF85063_OFFSET_STEP0);
+	mode1 = DIV_ROUND_CLOSEST(offset, PCF85063_OFFSET_STEP1);
+
+	error0 = abs(offset - (mode0 * PCF85063_OFFSET_STEP0));
+	error1 = abs(offset - (mode1 * PCF85063_OFFSET_STEP1));
+	if (mode1 > 63 || mode1 < -64 || error0 < error1)
+		reg = mode0 & ~PCF85063_OFFSET_MODE;
+	else
+		reg = mode1 | PCF85063_OFFSET_MODE;
+
+	return regmap_write(pcf85063->regmap, PCF85063_REG_OFFSET, reg);
+}
+
 static const struct rtc_class_ops pcf85063_rtc_ops = {
 	.read_time	= pcf85063_rtc_read_time,
-	.set_time	= pcf85063_rtc_set_time
+	.set_time	= pcf85063_rtc_set_time,
+	.read_offset	= pcf85063_read_offset,
+	.set_offset	= pcf85063_set_offset,
 };
 
 static const struct rtc_class_ops pcf85063_rtc_ops_alarm = {
 	.read_time	= pcf85063_rtc_read_time,
 	.set_time	= pcf85063_rtc_set_time,
+	.read_offset	= pcf85063_read_offset,
+	.set_offset	= pcf85063_set_offset,
 	.read_alarm	= pcf85063_rtc_read_alarm,
 	.set_alarm	= pcf85063_rtc_set_alarm,
 	.alarm_irq_enable = pcf85063_rtc_alarm_irq_enable,
