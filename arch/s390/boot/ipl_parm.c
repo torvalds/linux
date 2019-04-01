@@ -10,8 +10,8 @@
 #include "boot.h"
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
-struct ipl_parameter_block __bootdata(early_ipl_block);
-int __bootdata(early_ipl_block_valid);
+struct ipl_parameter_block __bootdata_preserved(ipl_block);
+int __bootdata_preserved(ipl_block_valid);
 
 unsigned long __bootdata(memory_end);
 int __bootdata(memory_end_set);
@@ -45,10 +45,10 @@ void store_ipl_parmblock(void)
 {
 	int rc;
 
-	rc = __diag308(DIAG308_STORE, &early_ipl_block);
+	rc = __diag308(DIAG308_STORE, &ipl_block);
 	if (rc == DIAG308_RC_OK &&
-	    early_ipl_block.hdr.version <= IPL_MAX_SUPPORTED_VERSION)
-		early_ipl_block_valid = 1;
+	    ipl_block.hdr.version <= IPL_MAX_SUPPORTED_VERSION)
+		ipl_block_valid = 1;
 }
 
 static size_t scpdata_length(const char *buf, size_t count)
@@ -103,14 +103,14 @@ static void append_ipl_block_parm(void)
 	delim = early_command_line + len;    /* '\0' character position */
 	parm = early_command_line + len + 1; /* append right after '\0' */
 
-	switch (early_ipl_block.hdr.pbt) {
+	switch (ipl_block.hdr.pbt) {
 	case DIAG308_IPL_TYPE_CCW:
 		rc = ipl_block_get_ascii_vmparm(
-			parm, COMMAND_LINE_SIZE - len - 1, &early_ipl_block);
+			parm, COMMAND_LINE_SIZE - len - 1, &ipl_block);
 		break;
 	case DIAG308_IPL_TYPE_FCP:
 		rc = ipl_block_get_ascii_scpdata(
-			parm, COMMAND_LINE_SIZE - len - 1, &early_ipl_block);
+			parm, COMMAND_LINE_SIZE - len - 1, &ipl_block);
 		break;
 	}
 	if (rc) {
@@ -141,7 +141,7 @@ void setup_boot_command_line(void)
 	strcpy(early_command_line, strim(COMMAND_LINE));
 
 	/* append IPL PARM data to the boot command line */
-	if (early_ipl_block_valid)
+	if (ipl_block_valid)
 		append_ipl_block_parm();
 }
 
@@ -234,9 +234,9 @@ void parse_boot_command_line(void)
 void setup_memory_end(void)
 {
 #ifdef CONFIG_CRASH_DUMP
-	if (!OLDMEM_BASE && early_ipl_block_valid &&
-	    early_ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP &&
-	    early_ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP) {
+	if (!OLDMEM_BASE && ipl_block_valid &&
+	    ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP &&
+	    ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP) {
 		if (!sclp_early_get_hsa_size(&memory_end) && memory_end)
 			memory_end_set = 1;
 	}

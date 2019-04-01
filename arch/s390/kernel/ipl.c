@@ -119,11 +119,8 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
-struct ipl_parameter_block __bootdata(early_ipl_block);
-int __bootdata(early_ipl_block_valid);
-
-static int ipl_block_valid;
-static struct ipl_parameter_block ipl_block;
+int __bootdata_preserved(ipl_block_valid);
+struct ipl_parameter_block __bootdata_preserved(ipl_block);
 
 static int reipl_capabilities = IPL_TYPE_UNKNOWN;
 
@@ -1673,14 +1670,6 @@ void __init setup_ipl(void)
 		break;
 	}
 	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-}
-
-void __init ipl_store_parameters(void)
-{
-	if (early_ipl_block_valid) {
-		memcpy(&ipl_block, &early_ipl_block, sizeof(ipl_block));
-		ipl_block_valid = 1;
-	}
 }
 
 void s390_reset_system(void)

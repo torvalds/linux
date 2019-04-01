@@ -88,7 +88,6 @@ void __init save_area_add_regs(struct save_area *, void *regs);
 void __init save_area_add_vxrs(struct save_area *, __vector128 *vxrs);
 
 extern void s390_reset_system(void);
-extern void ipl_store_parameters(void);
 extern size_t ipl_block_get_ascii_vmparm(char *dest, size_t size,
 					 const struct ipl_parameter_block *ipb);
 

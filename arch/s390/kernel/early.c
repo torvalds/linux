@@ -309,7 +309,6 @@ void __init startup_init(void)
 	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
-	ipl_store_parameters();
 	setup_boot_command_line();
 	detect_diag9c();
 	detect_diag44();
