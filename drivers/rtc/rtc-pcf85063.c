@@ -209,9 +209,6 @@ static int pcf85063_probe(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
 	err = i2c_smbus_read_byte_data(client, PCF85063_REG_CTRL1);
 	if (err < 0) {
 		dev_err(&client->dev, "RTC chip is not present\n");
