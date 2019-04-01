@@ -866,8 +866,8 @@ config FB_S1D13XXX
 	  <http://vdc.epson.com/>
 
 config FB_ATMEL
-	tristate "AT91/AT32 LCD Controller support"
-	depends on FB && HAVE_FB_ATMEL
+	tristate "AT91 LCD Controller support"
+	depends on FB && OF && HAVE_FB_ATMEL
 	select FB_BACKLIGHT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -875,7 +875,7 @@ config FB_ATMEL
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
 	help
-	  This enables support for the AT91/AT32 LCD Controller.
+	  This enables support for the AT91 LCD Controller.
 
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
