@@ -73,7 +73,8 @@ Required properties:
 			"phy", "common".
 		For "qcom,msm8998-qmp-usb3-phy" must contain
 			"phy", "common".
-		For "qcom,msm8998-qmp-ufs-phy": no resets are listed.
+		For "qcom,msm8998-qmp-ufs-phy": must contain:
+			"ufsphy".
 		For "qcom,msm8998-qmp-pcie-phy" must contain:
 			"phy", "common".
 		For "qcom,sdm845-qmp-usb3-phy" must contain:
