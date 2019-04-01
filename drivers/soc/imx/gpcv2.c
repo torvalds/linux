@@ -563,7 +563,6 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *pgc_np, *np;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -573,8 +572,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res  = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
