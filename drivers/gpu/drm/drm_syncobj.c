@@ -123,6 +123,46 @@ static void drm_syncobj_remove_wait(struct drm_syncobj *syncobj,
 }
 
 /**
+ * drm_syncobj_add_point - add new timeline point to the syncobj
+ * @syncobj: sync object to add timeline point do
+ * @chain: chain node to use to add the point
+ * @fence: fence to encapsulate in the chain node
+ * @point: sequence number to use for the point
+ *
+ * Add the chain node as new timeline point to the syncobj.
+ */
+void drm_syncobj_add_point(struct drm_syncobj *syncobj,
+			   struct dma_fence_chain *chain,
+			   struct dma_fence *fence,
+			   uint64_t point)
+{
+	struct syncobj_wait_entry *cur, *tmp;
+	struct dma_fence *prev;
+
+	dma_fence_get(fence);
+
+	spin_lock(&syncobj->lock);
+
+	prev = drm_syncobj_fence_get(syncobj);
+	/* You are adding an unorder point to timeline, which could cause payload returned from query_ioctl is 0! */
+	if (prev && prev->seqno >= point)
+		DRM_ERROR("You are adding an unorder point to timeline!\n");
+	dma_fence_chain_init(chain, prev, fence, point);
+	rcu_assign_pointer(syncobj->fence, &chain->base);
+
+	list_for_each_entry_safe(cur, tmp, &syncobj->cb_list, node) {
+		list_del_init(&cur->node);
+		syncobj_wait_syncobj_func(syncobj, cur);
+	}
+	spin_unlock(&syncobj->lock);
+
+	/* Walk the chain once to trigger garbage collection */
+	dma_fence_chain_for_each(fence, prev);
+	dma_fence_put(prev);
+}
+EXPORT_SYMBOL(drm_syncobj_add_point);
+
+/**
  * drm_syncobj_replace_fence - replace fence in a sync object.
  * @syncobj: Sync object to replace fence in
  * @fence: fence to install in sync file.
