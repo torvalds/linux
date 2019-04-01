@@ -1,3 +1,8 @@
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
 .. _cn_submitchecklist:
 
 Linux内核补丁提交清单
