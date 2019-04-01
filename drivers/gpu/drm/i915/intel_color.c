@@ -359,6 +359,13 @@ static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state
 	I915_WRITE(CGM_PIPE_MODE(pipe), crtc_state->cgm_mode);
 }
 
+static u32 ilk_lut_10(const struct drm_color_lut *color)
+{
+	return drm_color_lut_extract(color->red, 10) << 20 |
+		drm_color_lut_extract(color->green, 10) << 10 |
+		drm_color_lut_extract(color->blue, 10);
+}
+
 /* Loads the legacy palette/gamma unit for the CRTC. */
 static void i9xx_load_luts_internal(const struct intel_crtc_state *crtc_state,
 				    const struct drm_property_blob *blob)
@@ -473,14 +480,8 @@ static void bdw_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 	if (degamma_lut) {
 		const struct drm_color_lut *lut = degamma_lut->data;
 
-		for (i = 0; i < lut_size; i++) {
-			u32 word =
-			drm_color_lut_extract(lut[i].red, 10) << 20 |
-			drm_color_lut_extract(lut[i].green, 10) << 10 |
-			drm_color_lut_extract(lut[i].blue, 10);
-
-			I915_WRITE(PREC_PAL_DATA(pipe), word);
-		}
+		for (i = 0; i < lut_size; i++)
+			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
 	} else {
 		for (i = 0; i < lut_size; i++) {
 			u32 v = (i * ((1 << 10) - 1)) / (lut_size - 1);
@@ -509,14 +510,8 @@ static void bdw_load_gamma_lut(const struct intel_crtc_state *crtc_state, u32 of
 	if (gamma_lut) {
 		const struct drm_color_lut *lut = gamma_lut->data;
 
-		for (i = 0; i < lut_size; i++) {
-			u32 word =
-			(drm_color_lut_extract(lut[i].red, 10) << 20) |
-			(drm_color_lut_extract(lut[i].green, 10) << 10) |
-			drm_color_lut_extract(lut[i].blue, 10);
-
-			I915_WRITE(PREC_PAL_DATA(pipe), word);
-		}
+		for (i = 0; i < lut_size; i++)
+			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
 
 		/*
 		 * Program the max register to clamp values > 1.0.
