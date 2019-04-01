@@ -39,11 +39,11 @@ static int call_site_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_read_number_field(field, data, &val))
 		return 1;
 
-	func = tep_find_function(event->pevent, val);
+	func = tep_find_function(event->tep, val);
 	if (!func)
 		return 1;
 
-	addr = tep_find_function_address(event->pevent, val);
+	addr = tep_find_function_address(event->tep, val);
 
 	trace_seq_printf(s, "(%s+0x%x) ", func, (int)(val - addr));
 	return 1;

@@ -804,7 +804,7 @@ static int add_event(struct tep_handle *pevent, struct tep_event *event)
 	pevent->events[i] = event;
 	pevent->nr_events++;
 
-	event->pevent = pevent;
+	event->tep = pevent;
 
 	return 0;
 }
@@ -1656,8 +1656,8 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 			else if (field->flags & TEP_FIELD_IS_STRING)
 				field->elementsize = 1;
 			else if (field->flags & TEP_FIELD_IS_LONG)
-				field->elementsize = event->pevent ?
-						     event->pevent->long_size :
+				field->elementsize = event->tep ?
+						     event->tep->long_size :
 						     sizeof(long);
 		} else
 			field->elementsize = field->size;
@@ -3075,7 +3075,7 @@ process_function(struct tep_event *event, struct tep_print_arg *arg,
 		return process_dynamic_array_len(event, arg, tok);
 	}
 
-	func = find_func_handler(event->pevent, token);
+	func = find_func_handler(event->tep, token);
 	if (func) {
 		free_token(token);
 		return process_func_handler(event, func, arg, tok);
@@ -3405,7 +3405,7 @@ int tep_read_number_field(struct tep_format_field *field, const void *data,
 	case 2:
 	case 4:
 	case 8:
-		*value = tep_read_number(field->event->pevent,
+		*value = tep_read_number(field->event->tep,
 					 data + field->offset, field->size);
 		return 0;
 	default:
@@ -3566,7 +3566,7 @@ tep_find_event_by_name(struct tep_handle *tep,
 static unsigned long long
 eval_num_arg(void *data, int size, struct tep_event *event, struct tep_print_arg *arg)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	unsigned long long val = 0;
 	unsigned long long left, right;
 	struct tep_print_arg *typearg = NULL;
@@ -3907,7 +3907,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			  struct tep_event *event, const char *format,
 			  int len_arg, struct tep_print_arg *arg)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	struct tep_print_flag_sym *flag;
 	struct tep_format_field *field;
 	struct printk_map *printk;
@@ -4256,7 +4256,7 @@ static void free_args(struct tep_print_arg *args)
 
 static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, struct tep_event *event)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	struct tep_format_field *field, *ip_field;
 	struct tep_print_arg *args, *arg, **next;
 	unsigned long long ip, val;
@@ -4434,7 +4434,7 @@ static char *
 get_bprint_format(void *data, int size __maybe_unused,
 		  struct tep_event *event)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	unsigned long long addr;
 	struct tep_format_field *field;
 	struct printk_map *printk;
@@ -4835,7 +4835,7 @@ void tep_print_field(struct trace_seq *s, void *data,
 {
 	unsigned long long val;
 	unsigned int offset, len, i;
-	struct tep_handle *pevent = field->event->pevent;
+	struct tep_handle *pevent = field->event->tep;
 
 	if (field->flags & TEP_FIELD_IS_ARRAY) {
 		offset = field->offset;
@@ -4910,7 +4910,7 @@ void tep_print_fields(struct trace_seq *s, void *data,
 
 static void pretty_print(struct trace_seq *s, void *data, int size, struct tep_event *event)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	struct tep_print_fmt *print_fmt = &event->print_fmt;
 	struct tep_print_arg *arg = print_fmt->args;
 	struct tep_print_arg *args = NULL;
@@ -5424,7 +5424,7 @@ void tep_event_info(struct trace_seq *s, struct tep_event *event,
 {
 	int print_pretty = 1;
 
-	if (event->pevent->print_raw || (event->flags & TEP_EVENT_FL_PRINTRAW))
+	if (event->tep->print_raw || (event->flags & TEP_EVENT_FL_PRINTRAW))
 		tep_print_fields(s, record->data, record->size, event);
 	else {
 
@@ -6163,7 +6163,7 @@ enum tep_errno __tep_parse_format(struct tep_event **eventp,
 	}
 
 	/* Add pevent to event so that it can be referenced */
-	event->pevent = pevent;
+	event->tep = pevent;
 
 	ret = event_read_format(event);
 	if (ret < 0) {
@@ -6357,8 +6357,8 @@ void *tep_get_field_raw(struct trace_seq *s, struct tep_event *event,
 
 	offset = field->offset;
 	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
-		offset = tep_read_number(event->pevent,
-					    data + offset, field->size);
+		offset = tep_read_number(event->tep,
+					 data + offset, field->size);
 		*len = offset >> 16;
 		offset &= 0xffff;
 	} else
@@ -6492,7 +6492,7 @@ int tep_print_func_field(struct trace_seq *s, const char *fmt,
 			 struct tep_record *record, int err)
 {
 	struct tep_format_field *field = tep_find_field(event, name);
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	unsigned long long val;
 	struct func_map *func;
 	char tmp[128];

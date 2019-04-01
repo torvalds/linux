@@ -62,7 +62,7 @@ static void write_and_save_comm(struct tep_format_field *field,
 	comm = &s->buffer[len];
 
 	/* Help out the comm to ids. This will handle dups */
-	tep_register_comm(field->event->pevent, comm, pid);
+	tep_register_comm(field->event->tep, comm, pid);
 }
 
 static int sched_wakeup_handler(struct trace_seq *s,

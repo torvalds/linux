@@ -278,7 +278,7 @@ struct tep_print_fmt {
 };
 
 struct tep_event {
-	struct tep_handle	*pevent;
+	struct tep_handle	*tep;
 	char			*name;
 	int			id;
 	int			flags;

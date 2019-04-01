@@ -1528,8 +1528,8 @@ get_comm(struct tep_event *event, struct tep_record *record)
 	const char *comm;
 	int pid;
 
-	pid = tep_data_pid(event->pevent, record);
-	comm = tep_data_comm_from_pid(event->pevent, pid);
+	pid = tep_data_pid(event->tep, record);
+	comm = tep_data_comm_from_pid(event->tep, pid);
 	return comm;
 }
 
@@ -1727,7 +1727,7 @@ static const char *get_field_str(struct tep_filter_arg *arg, struct tep_record *
 
 	} else {
 		event = arg->str.field->event;
-		pevent = event->pevent;
+		pevent = event->tep;
 		addr = get_value(event, arg->str.field, record);
 
 		if (arg->str.field->flags & (TEP_FIELD_IS_POINTER | TEP_FIELD_IS_LONG))
