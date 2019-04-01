@@ -134,17 +134,6 @@ static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 	unsigned long pinmask = bgpio_line2mask(gc, gpio);
 	bool dir = !!(gc->bgpio_dir & pinmask);
 
-	/*
-	 * If the direction is OUT we read the value from the SET
-	 * register, and if the direction is IN we read the value
-	 * from the DAT register.
-	 *
-	 * If the direction bits are inverted, naturally this gets
-	 * inverted too.
-	 */
-	if (gc->bgpio_dir_inverted)
-		dir = !dir;
-
 	if (dir)
 		return !!(gc->read_reg(gc->reg_set) & pinmask);
 	else
@@ -164,14 +153,8 @@ static int bgpio_get_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	/* Make sure we first clear any bits that are zero when we read the register */
 	*bits &= ~*mask;
 
-	/* Exploit the fact that we know which directions are set */
-	if (gc->bgpio_dir_inverted) {
-		set_mask = *mask & ~gc->bgpio_dir;
-		get_mask = *mask & gc->bgpio_dir;
-	} else {
-		set_mask = *mask & gc->bgpio_dir;
-		get_mask = *mask & ~gc->bgpio_dir;
-	}
+	set_mask = *mask & gc->bgpio_dir;
+	get_mask = *mask & ~gc->bgpio_dir;
 
 	if (set_mask)
 		*bits |= gc->read_reg(gc->reg_set) & set_mask;
