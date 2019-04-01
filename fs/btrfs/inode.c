@@ -28,6 +28,7 @@
 #include <linux/magic.h>
 #include <linux/iversion.h>
 #include <linux/swap.h>
+#include <linux/sched/mm.h>
 #include <asm/unaligned.h>
 #include "ctree.h"
 #include "disk-io.h"
@@ -1172,7 +1173,7 @@ static noinline void async_cow_free(struct btrfs_work *work)
 	 * async_chunk's, freeing it ensures the whole array has been freed.
 	 */
 	if (atomic_dec_and_test(async_chunk->pending))
-		kfree(async_chunk->pending);
+		kvfree(async_chunk->pending);
 }
 
 static int cow_file_range_async(struct inode *inode, struct page *locked_page,
@@ -1188,6 +1189,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	u64 num_chunks = DIV_ROUND_UP(end - start, SZ_512K);
 	int i;
 	bool should_compress;
+	unsigned nofs_flag;
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 
@@ -1199,7 +1201,10 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		should_compress = true;
 	}
 
-	ctx = kmalloc(struct_size(ctx, chunks, num_chunks), GFP_NOFS);
+	nofs_flag = memalloc_nofs_save();
+	ctx = kvmalloc(struct_size(ctx, chunks, num_chunks), GFP_KERNEL);
+	memalloc_nofs_restore(nofs_flag);
+
 	if (!ctx) {
 		unsigned clear_bits = EXTENT_LOCKED | EXTENT_DELALLOC |
 			EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
