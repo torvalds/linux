@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * An I2C driver for the PCF85063 RTC
  * Copyright 2014 Rose Technology
  *
  * Author: Søren Andersen <san@rosetechnology.dk>
  * Maintainers: http://www.nslu2-linux.org/
- *
- * based on the other drivers in this same directory.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/i2c.h>
 #include <linux/bcd.h>
