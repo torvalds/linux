@@ -133,8 +133,6 @@
 	status = "okay";
 
 	nand@0 {
-		#address-cells = <2>;
-		#size-cells = <2>;
 		reg = <0>;
 		allwinner,rb = <0>;
 		nand-ecc-mode = "hw";
