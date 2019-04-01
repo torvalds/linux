@@ -783,6 +783,12 @@ emit_semaphore_wait(struct i915_request *to,
 	GEM_BUG_ON(!from->timeline->has_initial_breadcrumb);
 	GEM_BUG_ON(INTEL_GEN(to->i915) < 8);
 
+	/* Just emit the first semaphore we see as request space is limited. */
+	if (to->sched.semaphores & from->engine->mask)
+		return i915_sw_fence_await_dma_fence(&to->submit,
+						     &from->fence, 0,
+						     I915_FENCE_GFP);
+
 	/* We need to pin the signaler's HWSP until we are finished reading. */
 	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
@@ -814,7 +820,8 @@ emit_semaphore_wait(struct i915_request *to,
 	*cs++ = 0;
 
 	intel_ring_advance(to, cs);
-	to->sched.flags |= I915_SCHED_HAS_SEMAPHORE;
+	to->sched.semaphores |= from->engine->mask;
+	to->sched.flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 	return 0;
 }
 
@@ -1126,7 +1133,7 @@ void i915_request_add(struct i915_request *request)
 		 * far in the distance past over useful work, we keep a history
 		 * of any semaphore use along our dependency chain.
 		 */
-		if (!(request->sched.flags & I915_SCHED_HAS_SEMAPHORE))
+		if (!(request->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
 			attr.priority |= I915_PRIORITY_NOSEMAPHORE;
 
 		/*

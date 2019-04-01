@@ -10,6 +10,7 @@
 #include <linux/list.h>
 
 #include "i915_priolist_types.h"
+#include "intel_engine_types.h"
 
 struct drm_i915_private;
 struct i915_request;
@@ -55,7 +56,8 @@ struct i915_sched_node {
 	struct list_head link;
 	struct i915_sched_attr attr;
 	unsigned int flags;
-#define I915_SCHED_HAS_SEMAPHORE	BIT(0)
+#define I915_SCHED_HAS_SEMAPHORE_CHAIN	BIT(0)
+	intel_engine_mask_t semaphores;
 };
 
 struct i915_dependency {
