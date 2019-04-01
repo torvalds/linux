@@ -468,6 +468,29 @@ static void skl_color_commit(const struct intel_crtc_state *crtc_state)
 		ilk_load_csc_matrix(crtc_state);
 }
 
+static void ilk_load_lut_10(struct intel_crtc *crtc,
+			    const struct drm_property_blob *blob)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_color_lut *lut = blob->data;
+	int i, lut_size = drm_color_lut_size(blob);
+	enum pipe pipe = crtc->pipe;
+
+	for (i = 0; i < lut_size; i++)
+		I915_WRITE(PREC_PALETTE(pipe, i), ilk_lut_10(&lut[i]));
+}
+
+static void ilk_load_luts(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
+
+	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+		i9xx_load_luts(crtc_state);
+	else
+		ilk_load_lut_10(crtc, gamma_lut);
+}
+
 /*
  * IVB/HSW Bspec / PAL_PREC_INDEX:
  * "Restriction : Index auto increment mode is not
@@ -967,6 +990,15 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static u32 ilk_gamma_mode(const struct intel_crtc_state *crtc_state)
+{
+	if (!crtc_state->gamma_enable ||
+	    crtc_state_is_legacy_gamma(crtc_state))
+		return GAMMA_MODE_MODE_8BIT;
+	else
+		return GAMMA_MODE_MODE_10BIT;
+}
+
 static int ilk_color_check(struct intel_crtc_state *crtc_state)
 {
 	int ret;
@@ -986,8 +1018,7 @@ static int ilk_color_check(struct intel_crtc_state *crtc_state)
 	 */
 	crtc_state->csc_enable = false;
 
-	/* We don't expose fancy gamma modes on ilk/snb currently */
-	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
+	crtc_state->gamma_mode = ilk_gamma_mode(crtc_state);
 
 	crtc_state->csc_mode = 0;
 
@@ -1145,6 +1176,7 @@ static int icl_color_check(struct intel_crtc_state *crtc_state)
 void intel_color_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	bool has_ctm = INTEL_INFO(dev_priv)->color.degamma_lut_size != 0;
 
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
@@ -1184,14 +1216,11 @@ void intel_color_init(struct intel_crtc *crtc)
 		else if (INTEL_GEN(dev_priv) >= 7)
 			dev_priv->display.load_luts = ivb_load_luts;
 		else
-			dev_priv->display.load_luts = i9xx_load_luts;
+			dev_priv->display.load_luts = ilk_load_luts;
 	}
 
-	/* Enable color management support when we have degamma & gamma LUTs. */
-	if (INTEL_INFO(dev_priv)->color.degamma_lut_size != 0 &&
-	    INTEL_INFO(dev_priv)->color.gamma_lut_size != 0)
-		drm_crtc_enable_color_mgmt(&crtc->base,
-					   INTEL_INFO(dev_priv)->color.degamma_lut_size,
-					   true,
-					   INTEL_INFO(dev_priv)->color.gamma_lut_size);
+	drm_crtc_enable_color_mgmt(&crtc->base,
+				   INTEL_INFO(dev_priv)->color.degamma_lut_size,
+				   has_ctm,
+				   INTEL_INFO(dev_priv)->color.gamma_lut_size);
 }
