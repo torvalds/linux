@@ -1,3 +1,8 @@
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :ref:`Documentation/process/5.Posting.rst <development_posting>`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
 .. _cn_development_posting:
 
 发送补丁
