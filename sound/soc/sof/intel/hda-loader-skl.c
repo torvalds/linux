@@ -305,6 +305,8 @@ static void cl_cleanup_skl(struct snd_sof_dev *sdev)
 
 static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int sts;
 	int ret;
 
@@ -359,7 +361,8 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 					    ((sts & HDA_DSP_ROM_STS_MASK)
 						    == HDA_DSP_ROM_INIT),
 					    HDA_DSP_REG_POLL_INTERVAL_US,
-					    HDA_DSP_INIT_TIMEOUT_US);
+					    chip->rom_init_timeout *
+					    USEC_PER_MSEC);
 	if (ret < 0)
 		goto err;
 
