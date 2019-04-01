@@ -968,6 +968,14 @@ static inline struct mlx5_ib_dev *to_mdev(struct ib_device *ibdev)
 	return container_of(ibdev, struct mlx5_ib_dev, ib_dev);
 }
 
+static inline struct mlx5_ib_dev *mlx5_udata_to_mdev(struct ib_udata *udata)
+{
+	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
+
+	return to_mdev(context->ibucontext.device);
+}
+
 static inline struct mlx5_ib_cq *to_mcq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct mlx5_ib_cq, ibcq);
