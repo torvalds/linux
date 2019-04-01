@@ -375,8 +375,17 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8	   outer_esp_spi[0x1];
 	u8         reserved_at_58[0x2];
 	u8         bth_dst_qp[0x1];
+	u8         reserved_at_5b[0x5];
 
-	u8         reserved_at_5b[0x25];
+	u8         reserved_at_60[0x18];
+	u8         metadata_reg_c_7[0x1];
+	u8         metadata_reg_c_6[0x1];
+	u8         metadata_reg_c_5[0x1];
+	u8         metadata_reg_c_4[0x1];
+	u8         metadata_reg_c_3[0x1];
+	u8         metadata_reg_c_2[0x1];
+	u8         metadata_reg_c_1[0x1];
+	u8         metadata_reg_c_0[0x1];
 };
 
 struct mlx5_ifc_flow_table_prop_layout_bits {
@@ -401,7 +410,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8	   reformat_l3_tunnel_to_l2[0x1];
 	u8	   reformat_l2_to_l3_tunnel[0x1];
 	u8	   reformat_and_modify_action[0x1];
-	u8         reserved_at_15[0x2];
+	u8	   ignore_flow_level[0x1];
+	u8         reserved_at_16[0x1];
 	u8	   table_miss_action_domain[0x1];
 	u8         termination_table[0x1];
 	u8         reserved_at_19[0x7];
@@ -722,7 +732,9 @@ enum {
 
 struct mlx5_ifc_flow_table_eswitch_cap_bits {
 	u8      fdb_to_vport_reg_c_id[0x8];
-	u8      reserved_at_8[0xf];
+	u8      reserved_at_8[0xd];
+	u8      fdb_modify_header_fwd_to_table[0x1];
+	u8      reserved_at_16[0x1];
 	u8      flow_source[0x1];
 	u8      reserved_at_18[0x2];
 	u8      multi_fdb_encap[0x1];
@@ -4141,7 +4153,8 @@ struct mlx5_ifc_set_fte_in_bits {
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
 
-	u8         reserved_at_c0[0x18];
+	u8         ignore_flow_level[0x1];
+	u8         reserved_at_c1[0x17];
 	u8         modify_enable_mask[0x8];
 
 	u8         reserved_at_e0[0x20];
@@ -5627,6 +5640,7 @@ struct mlx5_ifc_copy_action_in_bits {
 union mlx5_ifc_set_action_in_add_action_in_auto_bits {
 	struct mlx5_ifc_set_action_in_bits set_action_in;
 	struct mlx5_ifc_add_action_in_bits add_action_in;
+	struct mlx5_ifc_copy_action_in_bits copy_action_in;
 	u8         reserved_at_0[0x40];
 };
 
@@ -5669,6 +5683,8 @@ enum {
 	MLX5_ACTION_IN_FIELD_METADATA_REG_C_3  = 0x54,
 	MLX5_ACTION_IN_FIELD_METADATA_REG_C_4  = 0x55,
 	MLX5_ACTION_IN_FIELD_METADATA_REG_C_5  = 0x56,
+	MLX5_ACTION_IN_FIELD_METADATA_REG_C_6  = 0x57,
+	MLX5_ACTION_IN_FIELD_METADATA_REG_C_7  = 0x58,
 	MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM   = 0x59,
 	MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM   = 0x5B,
 };
