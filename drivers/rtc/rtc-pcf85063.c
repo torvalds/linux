@@ -5,6 +5,9 @@
  *
  * Author: Søren Andersen <san@rosetechnology.dk>
  * Maintainers: http://www.nslu2-linux.org/
+ *
+ * Copyright (C) 2019 Micro Crystal AG
+ * Author: Alexandre Belloni <alexandre.belloni@bootlin.com>
  */
 #include <linux/i2c.h>
 #include <linux/bcd.h>
@@ -22,7 +25,10 @@
  *
  *  PCF85063A -- Rev. 6 — 18 November 2015
  *  PCF85063TP -- Rev. 4 — 6 May 2015
-*/
+ *
+ *  https://www.microcrystal.com/fileadmin/Media/Products/RTC/App.Manual/RV-8263-C7_App-Manual.pdf
+ *  RV8263 -- Rev. 1.0 — January 2019
+ */
 
 #define PCF85063_REG_CTRL1		0x00 /* status */
 #define PCF85063_REG_CTRL1_CAP_SEL	BIT(0)
@@ -41,6 +47,7 @@
 struct pcf85063_config {
 	struct regmap_config regmap;
 	unsigned has_alarms:1;
+	unsigned force_cap_7000:1;
 };
 
 struct pcf85063 {
@@ -230,12 +237,17 @@ static const struct rtc_class_ops pcf85063_rtc_ops_alarm = {
 };
 
 static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
-				     const struct device_node *np)
+				     const struct device_node *np,
+				     unsigned int force_cap)
 {
 	u32 load = 7000;
 	u8 reg = 0;
 
-	of_property_read_u32(np, "quartz-load-femtofarads", &load);
+	if (force_cap)
+		load = force_cap;
+	else
+		of_property_read_u32(np, "quartz-load-femtofarads", &load);
+
 	switch (load) {
 	default:
 		dev_warn(&pcf85063->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
@@ -267,6 +279,16 @@ static const struct pcf85063_config pcf85063tp_config = {
 		.val_bits = 8,
 		.max_register = 0x0a,
 	},
+};
+
+static const struct pcf85063_config rv8263_config = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
+	},
+	.has_alarms = 1,
+	.force_cap_7000 = 1,
 };
 
 static int pcf85063_probe(struct i2c_client *client)
@@ -303,7 +325,8 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (IS_ERR(pcf85063->rtc))
 		return PTR_ERR(pcf85063->rtc);
 
-	err = pcf85063_load_capacitance(pcf85063, client->dev.of_node);
+	err = pcf85063_load_capacitance(pcf85063, client->dev.of_node,
+					config->force_cap_7000 ? 7000 : 0);
 	if (err < 0)
 		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
 			 err);
@@ -339,6 +362,7 @@ static const struct of_device_id pcf85063_of_match[] = {
 	{ .compatible = "nxp,pcf85063", .data = &pcf85063tp_config },
 	{ .compatible = "nxp,pcf85063tp", .data = &pcf85063tp_config },
 	{ .compatible = "nxp,pcf85063a", .data = &pcf85063a_config },
+	{ .compatible = "microcrystal,rv8263", .data = &rv8263_config },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf85063_of_match);

@@ -4,7 +4,8 @@ Required properties:
 - compatible: Should one of contain:
 	"nxp,pcf85063",
 	"nxp,pcf85063a",
-	"nxp,pcf85063tp"
+	"nxp,pcf85063tp",
+	"microcrystal,rv8263"
 - reg: I2C address for chip.
 
 Optional property:
