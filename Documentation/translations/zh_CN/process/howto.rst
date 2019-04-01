@@ -90,7 +90,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
   :ref:`Documentation/process/changes.rst <changes>`
     文件给出了用来编译和使用内核所需要的最小软件包列表。
 
-  :ref:`Documentation/process/coding-style.rst <codingstyle>`
+  :ref:`Documentation/translations/zh_CN/process/coding-style.rst <cn_codingstyle>`
     描述Linux内核的代码风格和理由。所有新代码需要遵守这篇文档中定义的规
     范。大多数维护者只会接收符合规定的补丁，很多人也只会帮忙检查符合风格
     的代码。

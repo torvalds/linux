@@ -32,7 +32,7 @@ Linux内核补丁提交清单
 4) PPC64是一种很好的交叉编译检查体系结构，因为它倾向于对64位的数使用无符号
    长整型。
 
-5) 如下所述 :ref:`Documentation/process/coding-style.rst <codingstyle>`.
+5) 如下所述 :ref:`Documentation/translations/zh_CN/process/coding-style.rst <cn_codingstyle>`.
    检查您的补丁是否为常规样式。在提交（ ``scripts/check patch.pl`` ）之前，
    使用补丁样式检查器检查是否有轻微的冲突。您应该能够处理您的补丁中存在的所有
    违规行为。

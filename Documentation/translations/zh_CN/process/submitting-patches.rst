@@ -191,7 +191,7 @@ bug的URL之外，还要总结需要提交补丁的相关讨论要点。
 -------------------
 
 检查您的补丁是否存在基本样式冲突，详细信息可在
-:ref:`Documentation/process/coding-style.rst <codingstyle>`
+:ref:`Documentation/translations/zh_CN/process/coding-style.rst <cn_codingstyle>`
 中找到。如果不这样做，只会浪费审稿人的时间，并且会导致你的补丁被拒绝，甚至
 可能没有被阅读。
 
@@ -671,7 +671,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
 Kernel Documentation/process/coding-style.rst:
-  :ref:`Documentation/process/coding-style.rst <codingstyle>`
+  :ref:`Documentation/translations/zh_CN/process/coding-style.rst <cn_codingstyle>`
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
