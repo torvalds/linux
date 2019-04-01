@@ -31,6 +31,7 @@ struct tfp410 {
 
 	struct i2c_adapter	*ddc;
 	struct gpio_desc	*hpd;
+	int			hpd_irq;
 	struct delayed_work	hpd_work;
 	struct gpio_desc	*powerdown;
 
@@ -124,8 +125,10 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		return -ENODEV;
 	}
 
-	if (dvi->hpd)
+	if (dvi->hpd_irq >= 0)
 		dvi->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	else
+		dvi->connector.polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	drm_connector_helper_add(&dvi->connector,
 				 &tfp410_con_helper_funcs);
@@ -324,10 +327,15 @@ static int tfp410_init(struct device *dev, bool i2c)
 		return PTR_ERR(dvi->powerdown);
 	}
 
-	if (dvi->hpd) {
+	if (dvi->hpd)
+		dvi->hpd_irq = gpiod_to_irq(dvi->hpd);
+	else
+		dvi->hpd_irq = -ENXIO;
+
+	if (dvi->hpd_irq >= 0) {
 		INIT_DELAYED_WORK(&dvi->hpd_work, tfp410_hpd_work_func);
 
-		ret = devm_request_threaded_irq(dev, gpiod_to_irq(dvi->hpd),
+		ret = devm_request_threaded_irq(dev, dvi->hpd_irq,
 			NULL, tfp410_hpd_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"hdmi-hpd", dvi);
