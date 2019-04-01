@@ -188,7 +188,7 @@ bug搜寻人员想知道补丁是否负责他们正在追查的问题，想知�
    执行的行包装的补丁不会在另一端复原，并且通常不会进行任何详细检查。如果有
    任何疑问，把补丁寄给你自己，让你自己相信它是完好无损的。
 
-   :ref:`documentation/process/email-clients.rst <email_clients>`
+   :ref:`Documentation/translations/zh_CN/process/email-clients.rst <cn_email_clients>`
    提供了一些有用的提示，可以让特定的邮件客户机工作以发送补丁。
 
  - 你确定你的补丁没有愚蠢的错误吗？您应该始终通过scripts/checkpatch.pl运行

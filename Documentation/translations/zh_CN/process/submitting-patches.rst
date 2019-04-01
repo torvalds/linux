@@ -297,7 +297,7 @@ Linus 和其他的内核开发者需要阅读和评论你提交的改动。对�
 
 例外：如果你的邮递员弄坏了补丁，那么有人可能会要求你使用mime重新发送补丁
 
-请参阅 :ref:`Documentation/process/e-mail-clients.rst <email_clients>`
+请参阅 :ref:`Documentation/translations/zh_CN/process/email-clients.rst <cn_email_clients>`
 以获取有关配置电子邮件客户端以使其不受影响地发送修补程序的提示。
 
 7) e-mail 的大小
