@@ -93,12 +93,13 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(const struct sock *sk,
 /* Helper returning the inet6 address from a given tcp socket.
  * It can be used in TCP stack instead of inet6_sk(sk).
  * This avoids a dereference and allow compiler optimizations.
+ * It is a specialized version of inet6_sk_generic().
  */
 static struct ipv6_pinfo *tcp_inet6_sk(const struct sock *sk)
 {
-	struct tcp6_sock *tcp6 = container_of(tcp_sk(sk), struct tcp6_sock, tcp);
+	unsigned int offset = sizeof(struct tcp6_sock) - sizeof(struct ipv6_pinfo);
 
-	return &tcp6->inet6;
+	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
 }
 
 static void inet6_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
