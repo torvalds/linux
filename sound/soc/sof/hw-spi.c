@@ -280,10 +280,6 @@ const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	.irq_handler	= spi_irq_handler,
 	.irq_thread	= spi_irq_thread,
 
-	/* mailbox */
-	.mailbox_read	= spi_mailbox_read,
-	.mailbox_write	= spi_mailbox_write,
-
 	/* ipc */
 	.send_msg	= spi_send_msg,
 	.fw_ready	= spi_fw_ready,
