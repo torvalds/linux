@@ -48,6 +48,12 @@ struct dlfb_data {
 	int base8;
 	u32 pseudo_palette[256];
 	int blank_mode; /*one of FB_BLANK_ */
+	int damage_x;
+	int damage_y;
+	int damage_x2;
+	int damage_y2;
+	spinlock_t damage_lock;
+	struct work_struct damage_work;
 	struct fb_ops ops;
 	/* blit-only rendering path metrics, exposed through sysfs */
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
