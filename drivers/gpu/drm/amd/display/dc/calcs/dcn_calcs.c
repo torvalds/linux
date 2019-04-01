@@ -1116,9 +1116,8 @@ bool dcn_validate_bandwidth(
 
 		context->bw_ctx.bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
-		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
+		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65)
 			context->bw_ctx.bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
-		}
 
 		context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw_ctx.bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
@@ -1133,7 +1132,8 @@ bool dcn_validate_bandwidth(
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw_ctx.bw.dcn.clk.dppclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
+		context->bw_ctx.bw.dcn.clk.dppclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz /
+				v->dispclk_dppclk_ratio;
 		context->bw_ctx.bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
@@ -1220,9 +1220,7 @@ bool dcn_validate_bandwidth(
 						/* pipe not split previously needs split */
 						hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, pool, pipe);
 						ASSERT(hsplit_pipe);
-						split_stream_across_pipes(
-							&context->res_ctx, pool,
-							pipe, hsplit_pipe);
+						split_stream_across_pipes(&context->res_ctx, pool, pipe, hsplit_pipe);
 					}
 
 					dcn_bw_calc_rq_dlg_ttu(dc, v, hsplit_pipe, input_idx);
@@ -1253,7 +1251,6 @@ bool dcn_validate_bandwidth(
 	}
 
 	if (v->voltage_level == 0) {
-
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us =
 				dc->dcn_soc->sr_enter_plus_exit_time;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;

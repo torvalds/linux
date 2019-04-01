@@ -1907,10 +1907,11 @@ static bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 }
 #endif
 
-bool dcn20_validate_bandwidth(struct dc *dc,
-			      struct dc_state *context,
-			      bool fast_validate)
+bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
+		bool fast_validate)
 {
+	bool out = false;
+
 	int pipe_cnt, i, pipe_idx, vlevel, vlevel_unsplit;
 	int pipe_split_from[MAX_PIPES];
 	bool odm_capable = context->bw_ctx.dml.ip.odm_capable;
@@ -1954,11 +1955,16 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 	}
 
 	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, &context->res_ctx, pipes);
-	if (!pipe_cnt)
-		goto validate_pass;
+
+	if (!pipe_cnt) {
+		out = true;
+		goto validate_out;
+	}
 
 	context->bw_ctx.dml.ip.odm_capable = 0;
+
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+
 	context->bw_ctx.dml.ip.odm_capable = odm_capable;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
@@ -2111,6 +2117,11 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 	}
 #endif
 
+	if (fast_validate) {
+		out = true;
+		goto validate_out;
+	}
+
 	for (i = 0, pipe_idx = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
@@ -2235,21 +2246,27 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 				pipe_idx,
 				cstate_en,
 				context->bw_ctx.bw.dcn.clk.p_state_change_support);
+
 		context->bw_ctx.dml.funcs.rq_dlg_get_rq_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].rq_regs,
 				pipes[pipe_idx].pipe);
+
 		pipe_idx++;
 	}
 
-validate_pass:
-	kfree(pipes);
-	return true;
+	out = true;
+	goto validate_out;
 
 validate_fail:
 	DC_LOG_WARNING("Mode Validation Warning: %s failed validation.\n",
 		dml_get_status_message(context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states]));
+
+	out = false;
+
+validate_out:
 	kfree(pipes);
-	return false;
+
+	return out;
 }
 
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
