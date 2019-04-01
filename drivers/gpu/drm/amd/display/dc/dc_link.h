@@ -250,7 +250,7 @@ uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_setting);
 
-const struct dc_link_settings *dc_link_get_verified_link_cap(
+const struct dc_link_settings *dc_link_get_link_cap(
 		const struct dc_link *link);
 
 bool dc_submit_i2c(

@@ -1548,8 +1548,7 @@ bool dp_validate_mode_timing(
 		timing->v_addressable == (uint32_t) 480)
 		return true;
 
-	/* We always use verified link settings */
-	link_setting = dc_link_get_verified_link_cap(link);
+	link_setting = dc_link_get_link_cap(link);
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&
