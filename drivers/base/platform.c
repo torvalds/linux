@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(platform_get_resource);
  *				    device
  *
  * @pdev: platform device to use both for memory resource lookup as well as
- *        resource managemend
+ *        resource management
  * @index: resource index
  */
 #ifdef CONFIG_HAS_IOMEM
