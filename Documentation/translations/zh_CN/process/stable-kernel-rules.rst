@@ -33,7 +33,7 @@
   - 没有“理论上的竞争条件”，除非能给出竞争条件如何被利用的解释。
   - 不能存在任何的“琐碎的”修正（拼写修正，去掉多余空格之类的）。
   - 必须被相关子系统的维护者接受。
-  - 必须遵循Documentation/process/submitting-patches.rst里的规则。
+  - 必须遵循Documentation/translations/zh_CN/process/submitting-patches.rst里的规则。
 
 向稳定版代码树提交补丁的过程：
 ------------------------------

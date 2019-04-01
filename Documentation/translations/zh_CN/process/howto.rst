@@ -95,7 +95,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     范。大多数维护者只会接收符合规定的补丁，很多人也只会帮忙检查符合风格
     的代码。
 
-  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+  :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
   :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
 
     这两份文档明确描述如何创建和发送补丁，其中包括（但不仅限于)：
@@ -328,7 +328,7 @@ MAINTAINERS文件中可以找到不同话题对应的邮件列表。
 这几行。将你的评论加在被引用的段落之间而不要放在邮件的顶部。
 
 如果你在邮件中附带补丁，请确认它们是可以直接阅读的纯文本（如
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
 文档中所述）。内核开发者们不希望遇到附件或者被压缩了的补丁。只有这样才能
 保证他们可以直接评论你的每行代码。请确保你使用的邮件发送程序不会修改空格
 和制表符。一个防范性的测试方法是先将邮件发送给自己，然后自己尝试是否可以

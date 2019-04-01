@@ -12,7 +12,7 @@ Linux内核补丁提交清单
 的事情。
 
 这些都是在
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
 和其他有关提交Linux内核补丁的文档中提供的。
 
 1) 如果使用工具，则包括定义/声明该工具的文件。不要依赖于其他头文件拉入您使用

@@ -11,13 +11,13 @@
 关于Linux内核开发和相关主题的信息来源很多。首先是在内核源代码分发中找到的
 文档目录。顶级 :ref:`Documentation/translations/zh_CN/process/howto.rst <cn_process_howto>`
 文件是一个重要的起点
-:ref:`process/submitting-patches.rst <submittingpatches>`
-和:ref:`process/submitting-drivers.rst <submittingdrivers>`
+:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
+和 :ref:`process/submitting-drivers.rst <submittingdrivers>`
 也是所有内核开发人员都应该阅读的内容。许多内部内核API都是使用kerneldoc机制
 记录的；“make htmldocs”或“make pdfdocs”可用于以HTML或PDF格式生成这些文档（
 尽管某些发行版提供的tex版本会遇到内部限制，无法正确处理文档）。
 
-不同的网站在各个细节层次上讨论内核开发。您的作者想谦虚地建议用http://lwn.net/
+不同的网站在各个细节层次上讨论内核开发。您的作者想谦虚地建议用 http://lwn.net/
 作为来源；有关许多特定内核主题的信息可以通过以下网址的lwn内核索引找到：
 
         http://lwn.net/kernel/index/

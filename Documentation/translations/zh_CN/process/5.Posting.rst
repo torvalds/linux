@@ -12,7 +12,7 @@
 内核开发社区已经发展出一套用于发布补丁的约定和过程；遵循这些约定和过程将使
 参与其中的每个人的生活更加轻松。本文件将试图合理详细地涵盖这些期望；更多信息
 也可在以下文件中找到
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`,
+:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`,
 :ref:`Documentation/process/submitting-drivers.rst  <submittingdrivers>`
 和 :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`.
 
@@ -145,7 +145,7 @@ bug搜寻人员想知道补丁是否负责他们正在追查的问题，想知�
 其传递给diff。
 
 上面提到的标签用于描述各种开发人员如何与这个补丁的开发相关联。
-:ref:`documentation/process/submitting-patches.rst <submittingpatches>`
+:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
 文档中对它们进行了详细描述；下面是一个简短的总结。每一行的格式如下：
 
 ::
@@ -155,7 +155,8 @@ bug搜寻人员想知道补丁是否负责他们正在追查的问题，想知�
 常用的标签有：
 
  - Signed-off-by: 这是一个开发人员的证明，他或她有权提交补丁以包含到内核中。
-   这是开发来源认证协议，其全文可在:ref:`documentation/process/submitting-patches.rst <submittingpatches>`
+   这是开发来源认证协议，其全文可在
+   :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
    中找到，如果没有适当的签字，则不能合并到主线中。
 
  - Co-developed-by: 声明补丁也是由另一个开发人员和原始作者一起创建的。当多
@@ -167,7 +168,7 @@ bug搜寻人员想知道补丁是否负责他们正在追查的问题，想知�
  - Tested-by: 声明指定的人已经测试了补丁并发现它可以工作。
 
  - Reviewed-by: 指定的开发人员已经审查了补丁的正确性；有关详细信息，请参阅
-   :ref:`documentation/process/submitting-patches.rst <submittingpatches>`
+   :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
 
  - Reported-by: 指定报告此补丁修复的问题的用户；此标记用于提供感谢。
 
@@ -209,7 +210,7 @@ bug搜寻人员想知道补丁是否负责他们正在追查的问题，想知�
  - 将副本发送到相关邮件列表，或者，如果没有其他应用，则发送到Linux内核列表。
 
  - 如果您正在修复一个bug，请考虑该修复是否应进入下一个稳定更新。如果是这样，
-   stable@vger.kernel.org应该得到补丁的副本。另外，在补丁本身的标签中添加
+   stable@vger.kernel.org 应该得到补丁的副本。另外，在补丁本身的标签中添加
    一个“cc:stable@vger.kernel.org”；这将使稳定团队在修复进入主线时收到通知。
 
 当为一个补丁选择接收者时，最好知道你认为谁最终会接受这个补丁并将其合并。虽然
