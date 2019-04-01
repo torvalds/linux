@@ -355,9 +355,9 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	sdev->first_boot = false;
 
 	/* now register audio DSP platform driver and dai */
-	ret = snd_soc_register_component(sdev->dev, &sdev->plat_drv,
-					 sof_ops(sdev)->drv,
-					 sof_ops(sdev)->num_drv);
+	ret = devm_snd_soc_register_component(sdev->dev, &sdev->plat_drv,
+					      sof_ops(sdev)->drv,
+					      sof_ops(sdev)->num_drv);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to register DSP DAI driver %d\n", ret);
@@ -466,16 +466,16 @@ int snd_sof_device_remove(struct device *dev)
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
 		cancel_work_sync(&sdev->probe_work);
 
-	snd_soc_unregister_component(dev);
 	snd_sof_fw_unload(sdev);
 	snd_sof_ipc_free(sdev);
 	snd_sof_free_debug(sdev);
 	snd_sof_free_trace(sdev);
 	snd_sof_remove(sdev);
+
 	/*
-	 * platform_device_unregister() frees the card and its resources.
-	 * So it should be called after unregistering the comp driver
-	 * so that the card is valid while unregistering comp driver.
+	 * Unregister machine driver. This will unbind the snd_card which
+	 * will remove the component driver and unload the topology
+	 * before freeing the snd_card.
 	 */
 	if (!IS_ERR_OR_NULL(pdata->pdev_mach))
 		platform_device_unregister(pdata->pdev_mach);
