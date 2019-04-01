@@ -19,6 +19,9 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <soc/rockchip/rockchip_system_monitor.h>
+#endif
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_power_allocator.h>
 
@@ -530,6 +533,11 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 			continue;
 
 		instance->target = 0;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		rockchip_system_monitor_adjust_cdev_state(instance->cdev,
+							  tz->temperature,
+							  &instance->target);
+#endif
 		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false;
 		mutex_unlock(&instance->cdev->lock);

@@ -22,6 +22,9 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <linux/suspend.h>
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <soc/rockchip/rockchip_system_monitor.h>
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal.h>
@@ -587,6 +590,15 @@ int power_actor_set_power(struct thermal_cooling_device *cdev,
 		return -EINVAL;
 
 	ret = cdev->ops->power2state(cdev, instance->tz, power, &state);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (ret)
+		state = THERMAL_CSTATE_INVALID;
+	rockchip_system_monitor_adjust_cdev_state(cdev,
+						  instance->tz->temperature,
+						  &state);
+	if (state == THERMAL_CSTATE_INVALID)
+		ret = -EINVAL;
+#endif
 	if (ret)
 		return ret;
 
