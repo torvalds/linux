@@ -1912,6 +1912,8 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 {
 	bool out = false;
 
+	BW_VAL_TRACE_SETUP();
+
 	int pipe_cnt, i, pipe_idx, vlevel, vlevel_unsplit;
 	int pipe_split_from[MAX_PIPES];
 	bool odm_capable = context->bw_ctx.dml.ip.odm_capable;
@@ -1923,6 +1925,8 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
 	DC_LOGGER_INIT(dc->ctx->logger);
+
+	BW_VAL_TRACE_COUNT();
 
 	ASSERT(pipes);
 	if (!pipes)
@@ -1957,6 +1961,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, &context->res_ctx, pipes);
 
 	if (!pipe_cnt) {
+		BW_VAL_TRACE_SKIP(pass);
 		out = true;
 		goto validate_out;
 	}
@@ -2117,7 +2122,10 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	}
 #endif
 
+	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
+
 	if (fast_validate) {
+		BW_VAL_TRACE_SKIP(fast);
 		out = true;
 		goto validate_out;
 	}
@@ -2213,6 +2221,8 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 							!= dm_dram_clock_change_unsupported;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
+	BW_VAL_TRACE_END_WATERMARKS();
+
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
@@ -2261,10 +2271,13 @@ validate_fail:
 	DC_LOG_WARNING("Mode Validation Warning: %s failed validation.\n",
 		dml_get_status_message(context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states]));
 
+	BW_VAL_TRACE_SKIP(fail);
 	out = false;
 
 validate_out:
 	kfree(pipes);
+
+	BW_VAL_TRACE_FINISH();
 
 	return out;
 }
