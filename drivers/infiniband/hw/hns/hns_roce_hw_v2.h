@@ -1799,6 +1799,9 @@ struct hns_roce_sccc_clr_done {
 	__le32 rsv[5];
 };
 
+int hns_roce_v2_query_cqc_info(struct hns_roce_dev *hr_dev, u32 cqn,
+			       int *buffer);
+
 static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
 				    void __iomem *dest)
 {

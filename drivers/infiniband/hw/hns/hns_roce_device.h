@@ -867,6 +867,11 @@ struct hns_roce_work {
 	int sub_type;
 };
 
+struct hns_roce_dfx_hw {
+	int (*query_cqc_info)(struct hns_roce_dev *hr_dev, u32 cqn,
+			      int *buffer);
+};
+
 struct hns_roce_hw {
 	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
 	int (*cmq_init)(struct hns_roce_dev *hr_dev);
@@ -983,6 +988,7 @@ struct hns_roce_dev {
 	const struct hns_roce_hw *hw;
 	void			*priv;
 	struct workqueue_struct *irq_workq;
+	const struct hns_roce_dfx_hw *dfx;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
@@ -1199,4 +1205,6 @@ int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);
 
+int hns_roce_fill_res_entry(struct sk_buff *msg,
+			    struct rdma_restrack_entry *res);
 #endif /* _HNS_ROCE_DEVICE_H */
