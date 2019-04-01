@@ -1,3 +1,8 @@
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :ref:`Documentation/process/development-process.rst <development_process_main>`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
 .. _cn_development_process_main:
 
 内核开发过程指南
