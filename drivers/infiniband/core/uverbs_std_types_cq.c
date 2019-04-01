@@ -64,7 +64,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	struct ib_ucq_object *obj = container_of(
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_HANDLE),
 		typeof(*obj), uobject);
-	struct ib_device *ib_dev = obj->uobject.context->device;
+	struct ib_device *ib_dev = attrs->context->device;
 	int ret;
 	u64 user_handle;
 	struct ib_cq_init_attr attr = {};

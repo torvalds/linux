@@ -310,7 +310,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE);
-	struct ib_device *ib_dev = uobj->context->device;
+	struct ib_device *ib_dev = attrs->context->device;
 	int				  ret;
 	struct ib_flow_action		  *action;
 	struct ib_flow_action_esp_attr	  esp_attr = {};

@@ -128,7 +128,7 @@ __uobj_alloc(const struct uverbs_api_object *obj,
 		rdma_alloc_begin_uobject(obj, attrs->ufile, attrs);
 
 	if (!IS_ERR(uobj))
-		*ib_dev = uobj->context->device;
+		*ib_dev = attrs->context->device;
 	return uobj;
 }
 

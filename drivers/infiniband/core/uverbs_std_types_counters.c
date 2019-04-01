@@ -54,7 +54,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_COUNTERS_HANDLE);
-	struct ib_device *ib_dev = uobj->context->device;
+	struct ib_device *ib_dev = attrs->context->device;
 	struct ib_counters *counters;
 	int ret;
 
