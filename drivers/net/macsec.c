@@ -2175,8 +2175,9 @@ static int copy_tx_sa_stats(struct sk_buff *skb,
 	return 0;
 }
 
-static int copy_rx_sa_stats(struct sk_buff *skb,
-			    struct macsec_rx_sa_stats __percpu *pstats)
+static noinline_for_stack int
+copy_rx_sa_stats(struct sk_buff *skb,
+		 struct macsec_rx_sa_stats __percpu *pstats)
 {
 	struct macsec_rx_sa_stats sum = {0, };
 	int cpu;
@@ -2201,8 +2202,8 @@ static int copy_rx_sa_stats(struct sk_buff *skb,
 	return 0;
 }
 
-static int copy_rx_sc_stats(struct sk_buff *skb,
-			    struct pcpu_rx_sc_stats __percpu *pstats)
+static noinline_for_stack int
+copy_rx_sc_stats(struct sk_buff *skb, struct pcpu_rx_sc_stats __percpu *pstats)
 {
 	struct macsec_rx_sc_stats sum = {0, };
 	int cpu;
@@ -2265,8 +2266,8 @@ static int copy_rx_sc_stats(struct sk_buff *skb,
 	return 0;
 }
 
-static int copy_tx_sc_stats(struct sk_buff *skb,
-			    struct pcpu_tx_sc_stats __percpu *pstats)
+static noinline_for_stack int
+copy_tx_sc_stats(struct sk_buff *skb, struct pcpu_tx_sc_stats __percpu *pstats)
 {
 	struct macsec_tx_sc_stats sum = {0, };
 	int cpu;
@@ -2305,8 +2306,8 @@ static int copy_tx_sc_stats(struct sk_buff *skb,
 	return 0;
 }
 
-static int copy_secy_stats(struct sk_buff *skb,
-			   struct pcpu_secy_stats __percpu *pstats)
+static noinline_for_stack int
+copy_secy_stats(struct sk_buff *skb, struct pcpu_secy_stats __percpu *pstats)
 {
 	struct macsec_dev_stats sum = {0, };
 	int cpu;
@@ -2410,8 +2411,9 @@ cancel:
 	return 1;
 }
 
-static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
-		     struct sk_buff *skb, struct netlink_callback *cb)
+static noinline_for_stack int
+dump_secy(struct macsec_secy *secy, struct net_device *dev,
+	  struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct macsec_rx_sc *rx_sc;
 	struct macsec_tx_sc *tx_sc = &secy->tx_sc;
