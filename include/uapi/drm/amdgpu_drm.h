@@ -528,6 +528,8 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
 #define AMDGPU_CHUNK_ID_BO_HANDLES      0x06
 #define AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES	0x07
+#define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT    0x08
+#define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL  0x09
 
 struct drm_amdgpu_cs_chunk {
 	__u32		chunk_id;
@@ -606,6 +608,12 @@ struct drm_amdgpu_cs_chunk_fence {
 
 struct drm_amdgpu_cs_chunk_sem {
 	__u32 handle;
+};
+
+struct drm_amdgpu_cs_chunk_syncobj {
+       __u32 handle;
+       __u32 flags;
+       __u64 point;
 };
 
 #define AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ	0
