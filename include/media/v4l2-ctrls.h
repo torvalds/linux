@@ -937,7 +937,7 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
  * __v4l2_ctrl_s_ctrl() - Unlocked variant of v4l2_ctrl_s_ctrl().
  *
  * @ctrl:	The control.
- * @val:	TheControls name new value.
+ * @val:	The new value.
  *
  * This sets the control's new value safely by going through the control
  * framework. This function assumes the control's handler is already locked,
@@ -1042,7 +1042,7 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s);
  *
  * @ctrl:	The control.
  * @s:		The new string.
- *Controls name
+ *
  * This sets the control's new string safely by going through the control
  * framework. This function will lock the control's handler, so it cannot be
  * used from within the &v4l2_ctrl_ops functions.
