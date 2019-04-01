@@ -24,6 +24,7 @@
 
    howto
    code-of-conduct
+   code-of-conduct-interpretation
    submitting-patches
    coding-style
    development-process
