@@ -2880,7 +2880,19 @@ static int gfx_v10_0_gfx_init_queue(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	struct v10_gfx_mqd *mqd = ring->mqd_ptr;
 
-	if (adev->in_gpu_reset) {
+	if (!adev->in_gpu_reset && !adev->in_suspend) {
+		memset((void *)mqd, 0, sizeof(*mqd));
+		mutex_lock(&adev->srbm_mutex);
+		nv_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		gfx_v10_0_gfx_mqd_init(ring);
+#ifdef BRING_UP_DEBUG
+		gfx_v10_0_gfx_queue_init_register(ring);
+#endif
+		nv_grbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
+		if (adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS])
+			memcpy(adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS], mqd, sizeof(*mqd));
+	} else if (adev->in_gpu_reset) {
 		/* reset mqd with the backup copy */
 		if (adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS])
 			memcpy(mqd, adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS], sizeof(*mqd));
@@ -2895,17 +2907,7 @@ static int gfx_v10_0_gfx_init_queue(struct amdgpu_ring *ring)
 		mutex_unlock(&adev->srbm_mutex);
 #endif
 	} else {
-		memset((void *)mqd, 0, sizeof(*mqd));
-		mutex_lock(&adev->srbm_mutex);
-		nv_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-		gfx_v10_0_gfx_mqd_init(ring);
-#ifdef BRING_UP_DEBUG
-		gfx_v10_0_gfx_queue_init_register(ring);
-#endif
-		nv_grbm_select(adev, 0, 0, 0, 0);
-		mutex_unlock(&adev->srbm_mutex);
-		if (adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS])
-			memcpy(adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS], mqd, sizeof(*mqd));
+		amdgpu_ring_clear_ring(ring);
 	}
 
 	return 0;
