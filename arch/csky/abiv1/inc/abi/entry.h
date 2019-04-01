@@ -16,9 +16,6 @@
 #define LSAVE_A4	40
 #define LSAVE_A5	44
 
-#define EPC_INCREASE	2
-#define EPC_KEEP	0
-
 .macro USPTOKSP
 	mtcr	sp, ss1
 	mfcr	sp, ss0
@@ -27,10 +24,6 @@
 .macro KSPTOUSP
 	mtcr	sp, ss0
 	mfcr	sp, ss1
-.endm
-
-.macro INCTRAP	rx
-	addi	\rx, EPC_INCREASE
 .endm
 
 .macro	SAVE_ALL epc_inc

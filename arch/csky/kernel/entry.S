@@ -91,7 +91,7 @@ ENTRY(csky_\name)
 	mfcr    a3, ss2
 	mfcr    r6, ss3
 	mfcr    a2, ss4
-	SAVE_ALL EPC_KEEP
+	SAVE_ALL 0
 .endm
 .macro tlbop_end is_write
 	RD_MEH	a2
@@ -117,7 +117,7 @@ jbsr csky_cmpxchg_fixup
 tlbop_end 1
 
 ENTRY(csky_systemcall)
-	SAVE_ALL EPC_INCREASE
+	SAVE_ALL TRAP0_SIZE
 
 	psrset  ee, ie
 
@@ -190,11 +190,9 @@ ENTRY(ret_from_fork)
 	ldw	r8, (r9, TINFO_FLAGS)
 	ANDI_R3	r8, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
 	cmpnei	r8, 0
-	bf	3f
+	bf	ret_from_exception
 	mov	a0, sp			/* sp = pt_regs pointer */
 	jbsr	syscall_trace_exit
-3:
-	jbsr	ret_from_exception
 
 ret_from_exception:
 	ld	syscallid, (sp, LSAVE_PSR)
@@ -209,34 +207,29 @@ ret_from_exception:
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 
-resume_userspace:
 	ldw	r8, (r9, TINFO_FLAGS)
 	andi	r8, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
 	cmpnei	r8, 0
 	bt	exit_work
-1:  RESTORE_ALL
+1:
+	RESTORE_ALL
 
 exit_work:
+	lrw	syscallid, ret_from_exception
+	mov	lr, syscallid
+
 	btsti	r8, TIF_NEED_RESCHED
 	bt	work_resched
-	/* If thread_info->flag is empty, RESTORE_ALL */
-	cmpnei	r8, 0
-	bf	1b
-	mov	a0, r8
-	mov	a1, sp
-	jbsr	do_notify_resume	/* do signals */
-	br	resume_userspace
+
+	mov	a0, sp
+	mov	a1, r8
+	jmpi	do_notify_resume
 
 work_resched:
-	lrw	syscallid, ret_from_exception
-	mov	r15, syscallid		/* Return address in link */
 	jmpi	schedule
 
-ENTRY(sys_rt_sigreturn)
-	jmpi	do_rt_sigreturn
-
 ENTRY(csky_trap)
-	SAVE_ALL EPC_KEEP
+	SAVE_ALL 0
 	psrset	ee
 	mov	a0, sp                 /* Push Stack pointer arg */
 	jbsr	trap_c                 /* Call C-level trap handler */
@@ -252,7 +245,7 @@ ENTRY(csky_get_tls)
 
 	/* increase epc for continue */
 	mfcr	a0, epc
-	INCTRAP	a0
+	addi	a0, TRAP0_SIZE
 	mtcr	a0, epc
 
 	/* get current task thread_info with kernel 8K stack */
@@ -269,7 +262,7 @@ ENTRY(csky_get_tls)
 	rte
 
 ENTRY(csky_irq)
-	SAVE_ALL EPC_KEEP
+	SAVE_ALL 0
 	psrset	ee
 
 #ifdef CONFIG_PREEMPT

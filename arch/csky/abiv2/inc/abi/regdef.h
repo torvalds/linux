@@ -21,4 +21,6 @@
 
 #define SYSTRACE_SAVENUM	5
 
+#define TRAP0_SIZE		4
+
 #endif /* __ASM_CSKY_REGDEF_H */

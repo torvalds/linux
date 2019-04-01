@@ -14,17 +14,10 @@
 #define LSAVE_A2	32
 #define LSAVE_A3	36
 
-#define EPC_INCREASE	4
-#define EPC_KEEP	0
-
 #define KSPTOUSP
 #define USPTOKSP
 
 #define usp cr<14, 1>
-
-.macro INCTRAP	rx
-	addi	\rx, EPC_INCREASE
-.endm
 
 .macro SAVE_ALL epc_inc
 	subi    sp, 152
