@@ -214,6 +214,8 @@ static void drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
 	dma_fence_put(fence);
 }
 
+/* 5s default for wait submission */
+#define DRM_SYNCOBJ_WAIT_FOR_SUBMIT_TIMEOUT 5000000000ULL
 /**
  * drm_syncobj_find_fence - lookup and reference the fence in a sync object
  * @file_private: drm file private pointer
@@ -234,16 +236,58 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 			   struct dma_fence **fence)
 {
 	struct drm_syncobj *syncobj = drm_syncobj_find(file_private, handle);
-	int ret = 0;
+	struct syncobj_wait_entry wait;
+	u64 timeout = nsecs_to_jiffies64(DRM_SYNCOBJ_WAIT_FOR_SUBMIT_TIMEOUT);
+	int ret;
 
 	if (!syncobj)
 		return -ENOENT;
 
 	*fence = drm_syncobj_fence_get(syncobj);
-	if (!*fence) {
+	drm_syncobj_put(syncobj);
+
+	if (*fence) {
+		ret = dma_fence_chain_find_seqno(fence, point);
+		if (!ret)
+			return 0;
+		dma_fence_put(*fence);
+	} else {
 		ret = -EINVAL;
 	}
-	drm_syncobj_put(syncobj);
+
+	if (!(flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT))
+		return ret;
+
+	memset(&wait, 0, sizeof(wait));
+	wait.task = current;
+	wait.point = point;
+	drm_syncobj_fence_add_wait(syncobj, &wait);
+
+	do {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (wait.fence) {
+			ret = 0;
+			break;
+		}
+                if (timeout == 0) {
+                        ret = -ETIME;
+                        break;
+                }
+
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+                timeout = schedule_timeout(timeout);
+	} while (1);
+
+	__set_current_state(TASK_RUNNING);
+	*fence = wait.fence;
+
+	if (wait.node.next)
+		drm_syncobj_remove_wait(syncobj, &wait);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_syncobj_find_fence);
