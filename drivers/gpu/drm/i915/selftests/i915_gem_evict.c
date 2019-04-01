@@ -455,7 +455,7 @@ static int igt_evict_contexts(void *arg)
 			struct i915_gem_context *ctx;
 
 			ctx = live_context(i915, file);
-			if (!ctx)
+			if (IS_ERR(ctx))
 				break;
 
 			/* We will need some GGTT space for the rq's context */

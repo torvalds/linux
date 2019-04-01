@@ -1072,7 +1072,7 @@ out:
 	case MT_PHY_TYPE_HT:
 		final_rate_flags |= IEEE80211_TX_RC_MCS;
 		final_rate &= GENMASK(5, 0);
-		if (i > 15)
+		if (final_rate > 15)
 			return false;
 		break;
 	default:

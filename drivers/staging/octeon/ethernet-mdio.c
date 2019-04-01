@@ -163,7 +163,7 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 		goto no_phy;
 
 	phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
-				PHY_INTERFACE_MODE_GMII);
+				priv->phy_mode);
 	of_node_put(phy_node);
 
 	if (!phydev)

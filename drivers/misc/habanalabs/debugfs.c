@@ -232,6 +232,7 @@ static int vm_show(struct seq_file *s, void *data)
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	enum vm_type_t *vm_type;
 	bool once = true;
+	u64 j;
 	int i;
 
 	if (!dev_entry->hdev->mmu_enable)
@@ -260,7 +261,7 @@ static int vm_show(struct seq_file *s, void *data)
 			} else {
 				phys_pg_pack = hnode->ptr;
 				seq_printf(s,
-					"    0x%-14llx      %-10u       %-4u\n",
+					"    0x%-14llx      %-10llu       %-4u\n",
 					hnode->vaddr, phys_pg_pack->total_size,
 					phys_pg_pack->handle);
 			}
@@ -282,9 +283,9 @@ static int vm_show(struct seq_file *s, void *data)
 						phys_pg_pack->page_size);
 			seq_puts(s, "   physical address\n");
 			seq_puts(s, "---------------------\n");
-			for (i = 0 ; i < phys_pg_pack->npages ; i++) {
+			for (j = 0 ; j < phys_pg_pack->npages ; j++) {
 				seq_printf(s, "    0x%-14llx\n",
-						phys_pg_pack->pages[i]);
+						phys_pg_pack->pages[j]);
 			}
 		}
 		spin_unlock(&vm->idr_lock);
