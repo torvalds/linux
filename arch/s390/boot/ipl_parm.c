@@ -144,7 +144,7 @@ void setup_boot_command_line(void)
 	strcpy(early_command_line, strim(COMMAND_LINE));
 
 	/* append IPL PARM data to the boot command line */
-	if (ipl_block_valid)
+	if (!is_prot_virt_guest() && ipl_block_valid)
 		append_ipl_block_parm();
 }
 
