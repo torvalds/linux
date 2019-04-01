@@ -72,6 +72,9 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
+	if (!vc4->v3d)
+		return -ENODEV;
+
 	switch (args->param) {
 	case DRM_VC4_PARAM_V3D_IDENT0:
 		ret = vc4_v3d_pm_get(vc4);
@@ -248,6 +251,7 @@ static int vc4_drm_bind(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
+	struct device_node *node;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
@@ -255,6 +259,12 @@ static int vc4_drm_bind(struct device *dev)
 	vc4 = devm_kzalloc(dev, sizeof(*vc4), GFP_KERNEL);
 	if (!vc4)
 		return -ENOMEM;
+
+	/* If VC4 V3D is missing, don't advertise render nodes. */
+	node = of_find_matching_node_and_match(NULL, vc4_v3d_dt_match, NULL);
+	if (!node || !of_device_is_available(node))
+		vc4_drm_driver.driver_features &= ~DRIVER_RENDER;
+	of_node_put(node);
 
 	drm = drm_dev_alloc(&vc4_drm_driver, dev);
 	if (IS_ERR(drm))
