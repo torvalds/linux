@@ -246,6 +246,57 @@ struct dc_clocks {
 	bool p_state_change_support;
 };
 
+struct dc_bw_validation_profile {
+	bool enable;
+
+	unsigned long long total_ticks;
+	unsigned long long voltage_level_ticks;
+	unsigned long long watermark_ticks;
+	unsigned long long rq_dlg_ticks;
+
+	unsigned long long total_count;
+	unsigned long long skip_fast_count;
+	unsigned long long skip_pass_count;
+	unsigned long long skip_fail_count;
+};
+
+#define BW_VAL_TRACE_SETUP() \
+		unsigned long long end_tick = 0; \
+		unsigned long long voltage_level_tick = 0; \
+		unsigned long long watermark_tick = 0; \
+		unsigned long long start_tick = dc->debug.bw_val_profile.enable ? \
+				dm_get_timestamp(dc->ctx) : 0
+
+#define BW_VAL_TRACE_COUNT() \
+		if (dc->debug.bw_val_profile.enable) \
+			dc->debug.bw_val_profile.total_count++
+
+#define BW_VAL_TRACE_SKIP(status) \
+		if (dc->debug.bw_val_profile.enable) { \
+			if (!voltage_level_tick) \
+				voltage_level_tick = dm_get_timestamp(dc->ctx); \
+			dc->debug.bw_val_profile.skip_ ## status ## _count++; \
+		}
+
+#define BW_VAL_TRACE_END_VOLTAGE_LEVEL() \
+		if (dc->debug.bw_val_profile.enable) \
+			voltage_level_tick = dm_get_timestamp(dc->ctx)
+
+#define BW_VAL_TRACE_END_WATERMARKS() \
+		if (dc->debug.bw_val_profile.enable) \
+			watermark_tick = dm_get_timestamp(dc->ctx)
+
+#define BW_VAL_TRACE_FINISH() \
+		if (dc->debug.bw_val_profile.enable) { \
+			end_tick = dm_get_timestamp(dc->ctx); \
+			dc->debug.bw_val_profile.total_ticks += end_tick - start_tick; \
+			dc->debug.bw_val_profile.voltage_level_ticks += voltage_level_tick - start_tick; \
+			if (watermark_tick) { \
+				dc->debug.bw_val_profile.watermark_ticks += watermark_tick - voltage_level_tick; \
+				dc->debug.bw_val_profile.rq_dlg_ticks += end_tick - watermark_tick; \
+			} \
+		}
+
 struct dc_debug_options {
 	enum visual_confirm visual_confirm;
 	bool sanity_checks;
@@ -299,6 +350,7 @@ struct dc_debug_options {
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
 	bool disable_tri_buf;
+	struct dc_bw_validation_profile bw_val_profile;
 };
 
 struct dc_debug_data {

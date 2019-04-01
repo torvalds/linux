@@ -704,6 +704,12 @@ bool dcn_validate_bandwidth(
 		struct dc_state *context,
 		bool fast_validate)
 {
+	/*
+	 * we want a breakdown of the various stages of validation, which the
+	 * perf_trace macro doesn't support
+	 */
+	BW_VAL_TRACE_SETUP();
+
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
 	int i, input_idx;
@@ -712,6 +718,9 @@ bool dcn_validate_bandwidth(
 	float bw_limit;
 
 	PERFORMANCE_TRACE_START();
+
+	BW_VAL_TRACE_COUNT();
+
 	if (dcn_bw_apply_registry_override(dc))
 		dcn_bw_sync_calcs_and_dml(dc);
 
@@ -1014,6 +1023,8 @@ bool dcn_validate_bandwidth(
 		mode_support_and_system_configuration(v);
 	}
 
+	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
+
 	if (v->voltage_level != number_of_states_plus_one && !fast_validate) {
 		float bw_consumed = v->total_bandwidth_consumed_gbyte_per_second;
 
@@ -1088,6 +1099,8 @@ bool dcn_validate_bandwidth(
 					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
 			break;
 		}
+
+		BW_VAL_TRACE_END_WATERMARKS();
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1179,6 +1192,10 @@ bool dcn_validate_bandwidth(
 
 			input_idx++;
 		}
+	} else if (v->voltage_level == number_of_states_plus_one) {
+		BW_VAL_TRACE_SKIP(fail);
+	} else if (fast_validate) {
+		BW_VAL_TRACE_SKIP(fast);
 	}
 
 	if (v->voltage_level == 0) {
@@ -1198,6 +1215,7 @@ bool dcn_validate_bandwidth(
 	kernel_fpu_end();
 
 	PERFORMANCE_TRACE_END();
+	BW_VAL_TRACE_FINISH();
 
 	if (bw_limit_pass && v->voltage_level != 5)
 		return true;
