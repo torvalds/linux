@@ -1,3 +1,8 @@
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :ref:`Documentation/process/code-of-conduct-interpretation.rst <code_of_conduct_interpretation>`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
 .. _cn_code_of_conduct_interpretation:
 
 Linux内核贡献者契约行为准则解释
