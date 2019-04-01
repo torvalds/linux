@@ -1,19 +1,10 @@
-Chinese translated version of Documentation/process/coding-style.rst
+.. include:: ../disclaimer-zh_CN.rst
 
-If you have any comment or update to the content, please post to LKML directly.
-However, if you have problem communicating in English you can also ask the
-Chinese maintainer for help.  Contact the Chinese maintainer, if this
-translation is outdated or there is problem with translation.
+:Original: :ref:`Documentation/process/coding-style.rst <codingsytle>`
 
-Chinese maintainer: Zhang Le <r0bertz@gentoo.org>
+.. _cn_codingstyle:
 
----------------------------------------------------------------------
-
-Documentation/process/coding-style.rst 的中文翻译
-
-如果想评论或更新本文的内容，请直接发信到LKML。如果你使用英文交流有困难的话，
-也可以向中文版维护者求助。如果本翻译更新不及时或者翻译存在问题，请联系中文版
-维护者::
+译者::
 
   中文版维护者： 张乐 Zhang Le <r0bertz@gentoo.org>
   中文版翻译者： 张乐 Zhang Le <r0bertz@gentoo.org>
@@ -22,10 +13,6 @@ Documentation/process/coding-style.rst 的中文翻译
                  管旭东 Xudong Guan <xudong.guan@gmail.com>
                  Li Zefan <lizf@cn.fujitsu.com>
                  Wang Chen <wangchen@cn.fujitsu.com>
-
-以下为正文
-
----------------------------------------------------------------------
 
 Linux 内核代码风格
 =========================
