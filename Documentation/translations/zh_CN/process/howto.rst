@@ -115,7 +115,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
 
         http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
+  :ref:`Documentation/translations/zh_CN/process/stable-api-nonsense.rst <cn_stable_api_nonsense>`
     论证内核为什么特意不包括稳定的内核内部API，也就是说不包括像这样的特
     性：
 
