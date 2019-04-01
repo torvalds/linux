@@ -34,6 +34,7 @@ SECTIONS
 		_edata = . ;
 	}
 	BOOT_DATA
+	BOOT_DATA_PRESERVED
 
 	/*
 	 * uncompressed image info used by the decompressor it should match

@@ -72,6 +72,7 @@ SECTIONS
 	__end_ro_after_init = .;
 
 	RW_DATA_SECTION(0x100, PAGE_SIZE, THREAD_SIZE)
+	BOOT_DATA_PRESERVED
 
 	_edata = .;		/* End of data section */
 
@@ -161,6 +162,9 @@ SECTIONS
 		QUAD(__bss_stop - __bss_start)			/* bss_size */
 		QUAD(__boot_data_start)				/* bootdata_off */
 		QUAD(__boot_data_end - __boot_data_start)	/* bootdata_size */
+		QUAD(__boot_data_preserved_start)		/* bootdata_preserved_off */
+		QUAD(__boot_data_preserved_end -
+		     __boot_data_preserved_start)		/* bootdata_preserved_size */
 	} :NONE
 
 	/* Debugging sections.	*/

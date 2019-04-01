@@ -16,4 +16,11 @@
  */
 #define __bootdata(var) __section(.boot.data.var) var
 
+/*
+ * .boot.preserved.data is similar to .boot.data, but it is not part of the
+ * .init section and thus will be preserved for later use in the decompressed
+ * kernel.
+ */
+#define __bootdata_preserved(var) __section(.boot.preserved.data.var) var
+
 #endif
