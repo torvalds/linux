@@ -113,9 +113,6 @@ static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u8 regs[7];
 	u8 ctrl1;
 
-	if ((tm->tm_year < 100) || (tm->tm_year > 199))
-		return -EINVAL;
-
 	/*
 	 * to accurately set the time, reset the divider chain and keep it in
 	 * reset state until all time/date registers are written
@@ -223,6 +220,8 @@ static int pcf85063_probe(struct i2c_client *client)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &pcf85063_rtc_ops;
+	rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	return rtc_register_device(rtc);
 }
