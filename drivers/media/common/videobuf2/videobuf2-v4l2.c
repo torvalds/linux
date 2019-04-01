@@ -368,6 +368,12 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	if (ret)
 		return ret;
 
+	if (!is_prepare && (b->flags & V4L2_BUF_FLAG_REQUEST_FD) &&
+	    vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+		return -EINVAL;
+	}
+
 	if (!vb->prepared) {
 		/* Copy relevant information provided by the userspace */
 		memset(vbuf->planes, 0,
@@ -422,11 +428,6 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		     q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) &&
 		    !q->ops->buf_out_validate))
 		return -EINVAL;
-
-	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
-		return -EINVAL;
-	}
 
 	if (b->request_fd < 0) {
 		dprintk(1, "%s: request_fd < 0\n", opname);
