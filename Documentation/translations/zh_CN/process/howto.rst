@@ -62,9 +62,9 @@ Linux内核使用GNU C和GNU工具链开发。虽然它遵循ISO C89标准，但
 --------
 
 Linux内核源代码都是在GPL（通用公共许可证）的保护下发布的。要了解这种许可
-的细节请查看源代码主目录下的COPYING文件。Linux内核许可准则和如果使用
-`SPDC <https://spdx.org/>` 标志符说明在文件
-:ref:`Documentation/process/license-rules.rst <kernel_licensing>`
+的细节请查看源代码主目录下的COPYING文件。Linux内核许可准则和如何使用
+`SPDX <https://spdx.org/>` 标志符说明在这个文件中
+:ref:`Documentation/translations/zh_CN/process/license-rules.rst <cn_kernel_licensing>`
 如果你对它还有更深入问题请联系律师，而不要在Linux内核邮件组上提问。因为
 邮件组里的人并不是律师，不要期望他们的话有法律效力。
 
