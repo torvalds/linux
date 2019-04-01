@@ -361,13 +361,6 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
-	/*
-	 * backend DMA accesses DRAM directly, bypassing the system
-	 * bus. As such, the address range is different and the buffer
-	 * address needs to be corrected.
-	 */
-	paddr -= PHYS_OFFSET;
-
 	if (fb->format->is_yuv)
 		return sun4i_backend_update_yuv_buffer(backend, fb, paddr);
 
@@ -802,6 +795,27 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
 	spin_lock_init(&backend->frontend_lock);
+
+	if (of_find_property(dev->of_node, "interconnects", NULL)) {
+		/*
+		 * This assume we have the same DMA constraints for all our the
+		 * devices in our pipeline (all the backends, but also the
+		 * frontends). This sounds bad, but it has always been the case
+		 * for us, and DRM doesn't do per-device allocation either, so
+		 * we would need to fix DRM first...
+		 */
+		ret = of_dma_configure(drm->dev, dev->of_node, true);
+		if (ret)
+			return ret;
+	} else {
+		/*
+		 * If we don't have the interconnect property, most likely
+		 * because of an old DT, we need to set the DMA offset by hand
+		 * on our device since the RAM mapping is at 0 for the DMA bus,
+		 * unlike the CPU.
+		 */
+		drm->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
+	}
 
 	backend->engine.node = dev->of_node;
 	backend->engine.ops = &sun4i_backend_engine_ops;
