@@ -69,7 +69,7 @@
  *
  */
 
-#define GOYA_MMU_REGS_NUM		61
+#define GOYA_MMU_REGS_NUM		63
 
 #define GOYA_DMA_POOL_BLK_SIZE		0x100		/* 256 bytes */
 
@@ -84,8 +84,6 @@
 #define GOYA_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 
 #define GOYA_QMAN0_FENCE_VAL		0xD169B243
-
-#define GOYA_MAX_INITIATORS		20
 
 #define GOYA_MAX_STRING_LEN		20
 
@@ -171,7 +169,9 @@ static u64 goya_mmu_regs[GOYA_MMU_REGS_NUM] = {
 	mmMME_SBA_CONTROL_DATA,
 	mmMME_SBB_CONTROL_DATA,
 	mmMME_SBC_CONTROL_DATA,
-	mmMME_WBC_CONTROL_DATA
+	mmMME_WBC_CONTROL_DATA,
+	mmPCIE_WRAP_PSOC_ARUSER,
+	mmPCIE_WRAP_PSOC_AWUSER
 };
 
 static u32 goya_all_events[] = {
@@ -1436,6 +1436,7 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 	 */
 	WREG32(mmDMA_CH_0_CFG0, 0x0fff0010);
 	WREG32(mmDMA_CH_1_CFG0, 0x0fff00F0);
+
 	WREG32(mmTPC_PLL_CLK_RLX_0, 0x200020);
 
 	goya->hw_cap_initialized |= HW_CAP_GOLDEN;
