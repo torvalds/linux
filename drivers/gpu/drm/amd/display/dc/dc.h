@@ -658,9 +658,14 @@ enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *pla
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
 
+/*
+ * fast_validate: we return after determining if we can support the new state,
+ * but before we populate the programming info
+ */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
-		struct dc_state *new_ctx);
+		struct dc_state *new_ctx,
+		bool fast_validate);
 
 
 void dc_resource_state_construct(

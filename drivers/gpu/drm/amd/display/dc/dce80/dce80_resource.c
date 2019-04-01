@@ -812,7 +812,8 @@ static void destruct(struct dce110_resource_pool *pool)
 
 bool dce80_validate_bandwidth(
 	struct dc *dc,
-	struct dc_state *context)
+	struct dc_state *context,
+	bool fast_validate)
 {
 	int i;
 	bool at_least_one_pipe = false;

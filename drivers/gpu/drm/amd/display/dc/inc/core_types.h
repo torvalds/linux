@@ -97,7 +97,8 @@ struct resource_funcs {
 			const struct encoder_init_data *init);
 	bool (*validate_bandwidth)(
 					struct dc *dc,
-					struct dc_state *context);
+					struct dc_state *context,
+					bool fast_validate);
 
 	enum dc_status (*validate_global)(
 		struct dc *dc,

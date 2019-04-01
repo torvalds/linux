@@ -701,7 +701,8 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 
 bool dcn_validate_bandwidth(
 		struct dc *dc,
-		struct dc_state *context)
+		struct dc_state *context,
+		bool fast_validate)
 {
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
@@ -1013,8 +1014,9 @@ bool dcn_validate_bandwidth(
 		mode_support_and_system_configuration(v);
 	}
 
-	if (v->voltage_level != 5) {
+	if (v->voltage_level != number_of_states_plus_one && !fast_validate) {
 		float bw_consumed = v->total_bandwidth_consumed_gbyte_per_second;
+
 		if (bw_consumed < v->fabric_and_dram_bandwidth_vmin0p65)
 			bw_consumed = v->fabric_and_dram_bandwidth_vmin0p65;
 		else if (bw_consumed < v->fabric_and_dram_bandwidth_vmid0p72)

@@ -778,7 +778,8 @@ static enum dc_status build_mapped_resource(
 
 bool dce100_validate_bandwidth(
 	struct dc  *dc,
-	struct dc_state *context)
+	struct dc_state *context,
+	bool fast_validate)
 {
 	int i;
 	bool at_least_one_pipe = false;
