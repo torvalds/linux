@@ -1042,7 +1042,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	send_doorbell = __netdev_tx_sent_queue(ring->tx_queue,
 					       tx_info->nr_bytes,
-					       skb->xmit_more);
+					       netdev_xmit_more());
 
 	real_size = (real_size / 16) & 0x3f;
 
