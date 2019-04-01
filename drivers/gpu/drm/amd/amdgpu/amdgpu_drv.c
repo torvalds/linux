@@ -75,9 +75,10 @@
  * - 3.29.0 - Add AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID
  * - 3.30.0 - Add AMDGPU_SCHED_OP_CONTEXT_PRIORITY_OVERRIDE.
  * - 3.31.0 - Add support for per-flip tiling attribute changes with DC
+ * - 3.32.0 - Add syncobj timeline support to AMDGPU_CS.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	31
+#define KMS_DRIVER_MINOR	32
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
