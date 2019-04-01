@@ -785,7 +785,6 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	struct pinctrl_desc *imx_pinctrl_desc;
 	struct device_node *np;
 	struct imx_pinctrl *ipctl;
-	struct resource *res;
 	struct regmap *gpr;
 	int ret, i;
 
@@ -817,8 +816,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 			ipctl->pin_regs[i].conf_reg = -1;
 		}
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		ipctl->base = devm_ioremap_resource(&pdev->dev, res);
+		ipctl->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(ipctl->base))
 			return PTR_ERR(ipctl->base);
 
