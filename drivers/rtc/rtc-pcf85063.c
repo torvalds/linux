@@ -28,8 +28,6 @@
 #define PCF85063_REG_SC			0x04 /* datetime */
 #define PCF85063_REG_SC_OS		0x80
 
-static struct i2c_driver pcf85063_driver;
-
 static int pcf85063_stop_clock(struct i2c_client *client, u8 *ctrl1)
 {
 	int rc;
@@ -220,11 +218,13 @@ static int pcf85063_probe(struct i2c_client *client)
 		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
 			 err);
 
-	rtc = devm_rtc_device_register(&client->dev,
-				       pcf85063_driver.driver.name,
-				       &pcf85063_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
-	return PTR_ERR_OR_ZERO(rtc);
+	rtc->ops = &pcf85063_rtc_ops;
+
+	return rtc_register_device(rtc);
 }
 
 #ifdef CONFIG_OF
