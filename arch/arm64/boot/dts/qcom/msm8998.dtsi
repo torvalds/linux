@@ -1144,6 +1144,7 @@
 			phy-names = "ufsphy";
 			lanes-per-direction = <2>;
 			power-domains = <&gcc UFS_GDSC>;
+			#reset-cells = <1>;
 
 			clock-names =
 				"core_clk",
@@ -1190,6 +1191,9 @@
 			clocks =
 				<&gcc GCC_UFS_CLKREF_CLK>,
 				<&gcc GCC_UFS_PHY_AUX_CLK>;
+
+			reset-names = "ufsphy";
+			resets = <&ufshc 0>;
 
 			ufsphy_lanes: lanes@1da7400 {
 				reg = <0x01da7400 0x128>,
