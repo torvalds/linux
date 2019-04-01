@@ -125,24 +125,6 @@ static const struct debugfs_reg32 dpi_regs[] = {
 	VC4_REG32(DPI_ID),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_dpi *dpi = vc4->dpi;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!dpi)
-		return 0;
-
-	drm_print_regset32(&p, &dpi->regset);
-
-	return 0;
-}
-#endif
-
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
@@ -348,6 +330,8 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, dpi);
 
 	vc4->dpi = dpi;
+
+	vc4_debugfs_add_regset32(drm, "dpi_regs", &dpi->regset);
 
 	return 0;
 

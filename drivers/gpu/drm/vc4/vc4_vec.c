@@ -252,24 +252,6 @@ static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_DAC_MISC),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_vec_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_vec *vec = vc4->vec;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!vec)
-		return 0;
-
-	drm_print_regset32(&p, &vec->regset);
-
-	return 0;
-}
-#endif
-
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
 	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
@@ -608,6 +590,8 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, vec);
 
 	vc4->vec = vec;
+
+	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
 
 	return 0;
 

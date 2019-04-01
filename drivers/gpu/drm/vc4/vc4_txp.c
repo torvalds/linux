@@ -169,24 +169,6 @@ static const struct debugfs_reg32 txp_regs[] = {
 	VC4_REG32(TXP_PROGRESS),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_txp_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_txp *txp = vc4->txp;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!txp)
-		return 0;
-
-	drm_print_regset32(&p, &txp->regset);
-
-	return 0;
-}
-#endif
-
 static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -423,6 +405,8 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	dev_set_drvdata(dev, txp);
 	vc4->txp = txp;
+
+	vc4_debugfs_add_regset32(drm, "txp_regs", &txp->regset);
 
 	return 0;
 }

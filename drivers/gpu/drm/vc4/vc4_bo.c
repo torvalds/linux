@@ -66,8 +66,7 @@ static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
+static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -78,7 +77,6 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 
 	return 0;
 }
-#endif
 
 /* Takes ownership of *name and returns the appropriate slot for it in
  * the bo_labels[] array, extending it as necessary.
@@ -1004,6 +1002,8 @@ int vc4_bo_cache_init(struct drm_device *dev)
 		vc4->bo_labels[i].name = bo_type_names[i];
 
 	mutex_init(&vc4->bo_lock);
+
+	vc4_debugfs_add_file(dev, "bo_stats", vc4_bo_stats_debugfs, NULL);
 
 	INIT_LIST_HEAD(&vc4->bo_cache.time_list);
 

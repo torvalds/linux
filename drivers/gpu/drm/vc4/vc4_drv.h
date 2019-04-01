@@ -211,6 +211,11 @@ struct vc4_dev {
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
 	struct drm_private_obj load_tracker;
+
+	/* List of vc4_debugfs_info_entry for adding to debugfs once
+	 * the minor is available (after drm_dev_register()).
+	 */
+	struct list_head debugfs_list;
 };
 
 static inline struct vc4_dev *
@@ -429,6 +434,7 @@ struct vc4_crtc_data {
 	int hvs_channel;
 
 	enum vc4_encoder_type encoder_types[4];
+	const char *debugfs_name;
 };
 
 struct vc4_crtc {
@@ -715,7 +721,6 @@ struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 void *vc4_prime_vmap(struct drm_gem_object *obj);
 int vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
-int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
 int vc4_bo_inc_usecnt(struct vc4_bo *bo);
 void vc4_bo_dec_usecnt(struct vc4_bo *bo);
 void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo);
@@ -723,7 +728,6 @@ void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
-int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
 bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
 			     ktime_t *stime, ktime_t *etime,
@@ -736,17 +740,37 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
+#ifdef CONFIG_DEBUG_FS
+void vc4_debugfs_add_file(struct drm_device *drm,
+			  const char *filename,
+			  int (*show)(struct seq_file*, void*),
+			  void *data);
+void vc4_debugfs_add_regset32(struct drm_device *drm,
+			      const char *filename,
+			      struct debugfs_regset32 *regset);
+#else
+static inline void vc4_debugfs_add_file(struct drm_device *drm,
+					const char *filename,
+					int (*show)(struct seq_file*, void*),
+					void *data)
+{
+}
+
+static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
+					    const char *filename,
+					    struct debugfs_regset32 *regset)
+{
+}
+#endif
 
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;
-int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_dsi.c */
 extern struct platform_driver vc4_dsi_driver;
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_fence.c */
 extern const struct dma_fence_ops vc4_fence_ops;
@@ -774,15 +798,12 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
-int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
-int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_txp.c */
 extern struct platform_driver vc4_txp_driver;
-int vc4_txp_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_irq.c */
 irqreturn_t vc4_irq(int irq, void *arg);
@@ -794,8 +815,6 @@ void vc4_irq_reset(struct drm_device *dev);
 /* vc4_hvs.c */
 extern struct platform_driver vc4_hvs_driver;
 void vc4_hvs_dump_state(struct drm_device *dev);
-int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused);
-int vc4_hvs_debugfs_underrun(struct seq_file *m, void *unused);
 void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel);
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel);
 
@@ -812,8 +831,6 @@ void vc4_plane_async_set_fb(struct drm_plane *plane,
 
 /* vc4_v3d.c */
 extern struct platform_driver vc4_v3d_driver;
-int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
-int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4);
 int vc4_v3d_pm_get(struct vc4_dev *vc4);
 void vc4_v3d_pm_put(struct vc4_dev *vc4);

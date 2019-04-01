@@ -262,6 +262,7 @@ static int vc4_drm_bind(struct device *dev)
 	platform_set_drvdata(pdev, drm);
 	vc4->dev = drm;
 	drm->dev_private = vc4;
+	INIT_LIST_HEAD(&vc4->debugfs_list);
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)

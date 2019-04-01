@@ -657,25 +657,6 @@ static const struct debugfs_reg32 dsi1_regs[] = {
 	VC4_REG32(DSI1_ID),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *drm = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
-	int dsi_index = (uintptr_t)node->info_ent->data;
-	struct vc4_dsi *dsi = (dsi_index == 1 ? vc4->dsi1 : NULL);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!dsi)
-		return 0;
-
-	drm_print_regset32(&p, &dsi->regset);
-
-	return 0;
-}
-#endif
-
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -1636,6 +1617,11 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	 * encoder's enable/disable paths.
 	 */
 	dsi->encoder->bridge = NULL;
+
+	if (dsi->port == 0)
+		vc4_debugfs_add_regset32(drm, "dsi0_regs", &dsi->regset);
+	else
+		vc4_debugfs_add_regset32(drm, "dsi1_regs", &dsi->regset);
 
 	pm_runtime_enable(dev);
 

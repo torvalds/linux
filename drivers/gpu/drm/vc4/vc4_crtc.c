@@ -84,33 +84,6 @@ static const struct debugfs_reg32 crtc_regs[] = {
 	VC4_REG32(PV_HACT_ACT),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_crtc_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	int crtc_index = (uintptr_t)node->info_ent->data;
-	struct drm_printer p = drm_seq_file_printer(m);
-	struct drm_crtc *crtc;
-	struct vc4_crtc *vc4_crtc;
-	int i;
-
-	i = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (i == crtc_index)
-			break;
-		i++;
-	}
-	if (!crtc)
-		return 0;
-	vc4_crtc = to_vc4_crtc(crtc);
-
-	drm_print_regset32(&p, &vc4_crtc->regset);
-
-	return 0;
-}
-#endif
-
 bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
 			     ktime_t *stime, ktime_t *etime,
@@ -1070,6 +1043,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
+	.debugfs_name = "crtc0_regs",
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI0,
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_DPI,
@@ -1078,6 +1052,7 @@ static const struct vc4_crtc_data pv0_data = {
 
 static const struct vc4_crtc_data pv1_data = {
 	.hvs_channel = 2,
+	.debugfs_name = "crtc1_regs",
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI1,
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_SMI,
@@ -1086,6 +1061,7 @@ static const struct vc4_crtc_data pv1_data = {
 
 static const struct vc4_crtc_data pv2_data = {
 	.hvs_channel = 1,
+	.debugfs_name = "crtc2_regs",
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_HDMI,
 		[PV_CONTROL_CLK_SELECT_VEC] = VC4_ENCODER_TYPE_VEC,
@@ -1246,6 +1222,9 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	platform_set_drvdata(pdev, vc4_crtc);
+
+	vc4_debugfs_add_regset32(drm, vc4_crtc->data->debugfs_name,
+				 &vc4_crtc->regset);
 
 	return 0;
 

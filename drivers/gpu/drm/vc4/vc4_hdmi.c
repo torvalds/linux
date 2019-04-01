@@ -187,8 +187,7 @@ static const struct debugfs_reg32 hd_regs[] = {
 	VC4_REG32(VC4_HD_FRAME_COUNT),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
+static int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -201,7 +200,6 @@ int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 
 	return 0;
 }
-#endif /* CONFIG_DEBUG_FS */
 
 static enum drm_connector_status
 vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
@@ -1431,6 +1429,8 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	ret = vc4_hdmi_audio_init(hdmi);
 	if (ret)
 		goto err_destroy_encoder;
+
+	vc4_debugfs_add_file(drm, "hdmi_regs", vc4_hdmi_debugfs_regs, hdmi);
 
 	return 0;
 
