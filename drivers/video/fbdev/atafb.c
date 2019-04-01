@@ -3175,8 +3175,8 @@ int __init atafb_init(void)
 			kernel_set_cachemode(screen_base, screen_len,
 					     IOMAP_WRITETHROUGH);
 		}
-		printk("atafb: screen_base %p phys_screen_base %lx screen_len %d\n",
-			screen_base, phys_screen_base, screen_len);
+		printk("atafb: phys_screen_base %lx screen_len %d\n",
+		       phys_screen_base, screen_len);
 #ifdef ATAFB_EXT
 	} else {
 		/* Map the video memory (physical address given) to somewhere
