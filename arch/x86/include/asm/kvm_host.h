@@ -253,14 +253,14 @@ struct kvm_mmu_memory_cache {
  * kvm_memory_slot.arch.gfn_track which is 16 bits, so the role bits used
  * by indirect shadow page can not be more than 15 bits.
  *
- * Currently, we used 14 bits that are @level, @cr4_pae, @quadrant, @access,
+ * Currently, we used 14 bits that are @level, @gpte_is_8_bytes, @quadrant, @access,
  * @nxe, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
  */
 union kvm_mmu_page_role {
 	u32 word;
 	struct {
 		unsigned level:4;
-		unsigned cr4_pae:1;
+		unsigned gpte_is_8_bytes:1;
 		unsigned quadrant:2;
 		unsigned direct:1;
 		unsigned access:3;
@@ -350,6 +350,7 @@ struct kvm_mmu_page {
 };
 
 struct kvm_pio_request {
+	unsigned long linear_rip;
 	unsigned long count;
 	int in;
 	int port;
@@ -568,6 +569,7 @@ struct kvm_vcpu_arch {
 	bool tpr_access_reporting;
 	u64 ia32_xss;
 	u64 microcode_version;
+	u64 arch_capabilities;
 
 	/*
 	 * Paging state of the vcpu
@@ -1192,6 +1194,8 @@ struct kvm_x86_ops {
 	int (*nested_enable_evmcs)(struct kvm_vcpu *vcpu,
 				   uint16_t *vmcs_version);
 	uint16_t (*nested_get_evmcs_version)(struct kvm_vcpu *vcpu);
+
+	bool (*need_emulation_on_page_fault)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1252,7 +1256,7 @@ void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 				   gfn_t gfn_offset, unsigned long mask);
 void kvm_mmu_zap_all(struct kvm *kvm);
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen);
-unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm);
+unsigned int kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm);
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages);
 
 int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3);

@@ -1514,7 +1514,7 @@ static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &vnode->fid);
 	bp = xdr_encode_YFS_StoreStatus(bp, attr);
-	bp = xdr_encode_u64(bp, 0);		/* position of start of write */
+	bp = xdr_encode_u64(bp, attr->ia_size);	/* position of start of write */
 	bp = xdr_encode_u64(bp, 0);		/* size of write */
 	bp = xdr_encode_u64(bp, attr->ia_size);	/* new file length */
 	yfs_check_req(call, bp);

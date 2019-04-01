@@ -3206,6 +3206,9 @@ static int __init u132_hcd_init(void)
 	if (!workqueue)
 		return -ENOMEM;
 	retval = platform_driver_register(&u132_platform_driver);
+	if (retval)
+		destroy_workqueue(workqueue);
+
 	return retval;
 }
 

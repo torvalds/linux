@@ -410,7 +410,7 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 			for (param = desc->specs; param->name; param++) {
 				if (param->opt == e->opt &&
 				    param->type != fs_param_is_enum) {
-					pr_err("VALIDATE %s: e[%lu] enum val for %s\n",
+					pr_err("VALIDATE %s: e[%tu] enum val for %s\n",
 					       name, e - desc->enums, param->name);
 					good = false;
 				}

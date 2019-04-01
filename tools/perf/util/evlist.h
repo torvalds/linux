@@ -54,6 +54,10 @@ struct perf_evlist {
 				       struct perf_sample *sample);
 	u64		first_sample_time;
 	u64		last_sample_time;
+	struct {
+		pthread_t		th;
+		volatile int		done;
+	} thread;
 };
 
 struct perf_evsel_str_handler {
@@ -86,6 +90,14 @@ int __perf_evlist__add_default_attrs(struct perf_evlist *evlist,
 	__perf_evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
 
 int perf_evlist__add_dummy(struct perf_evlist *evlist);
+
+int perf_evlist__add_sb_event(struct perf_evlist **evlist,
+			      struct perf_event_attr *attr,
+			      perf_evsel__sb_cb_t cb,
+			      void *data);
+int perf_evlist__start_sb_thread(struct perf_evlist *evlist,
+				 struct target *target);
+void perf_evlist__stop_sb_thread(struct perf_evlist *evlist);
 
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler);
@@ -302,8 +314,6 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 
 void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
-
-void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr);
 
 struct perf_evsel *
 perf_evlist__find_evsel_by_str(struct perf_evlist *evlist, const char *str);

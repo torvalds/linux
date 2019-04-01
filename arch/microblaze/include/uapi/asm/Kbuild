@@ -1,3 +1,2 @@
 generated-y += unistd_32.h
-generic-y += kvm_para.h
 generic-y += ucontext.h
