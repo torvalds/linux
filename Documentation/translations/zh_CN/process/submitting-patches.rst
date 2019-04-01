@@ -22,7 +22,7 @@
 
 以下文档含有大量简洁的建议， 具体请见：
 :ref:`Documentation/process <development_process_main>`
-同样，:ref:`Documentation/process/submit-checklist.rst <submitchecklist>`
+同样，:ref:`Documentation/translations/zh_CN/process/submit-checklist.rst <cn_submitchecklist>`
 给出在提交代码前需要检查的项目的列表。如果你在提交一个驱动程序，那么
 同时阅读一下:
 :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`

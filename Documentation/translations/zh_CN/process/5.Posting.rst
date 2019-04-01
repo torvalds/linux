@@ -14,7 +14,7 @@
 也可在以下文件中找到
 :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`,
 :ref:`Documentation/process/submitting-drivers.rst  <submittingdrivers>`
-和 :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`.
+和 :ref:`Documentation/translations/zh_CN/process/submit-checklist.rst <cn_submitchecklist>`.
 
 何时邮寄
 --------
