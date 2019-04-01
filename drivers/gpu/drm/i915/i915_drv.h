@@ -2505,7 +2505,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))
 #define IS_GEN9_BC(dev_priv)	(IS_GEN(dev_priv, 9) && !IS_LP(dev_priv))
 
-#define ALL_ENGINES	(~0u)
 #define HAS_ENGINE(dev_priv, id) (INTEL_INFO(dev_priv)->engine_mask & BIT(id))
 
 #define ENGINE_INSTANCES_MASK(dev_priv, first, count) ({		\

@@ -1594,10 +1594,10 @@ out_unlock:
 }
 
 static __maybe_unused const char *
-__engine_name(struct drm_i915_private *i915, unsigned int engines)
+__engine_name(struct drm_i915_private *i915, intel_engine_mask_t engines)
 {
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 
 	if (engines == ALL_ENGINES)
 		return "all";
@@ -1610,10 +1610,10 @@ __engine_name(struct drm_i915_private *i915, unsigned int engines)
 
 static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 					  struct i915_gem_context *ctx,
-					  unsigned int engines)
+					  intel_engine_mask_t engines)
 {
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	int pass;
 
 	GEM_TRACE("Testing %s\n", __engine_name(i915, engines));

@@ -311,7 +311,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			    void *p_data, unsigned int bytes)
 {
-	unsigned int engine_mask = 0;
+	intel_engine_mask_t engine_mask = 0;
 	u32 data;
 
 	write_vreg(vgpu, offset, p_data, bytes);

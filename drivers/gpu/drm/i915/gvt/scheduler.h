@@ -142,12 +142,12 @@ void intel_gvt_wait_vgpu_idle(struct intel_vgpu *vgpu);
 int intel_vgpu_setup_submission(struct intel_vgpu *vgpu);
 
 void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
-				 unsigned long engine_mask);
+				 intel_engine_mask_t engine_mask);
 
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
 int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
-				     unsigned long engine_mask,
+				     intel_engine_mask_t engine_mask,
 				     unsigned int interface);
 
 extern const struct intel_vgpu_submission_ops
@@ -160,6 +160,6 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);
 
 void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
-				unsigned long engine_mask);
+				intel_engine_mask_t engine_mask);
 
 #endif

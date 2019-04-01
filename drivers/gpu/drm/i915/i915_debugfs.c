@@ -2245,7 +2245,7 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 	const struct intel_guc *guc = &dev_priv->guc;
 	struct guc_stage_desc *desc = guc->stage_desc_pool_vaddr;
 	struct intel_guc_client *client = guc->execbuf_client;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	int index;
 
 	if (!USES_GUC_SUBMISSION(dev_priv))

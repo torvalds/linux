@@ -144,15 +144,15 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 }
 
 static void i915_stop_engines(struct drm_i915_private *i915,
-			      unsigned int engine_mask)
+			      intel_engine_mask_t engine_mask)
 {
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	intel_engine_mask_t tmp;
 
 	if (INTEL_GEN(i915) < 3)
 		return;
 
-	for_each_engine_masked(engine, i915, engine_mask, id)
+	for_each_engine_masked(engine, i915, engine_mask, tmp)
 		gen3_stop_engine(engine);
 }
 
@@ -165,7 +165,7 @@ static bool i915_in_reset(struct pci_dev *pdev)
 }
 
 static int i915_do_reset(struct drm_i915_private *i915,
-			 unsigned int engine_mask,
+			 intel_engine_mask_t engine_mask,
 			 unsigned int retry)
 {
 	struct pci_dev *pdev = i915->drm.pdev;
@@ -194,7 +194,7 @@ static bool g4x_reset_complete(struct pci_dev *pdev)
 }
 
 static int g33_do_reset(struct drm_i915_private *i915,
-			unsigned int engine_mask,
+			intel_engine_mask_t engine_mask,
 			unsigned int retry)
 {
 	struct pci_dev *pdev = i915->drm.pdev;
@@ -204,7 +204,7 @@ static int g33_do_reset(struct drm_i915_private *i915,
 }
 
 static int g4x_do_reset(struct drm_i915_private *dev_priv,
-			unsigned int engine_mask,
+			intel_engine_mask_t engine_mask,
 			unsigned int retry)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
@@ -242,7 +242,7 @@ out:
 }
 
 static int ironlake_do_reset(struct drm_i915_private *dev_priv,
-			     unsigned int engine_mask,
+			     intel_engine_mask_t engine_mask,
 			     unsigned int retry)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
@@ -303,7 +303,7 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 }
 
 static int gen6_reset_engines(struct drm_i915_private *i915,
-			      unsigned int engine_mask,
+			      intel_engine_mask_t engine_mask,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
@@ -319,7 +319,7 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
 	} else {
-		unsigned int tmp;
+		intel_engine_mask_t tmp;
 
 		hw_mask = 0;
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
@@ -429,7 +429,7 @@ static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
 }
 
 static int gen11_reset_engines(struct drm_i915_private *i915,
-			       unsigned int engine_mask,
+			       intel_engine_mask_t engine_mask,
 			       unsigned int retry)
 {
 	const u32 hw_engine_mask[] = {
@@ -443,7 +443,7 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 		[VECS1] = GEN11_GRDOM_VECS2,
 	};
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	u32 hw_mask;
 	int ret;
 
@@ -496,12 +496,12 @@ static void gen8_engine_reset_cancel(struct intel_engine_cs *engine)
 }
 
 static int gen8_reset_engines(struct drm_i915_private *i915,
-			      unsigned int engine_mask,
+			      intel_engine_mask_t engine_mask,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
 	const bool reset_non_ready = retry >= 1;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	int ret;
 
 	for_each_engine_masked(engine, i915, engine_mask, tmp) {
@@ -537,7 +537,7 @@ skip_reset:
 }
 
 typedef int (*reset_func)(struct drm_i915_private *,
-			  unsigned int engine_mask,
+			  intel_engine_mask_t engine_mask,
 			  unsigned int retry);
 
 static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
@@ -558,7 +558,8 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
 		return NULL;
 }
 
-int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
+int intel_gpu_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t engine_mask)
 {
 	const int retries = engine_mask == ALL_ENGINES ? RESET_MAX_RETRIES : 1;
 	reset_func reset;
@@ -692,7 +693,8 @@ static void gt_revoke(struct drm_i915_private *i915)
 	revoke_mmaps(i915);
 }
 
-static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
+static int gt_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t stalled_mask)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -951,7 +953,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	return result;
 }
 
-static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
+static int do_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t stalled_mask)
 {
 	int err, i;
 
@@ -986,7 +989,7 @@ static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
  *   - re-init display
  */
 void i915_reset(struct drm_i915_private *i915,
-		unsigned int stalled_mask,
+		intel_engine_mask_t stalled_mask,
 		const char *reason)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
@@ -1233,14 +1236,14 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
  * of a ring dump etc.).
  */
 void i915_handle_error(struct drm_i915_private *i915,
-		       u32 engine_mask,
+		       intel_engine_mask_t engine_mask,
 		       unsigned long flags,
 		       const char *fmt, ...)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	char error_msg[80];
 	char *msg = NULL;
 

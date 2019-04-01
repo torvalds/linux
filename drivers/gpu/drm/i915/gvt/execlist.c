@@ -526,12 +526,13 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 
-static void clean_execlist(struct intel_vgpu *vgpu, unsigned long engine_mask)
+static void clean_execlist(struct intel_vgpu *vgpu,
+			   intel_engine_mask_t engine_mask)
 {
-	unsigned int tmp;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
 	struct intel_vgpu_submission *s = &vgpu->submission;
+	intel_engine_mask_t tmp;
 
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
 		kfree(s->ring_scan_buffer[engine->id]);
@@ -541,18 +542,18 @@ static void clean_execlist(struct intel_vgpu *vgpu, unsigned long engine_mask)
 }
 
 static void reset_execlist(struct intel_vgpu *vgpu,
-		unsigned long engine_mask)
+			   intel_engine_mask_t engine_mask)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		init_vgpu_execlist(vgpu, engine->id);
 }
 
 static int init_execlist(struct intel_vgpu *vgpu,
-			 unsigned long engine_mask)
+			 intel_engine_mask_t engine_mask)
 {
 	reset_execlist(vgpu, engine_mask);
 	return 0;

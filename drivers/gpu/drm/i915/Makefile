@@ -61,6 +61,7 @@ i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 i915-$(CONFIG_DRM_I915_WERROR) += \
 	test_i915_active_types_standalone.o \
 	test_i915_gem_context_types_standalone.o \
+	test_i915_scheduler_types_standalone.o \
 	test_i915_timeline_types_standalone.o \
 	test_intel_context_types_standalone.o \
 	test_intel_engine_types_standalone.o \

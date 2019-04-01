@@ -858,9 +858,9 @@ static void cb_retire(struct i915_active *base)
 	kfree(cb);
 }
 
-I915_SELFTEST_DECLARE(static unsigned long context_barrier_inject_fault);
+I915_SELFTEST_DECLARE(static intel_engine_mask_t context_barrier_inject_fault);
 static int context_barrier_task(struct i915_gem_context *ctx,
-				unsigned long engines,
+				intel_engine_mask_t engines,
 				int (*emit)(struct i915_request *rq, void *data),
 				void (*task)(void *data),
 				void *data)
@@ -922,7 +922,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 }
 
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915,
-				      unsigned long mask)
+				      intel_engine_mask_t mask)
 {
 	struct intel_engine_cs *engine;
 

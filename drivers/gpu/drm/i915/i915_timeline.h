@@ -27,6 +27,7 @@
 
 #include <linux/lockdep.h>
 
+#include "i915_active.h"
 #include "i915_syncmap.h"
 #include "i915_timeline_types.h"
 

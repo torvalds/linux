@@ -9,9 +9,10 @@
 
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 
-#include "i915_active.h"
+#include "i915_active_types.h"
 
 struct drm_i915_private;
 struct i915_vma;
