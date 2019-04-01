@@ -63,8 +63,6 @@ EVENT(PM_RUN_CYC_ALT,				0x200f4)
 /* Instruction Dispatched */
 EVENT(PM_INST_DISP,				0x200f2)
 EVENT(PM_INST_DISP_ALT,				0x300f2)
-/* Alternate Branch event code */
-EVENT(PM_BR_CMPL_ALT,				0x10012)
 /* Branch event that are not strongly biased */
 EVENT(PM_BR_2PATH,				0x20036)
 /* ALternate branch event that are not strongly biased */
