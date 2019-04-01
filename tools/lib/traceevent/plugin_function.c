@@ -126,7 +126,7 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event *event, void *context)
 {
-	struct tep_handle *pevent = event->tep;
+	struct tep_handle *tep = event->tep;
 	unsigned long long function;
 	unsigned long long pfunction;
 	const char *func;
@@ -136,12 +136,12 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
-	func = tep_find_function(pevent, function);
+	func = tep_find_function(tep, function);
 
 	if (tep_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
 		return trace_seq_putc(s, '!');
 
-	parent = tep_find_function(pevent, pfunction);
+	parent = tep_find_function(tep, pfunction);
 
 	if (parent && ftrace_indent->set)
 		index = add_and_get_index(parent, func, record->cpu);

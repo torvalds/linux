@@ -256,7 +256,7 @@ static int event_match(struct tep_event *event,
 }
 
 static enum tep_errno
-find_event(struct tep_handle *pevent, struct event_list **events,
+find_event(struct tep_handle *tep, struct event_list **events,
 	   char *sys_name, char *event_name)
 {
 	struct tep_event *event;
@@ -299,8 +299,8 @@ find_event(struct tep_handle *pevent, struct event_list **events,
 		}
 	}
 
-	for (i = 0; i < pevent->nr_events; i++) {
-		event = pevent->events[i];
+	for (i = 0; i < tep->nr_events; i++) {
+		event = tep->events[i];
 		if (event_match(event, sys_name ? &sreg : NULL, &ereg)) {
 			match = 1;
 			if (add_event(events, event) < 0) {
@@ -1257,7 +1257,7 @@ static void filter_init_error_buf(struct tep_event_filter *filter)
 enum tep_errno tep_filter_add_filter_str(struct tep_event_filter *filter,
 					 const char *filter_str)
 {
-	struct tep_handle *pevent = filter->tep;
+	struct tep_handle *tep = filter->tep;
 	struct event_list *event;
 	struct event_list *events = NULL;
 	const char *filter_start;
@@ -1313,7 +1313,7 @@ enum tep_errno tep_filter_add_filter_str(struct tep_event_filter *filter,
 		}
 
 		/* Find this event */
-		ret = find_event(pevent, &events, strim(sys_name), strim(event_name));
+		ret = find_event(tep, &events, strim(sys_name), strim(event_name));
 		if (ret < 0) {
 			free_events(events);
 			free(this_event);
@@ -1334,7 +1334,7 @@ enum tep_errno tep_filter_add_filter_str(struct tep_event_filter *filter,
 		if (ret < 0)
 			rtn = ret;
 
-		if (ret >= 0 && pevent->test_filters) {
+		if (ret >= 0 && tep->test_filters) {
 			char *test;
 			test = tep_filter_make_string(filter, event->event->id);
 			if (test) {
@@ -1459,7 +1459,7 @@ static int copy_filter_type(struct tep_event_filter *filter,
 	const char *name;
 	char *str;
 
-	/* Can't assume that the pevent's are the same */
+	/* Can't assume that the tep's are the same */
 	sys = filter_type->event->system;
 	name = filter_type->event->name;
 	event = tep_find_event_by_name(filter->tep, sys, name);
@@ -1697,7 +1697,7 @@ static int test_num(struct tep_event *event, struct tep_filter_arg *arg,
 static const char *get_field_str(struct tep_filter_arg *arg, struct tep_record *record)
 {
 	struct tep_event *event;
-	struct tep_handle *pevent;
+	struct tep_handle *tep;
 	unsigned long long addr;
 	const char *val = NULL;
 	unsigned int size;
@@ -1727,12 +1727,12 @@ static const char *get_field_str(struct tep_filter_arg *arg, struct tep_record *
 
 	} else {
 		event = arg->str.field->event;
-		pevent = event->tep;
+		tep = event->tep;
 		addr = get_value(event, arg->str.field, record);
 
 		if (arg->str.field->flags & (TEP_FIELD_IS_POINTER | TEP_FIELD_IS_LONG))
 			/* convert to a kernel symbol */
-			val = tep_find_function(pevent, addr);
+			val = tep_find_function(tep, addr);
 
 		if (val == NULL) {
 			/* just use the hex of the string name */
@@ -1872,7 +1872,7 @@ int tep_event_filtered(struct tep_event_filter *filter, int event_id)
 enum tep_errno tep_filter_match(struct tep_event_filter *filter,
 				struct tep_record *record)
 {
-	struct tep_handle *pevent = filter->tep;
+	struct tep_handle *tep = filter->tep;
 	struct tep_filter_type *filter_type;
 	int event_id;
 	int ret;
@@ -1883,7 +1883,7 @@ enum tep_errno tep_filter_match(struct tep_event_filter *filter,
 	if (!filter->filters)
 		return TEP_ERRNO__NO_FILTER;
 
-	event_id = tep_data_type(pevent, record);
+	event_id = tep_data_type(tep, record);
 
 	filter_type = find_filter_type(filter, event_id);
 	if (!filter_type)
