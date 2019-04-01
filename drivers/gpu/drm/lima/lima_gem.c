@@ -145,40 +145,7 @@ static int lima_gem_sync_bo(struct lima_sched_task *task, struct lima_bo *bo,
 	if (explicit)
 		return 0;
 
-	/* implicit sync use bo fence in resv obj */
-	if (write) {
-		unsigned nr_fences;
-		struct dma_fence **fences;
-		int i;
-
-		err = reservation_object_get_fences_rcu(
-			bo->gem.resv, NULL, &nr_fences, &fences);
-		if (err || !nr_fences)
-			return err;
-
-		for (i = 0; i < nr_fences; i++) {
-			err = lima_sched_task_add_dep(task, fences[i]);
-			if (err)
-				break;
-		}
-
-		/* for error case free remaining fences */
-		for ( ; i < nr_fences; i++)
-			dma_fence_put(fences[i]);
-
-		kfree(fences);
-	} else {
-		struct dma_fence *fence;
-
-		fence = reservation_object_get_excl_rcu(bo->gem.resv);
-		if (fence) {
-			err = lima_sched_task_add_dep(task, fence);
-			if (err)
-				dma_fence_put(fence);
-		}
-	}
-
-	return err;
+	return drm_gem_fence_array_add_implicit(&task->deps, &bo->gem, write);
 }
 
 static int lima_gem_lock_bos(struct lima_bo **bos, u32 nr_bos,
@@ -251,7 +218,7 @@ static int lima_gem_add_deps(struct drm_file *file, struct lima_submit *submit)
 		if (err)
 			return err;
 
-		err = lima_sched_task_add_dep(submit->task, fence);
+		err = drm_gem_fence_array_add(&submit->task->deps, fence);
 		if (err) {
 			dma_fence_put(fence);
 			return err;

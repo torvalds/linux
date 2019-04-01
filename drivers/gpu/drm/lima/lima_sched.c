@@ -3,6 +3,7 @@
 
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/xarray.h>
 
 #include "lima_drv.h"
 #include "lima_sched.h"
@@ -126,19 +127,24 @@ int lima_sched_task_init(struct lima_sched_task *task,
 
 	task->num_bos = num_bos;
 	task->vm = lima_vm_get(vm);
+
+	xa_init_flags(&task->deps, XA_FLAGS_ALLOC);
+
 	return 0;
 }
 
 void lima_sched_task_fini(struct lima_sched_task *task)
 {
+	struct dma_fence *fence;
+	unsigned long index;
 	int i;
 
 	drm_sched_job_cleanup(&task->base);
 
-	for (i = 0; i < task->num_dep; i++)
-		dma_fence_put(task->dep[i]);
-
-	kfree(task->dep);
+	xa_for_each(&task->deps, index, fence) {
+		dma_fence_put(fence);
+	}
+	xa_destroy(&task->deps);
 
 	if (task->bos) {
 		for (i = 0; i < task->num_bos; i++)
@@ -147,42 +153,6 @@ void lima_sched_task_fini(struct lima_sched_task *task)
 	}
 
 	lima_vm_put(task->vm);
-}
-
-int lima_sched_task_add_dep(struct lima_sched_task *task, struct dma_fence *fence)
-{
-	int i, new_dep = 4;
-
-	/* same context's fence is definitly earlier then this task */
-	if (fence->context == task->base.s_fence->finished.context) {
-		dma_fence_put(fence);
-		return 0;
-	}
-
-	if (task->dep && task->num_dep == task->max_dep)
-		new_dep = task->max_dep * 2;
-
-	if (task->max_dep < new_dep) {
-		void *dep = krealloc(task->dep, sizeof(*task->dep) * new_dep, GFP_KERNEL);
-
-		if (!dep)
-			return -ENOMEM;
-
-		task->max_dep = new_dep;
-		task->dep = dep;
-	}
-
-	for (i = 0; i < task->num_dep; i++) {
-		if (task->dep[i]->context == fence->context &&
-		    dma_fence_is_later(fence, task->dep[i])) {
-			dma_fence_put(task->dep[i]);
-			task->dep[i] = fence;
-			return 0;
-		}
-	}
-
-	task->dep[task->num_dep++] = fence;
-	return 0;
 }
 
 int lima_sched_context_init(struct lima_sched_pipe *pipe,
@@ -213,21 +183,9 @@ static struct dma_fence *lima_sched_dependency(struct drm_sched_job *job,
 					       struct drm_sched_entity *entity)
 {
 	struct lima_sched_task *task = to_lima_task(job);
-	int i;
 
-	for (i = 0; i < task->num_dep; i++) {
-		struct dma_fence *fence = task->dep[i];
-
-		if (!task->dep[i])
-			continue;
-
-		task->dep[i] = NULL;
-
-		if (!dma_fence_is_signaled(fence))
-			return fence;
-
-		dma_fence_put(fence);
-	}
+	if (!xa_empty(&task->deps))
+		return xa_erase(&task->deps, task->last_dep++);
 
 	return NULL;
 }

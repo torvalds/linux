@@ -14,9 +14,8 @@ struct lima_sched_task {
 	struct lima_vm *vm;
 	void *frame;
 
-	struct dma_fence **dep;
-	int num_dep;
-	int max_dep;
+	struct xarray deps;
+	unsigned long last_dep;
 
 	struct lima_bo **bos;
 	int num_bos;
@@ -78,7 +77,6 @@ int lima_sched_task_init(struct lima_sched_task *task,
 			 struct lima_bo **bos, int num_bos,
 			 struct lima_vm *vm);
 void lima_sched_task_fini(struct lima_sched_task *task);
-int lima_sched_task_add_dep(struct lima_sched_task *task, struct dma_fence *fence);
 
 int lima_sched_context_init(struct lima_sched_pipe *pipe,
 			    struct lima_sched_context *context,
