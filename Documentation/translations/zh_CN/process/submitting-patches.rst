@@ -427,8 +427,37 @@ Acked-by：不一定表示对整个补丁的确认。例如，如果一个补丁
 这是唯一一个标签，它可以在没有被它命名的人显式操作的情况下添加，但它应该表明
 这个人是在补丁上抄送的。讨论中包含了潜在利益相关方。
 
-Co-developed-by: 声明补丁也是由另一个开发人员和原始作者一起创建的。当多个人
-在一个补丁上工作时，这很有用。注意，此人也需要在补丁中有一个 Signed-off-by:
+Co-developed-by: 声明补丁是由多个开发人员共同创建的；当几个人在一个补丁上工
+作时，它用于将属性赋予共同作者（除了 From: 所赋予的作者之外）。因为
+Co-developed-by: 表示作者身份，所以每个共同开发人：必须紧跟在相关合作作者的
+签名之后。标准的签核程序要求：标记的签核顺序应尽可能反映补丁的时间历史，而不
+管作者是通过 From ：还是由 Co-developed-by: 共同开发的。值得注意的是，最后一
+个签字人：必须始终是提交补丁的开发人员。
+
+注意，当作者也是电子邮件标题“发件人：”行中列出的人时，“From: ” 标记是可选的。
+
+作者提交的补丁程序示例::
+
+	<changelog>
+
+	Co-developed-by: First Co-Author <first@coauthor.example.org>
+	Signed-off-by: First Co-Author <first@coauthor.example.org>
+	Co-developed-by: Second Co-Author <second@coauthor.example.org>
+	Signed-off-by: Second Co-Author <second@coauthor.example.org>
+	Signed-off-by: From Author <from@author.example.org>
+
+合作开发者提交的补丁示例::
+
+	From: From Author <from@author.example.org>
+
+	<changelog>
+
+	Co-developed-by: Random Co-Author <random@coauthor.example.org>
+	Signed-off-by: Random Co-Author <random@coauthor.example.org>
+	Signed-off-by: From Author <from@author.example.org>
+	Co-developed-by: Submitting Co-Author <sub@coauthor.example.org>
+	Signed-off-by: Submitting Co-Author <sub@coauthor.example.org>
+
 
 13）使用报告人：、测试人：、审核人：、建议人：、修复人：
 --------------------------------------------------------
@@ -538,7 +567,7 @@ e-mail 标题中的“一句话概述”扼要的描述 e-mail 中的补丁。�
     Subject: [PATCHv2 001/207] x86: fix eflags tracking
 
 "From" 行是信体里的最上面一行，具有如下格式：
-        From: Original Author <author@example.com>
+        From: Patch Author <author@example.com>
 
 "From" 行指明在永久改动日志里，谁会被确认为作者。如果没有 "From" 行，那
 么邮件头里的 "From: " 行会被用来决定改动日志中的作者。

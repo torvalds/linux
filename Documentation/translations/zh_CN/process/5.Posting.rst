@@ -159,8 +159,11 @@ bug搜寻人员想知道补丁是否负责他们正在追查的问题，想知�
    :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
    中找到，如果没有适当的签字，则不能合并到主线中。
 
- - Co-developed-by: 声明补丁也是由另一个开发人员和原始作者一起创建的。当多
-   个人在一个补丁上工作时，这很有用。注意，此人也需要在补丁中有一个签名行。
+ - Co-developed-by: 声明补丁是由多个开发人员共同创建的；当几个人在一个补丁上
+   工作时，它用于将属性赋予共同作者（除了 From: 所赋予的作者之外）。因为
+   Co-developed-by: 表示作者身份，所以每个共同开发人, 必须紧跟在相关合作作者
+   的签名之后。具体内容和示例可以在以下文件中找到
+   :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
 
  - Acked-by: 表示另一个开发人员（通常是相关代码的维护人员）同意补丁适合包含
    在内核中。
