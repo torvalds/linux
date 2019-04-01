@@ -1427,6 +1427,15 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	vega10_setup_default_pcie_table(hwmgr);
 
+	/* Zero out the saved copy of the CUSTOM profile
+	 * This will be checked when trying to set the profile
+	 * and will require that new values be passed in
+	 */
+	data->custom_profile_mode[0] = 0;
+	data->custom_profile_mode[1] = 0;
+	data->custom_profile_mode[2] = 0;
+	data->custom_profile_mode[3] = 0;
+
 	/* save a copy of the default DPM table */
 	memcpy(&(data->golden_dpm_table), &(data->dpm_table),
 			sizeof(struct vega10_dpm_table));
@@ -4910,8 +4919,19 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 						1 << power_profile_mode);
 
 	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size == 0 || size > 4)
+		if (size != 0 && size != 4)
 			return -EINVAL;
+
+		/* If size = 0 and the CUSTOM profile has been set already
+		 * then just apply the profile. The copy stored in the hwmgr
+		 * is zeroed out on init
+		 */
+		if (size == 0) {
+			if (data->custom_profile_mode[0] != 0)
+				goto out;
+			else
+				return -EINVAL;
+		}
 
 		data->custom_profile_mode[0] = busy_set_point = input[0];
 		data->custom_profile_mode[1] = FPS = input[1];
@@ -4923,6 +4943,7 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 					use_rlc_busy << 16 | min_active_level<<24);
 	}
 
+out:
 	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
