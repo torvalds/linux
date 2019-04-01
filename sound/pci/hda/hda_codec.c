@@ -2950,26 +2950,10 @@ static int hda_codec_runtime_resume(struct device *dev)
 }
 #endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
-static int hda_codec_force_resume(struct device *dev)
-{
-       int ret;
-
-       /* The get/put pair below enforces the runtime resume even if the
-        * device hasn't been used at suspend time.  This trick is needed to
-        * update the jack state change during the sleep.
-        */
-       pm_runtime_get_noresume(dev);
-       ret = pm_runtime_force_resume(dev);
-       pm_runtime_put(dev);
-       return ret;
-}
-#endif /* CONFIG_PM_SLEEP */
-
 /* referred in hda_bind.c */
 const struct dev_pm_ops hda_codec_driver_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				hda_codec_force_resume)
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(hda_codec_runtime_suspend, hda_codec_runtime_resume,
 			   NULL)
 };
