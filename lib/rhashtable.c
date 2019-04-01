@@ -237,8 +237,10 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned int old_hash)
 		goto out;
 
 	err = -ENOENT;
+	if (!pprev)
+		goto out;
 
-	rht_for_each(entry, old_tbl, old_hash) {
+	rht_for_each_from(entry, *pprev, old_tbl, old_hash) {
 		err = 0;
 		next = rht_dereference_bucket(entry->next, old_tbl, old_hash);
 
@@ -496,6 +498,8 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 
 	elasticity = RHT_ELASTICITY;
 	pprev = rht_bucket_var(tbl, hash);
+	if (!pprev)
+		return ERR_PTR(-ENOENT);
 	rht_for_each_from(head, *pprev, tbl, hash) {
 		struct rhlist_head *list;
 		struct rhlist_head *plist;
@@ -1161,11 +1165,10 @@ void rhashtable_destroy(struct rhashtable *ht)
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);
 
-struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
-					    unsigned int hash)
+struct rhash_head __rcu **__rht_bucket_nested(const struct bucket_table *tbl,
+					      unsigned int hash)
 {
 	const unsigned int shift = PAGE_SHIFT - ilog2(sizeof(void *));
-	static struct rhash_head __rcu *rhnull;
 	unsigned int index = hash & ((1 << tbl->nest) - 1);
 	unsigned int size = tbl->size >> tbl->nest;
 	unsigned int subhash = hash;
@@ -1183,14 +1186,22 @@ struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
 		subhash >>= shift;
 	}
 
-	if (!ntbl) {
-		if (!rhnull)
-			INIT_RHT_NULLS_HEAD(rhnull);
-		return &rhnull;
-	}
+	if (!ntbl)
+		return NULL;
 
 	return &ntbl[subhash].bucket;
 
+}
+EXPORT_SYMBOL_GPL(__rht_bucket_nested);
+
+struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
+					    unsigned int hash)
+{
+	static struct rhash_head __rcu *rhnull;
+
+	if (!rhnull)
+		INIT_RHT_NULLS_HEAD(rhnull);
+	return __rht_bucket_nested(tbl, hash) ?: &rhnull;
 }
 EXPORT_SYMBOL_GPL(rht_bucket_nested);
 

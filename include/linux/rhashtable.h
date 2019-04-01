@@ -265,6 +265,8 @@ void rhashtable_destroy(struct rhashtable *ht);
 
 struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
 					    unsigned int hash);
+struct rhash_head __rcu **__rht_bucket_nested(const struct bucket_table *tbl,
+					      unsigned int hash);
 struct rhash_head __rcu **rht_bucket_nested_insert(struct rhashtable *ht,
 						   struct bucket_table *tbl,
 						   unsigned int hash);
@@ -294,7 +296,7 @@ static inline struct rhash_head __rcu *const *rht_bucket(
 static inline struct rhash_head __rcu **rht_bucket_var(
 	struct bucket_table *tbl, unsigned int hash)
 {
-	return unlikely(tbl->nest) ? rht_bucket_nested(tbl, hash) :
+	return unlikely(tbl->nest) ? __rht_bucket_nested(tbl, hash) :
 				     &tbl->buckets[hash];
 }
 
@@ -890,6 +892,8 @@ static inline int __rhashtable_remove_fast_one(
 	spin_lock_bh(lock);
 
 	pprev = rht_bucket_var(tbl, hash);
+	if (!pprev)
+		goto out;
 	rht_for_each_from(he, *pprev, tbl, hash) {
 		struct rhlist_head *list;
 
@@ -934,6 +938,7 @@ static inline int __rhashtable_remove_fast_one(
 		break;
 	}
 
+out:
 	spin_unlock_bh(lock);
 
 	if (err > 0) {
@@ -1042,6 +1047,8 @@ static inline int __rhashtable_replace_fast(
 	spin_lock_bh(lock);
 
 	pprev = rht_bucket_var(tbl, hash);
+	if (!pprev)
+		goto out;
 	rht_for_each_from(he, *pprev, tbl, hash) {
 		if (he != obj_old) {
 			pprev = &he->next;
@@ -1053,7 +1060,7 @@ static inline int __rhashtable_replace_fast(
 		err = 0;
 		break;
 	}
-
+out:
 	spin_unlock_bh(lock);
 
 	return err;
