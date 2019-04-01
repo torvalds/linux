@@ -144,9 +144,46 @@ Mutt不自带编辑器，所以不管你使用什么编辑器都不应该带有�
 如果想要把补丁作为内嵌文本。
 (a)ttach工作的很好，不带有"set paste"。
 
+你可以通过 ``git format-patch`` 生成补丁，然后用 Mutt发送它们::
+
+        $ mutt -H 0001-some-bug-fix.patch
+
 配置选项：
 它应该以默认设置的形式工作。
 然而，把"send_charset"设置为"us-ascii::utf-8"也是一个不错的主意。
+
+Mutt 是高度可配置的。 这里是个使用mutt通过 Gmail 发送的补丁的最小配置::
+
+  # .muttrc
+  # ================  IMAP ====================
+  set imap_user = 'yourusername@gmail.com'
+  set imap_pass = 'yourpassword'
+  set spoolfile = imaps://imap.gmail.com/INBOX
+  set folder = imaps://imap.gmail.com/
+  set record="imaps://imap.gmail.com/[Gmail]/Sent Mail"
+  set postponed="imaps://imap.gmail.com/[Gmail]/Drafts"
+  set mbox="imaps://imap.gmail.com/[Gmail]/All Mail"
+
+  # ================  SMTP  ====================
+  set smtp_url = "smtp://username@smtp.gmail.com:587/"
+  set smtp_pass = $imap_pass
+  set ssl_force_tls = yes # Require encrypted connection
+
+  # ================  Composition  ====================
+  set editor = `echo \$EDITOR`
+  set edit_headers = yes  # See the headers when editing
+  set charset = UTF-8     # value of $LANG; also fallback for send_charset
+  # Sender, email address, and sign-off line must match
+  unset use_domain        # because joe@localhost is just embarrassing
+  set realname = "YOUR NAME"
+  set from = "username@gmail.com"
+  set use_from = yes
+
+Mutt文档含有更多信息:
+
+    http://dev.mutt.org/trac/wiki/UseCases/Gmail
+
+    http://dev.mutt.org/doc/manual.html
 
 Pine (TUI)
 ~~~~~~~~~~
