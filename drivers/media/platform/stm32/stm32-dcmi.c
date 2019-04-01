@@ -97,6 +97,8 @@ enum state {
 
 #define TIMEOUT_MS	1000
 
+#define OVERRUN_ERROR_THRESHOLD	3
+
 struct dcmi_graph_entity {
 	struct device_node *node;
 
@@ -446,11 +448,13 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 
 	spin_lock_irq(&dcmi->irqlock);
 
-	if ((dcmi->misr & IT_OVR) || (dcmi->misr & IT_ERR)) {
-		dcmi->errors_count++;
-		if (dcmi->misr & IT_OVR)
-			dcmi->overrun_count++;
+	if (dcmi->misr & IT_OVR) {
+		dcmi->overrun_count++;
+		if (dcmi->overrun_count > OVERRUN_ERROR_THRESHOLD)
+			dcmi->errors_count++;
 	}
+	if (dcmi->misr & IT_ERR)
+		dcmi->errors_count++;
 
 	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG &&
 	    dcmi->misr & IT_FRAME) {
