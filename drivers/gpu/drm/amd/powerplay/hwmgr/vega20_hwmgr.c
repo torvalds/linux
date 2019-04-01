@@ -427,6 +427,7 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 
 	data->total_active_cus = adev->gfx.cu_info.number;
+	data->is_custom_profile_set = false;
 
 	return 0;
 }
@@ -3827,7 +3828,11 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 	}
 
 	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size < 10)
+		struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+		if (size == 0 && !data->is_custom_profile_set)
+			return -EINVAL;
+		if (size < 10 && size != 0)
 			return -EINVAL;
 
 		result = vega20_get_activity_monitor_coeff(hwmgr,
@@ -3836,6 +3841,13 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 		PP_ASSERT_WITH_CODE(!result,
 				"[SetPowerProfile] Failed to get activity monitor!",
 				return result);
+
+		/* If size==0, then we want to apply the already-configured
+		 * CUSTOM profile again. Just apply it, since we checked its
+		 * validity above
+		 */
+		if (size == 0)
+			goto out;
 
 		switch (input[0]) {
 		case 0: /* Gfxclk */
@@ -3887,11 +3899,13 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 		result = vega20_set_activity_monitor_coeff(hwmgr,
 				(uint8_t *)(&activity_monitor),
 				WORKLOAD_PPLIB_CUSTOM_BIT);
+		data->is_custom_profile_set = true;
 		PP_ASSERT_WITH_CODE(!result,
 				"[SetPowerProfile] Failed to set activity monitor!",
 				return result);
 	}
 
+out:
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type =
 		conv_power_profile_to_pplib_workload(power_profile_mode);
