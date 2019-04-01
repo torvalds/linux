@@ -91,6 +91,20 @@
 		power-supply = <&vcc33_lcd>;
 		backlight = <&backlight>;
 
+		panel-timing {
+			clock-frequency = <74250000>;
+			hactive = <1366>;
+			hfront-porch = <136>;
+			hback-porch = <60>;
+			hsync-len = <30>;
+			hsync-active = <0>;
+			vactive = <768>;
+			vfront-porch = <8>;
+			vback-porch = <12>;
+			vsync-len = <12>;
+			vsync-active = <0>;
+		};
+
 		ports {
 			panel_in: port {
 				panel_in_edp: endpoint {

@@ -138,6 +138,8 @@
 &panel {
 	compatible = "auo,b101ean01", "simple-panel";
 	power-supply= <&panel_regulator>;
+
+	/delete-node/ panel-timing;
 };
 
 &rk808 {
