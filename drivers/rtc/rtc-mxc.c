@@ -318,7 +318,6 @@ static const struct rtc_class_ops mxc_rtc_ops = {
 
 static int mxc_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct rtc_device *rtc;
 	struct rtc_plat_data *pdata = NULL;
 	u32 reg;
@@ -336,8 +335,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	else
 		pdata->devtype = pdev->id_entry->driver_data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
