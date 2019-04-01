@@ -419,16 +419,16 @@ load_plugins(struct tep_handle *pevent, const char *suffix,
 }
 
 struct tep_plugin_list*
-tep_load_plugins(struct tep_handle *pevent)
+tep_load_plugins(struct tep_handle *tep)
 {
 	struct tep_plugin_list *list = NULL;
 
-	load_plugins(pevent, ".so", load_plugin, &list);
+	load_plugins(tep, ".so", load_plugin, &list);
 	return list;
 }
 
 void
-tep_unload_plugins(struct tep_plugin_list *plugin_list, struct tep_handle *pevent)
+tep_unload_plugins(struct tep_plugin_list *plugin_list, struct tep_handle *tep)
 {
 	tep_plugin_unload_func func;
 	struct tep_plugin_list *list;
@@ -438,7 +438,7 @@ tep_unload_plugins(struct tep_plugin_list *plugin_list, struct tep_handle *peven
 		plugin_list = list->next;
 		func = dlsym(list->handle, TEP_PLUGIN_UNLOADER_NAME);
 		if (func)
-			func(pevent);
+			func(tep);
 		dlclose(list->handle);
 		free(list->name);
 		free(list);

@@ -414,9 +414,9 @@ unsigned long long process_scsi_trace_parse_cdb(struct trace_seq *s,
 	return 0;
 }
 
-int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
-	tep_register_print_function(pevent,
+	tep_register_print_function(tep,
 				    process_scsi_trace_parse_cdb,
 				    TEP_FUNC_ARG_STRING,
 				    "scsi_trace_parse_cdb",
@@ -427,8 +427,8 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	return 0;
 }
 
-void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 {
-	tep_unregister_print_function(pevent, process_scsi_trace_parse_cdb,
+	tep_unregister_print_function(tep, process_scsi_trace_parse_cdb,
 				      "scsi_trace_parse_cdb");
 }

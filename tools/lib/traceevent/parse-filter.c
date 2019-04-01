@@ -164,9 +164,9 @@ add_filter_type(struct tep_event_filter *filter, int id)
 
 /**
  * tep_filter_alloc - create a new event filter
- * @pevent: The pevent that this filter is associated with
+ * @tep: The tep that this filter is associated with
  */
-struct tep_event_filter *tep_filter_alloc(struct tep_handle *pevent)
+struct tep_event_filter *tep_filter_alloc(struct tep_handle *tep)
 {
 	struct tep_event_filter *filter;
 
@@ -175,8 +175,8 @@ struct tep_event_filter *tep_filter_alloc(struct tep_handle *pevent)
 		return NULL;
 
 	memset(filter, 0, sizeof(*filter));
-	filter->pevent = pevent;
-	tep_ref(pevent);
+	filter->pevent = tep;
+	tep_ref(tep);
 
 	return filter;
 }
