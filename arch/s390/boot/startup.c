@@ -2,6 +2,7 @@
 #include <linux/string.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
+#include <asm/uv.h>
 #include "compressed/decompressor.h"
 #include "boot.h"
 
@@ -53,6 +54,7 @@ void startup_kernel(void)
 {
 	void *img;
 
+	uv_query_info();
 	rescue_initrd();
 	sclp_early_read_info();
 	store_ipl_parmblock();
