@@ -47,7 +47,6 @@
 #define ATAFB_EXT
 #define ATAFB_FALCON
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -3078,14 +3077,11 @@ int __init atafb_init(void)
 	int pad, detected_mode, error;
 	unsigned int defmode = 0;
 	unsigned long mem_req;
-
-#ifndef MODULE
 	char *option = NULL;
 
 	if (fb_get_options("atafb", &option))
 		return -ENODEV;
 	atafb_setup(option);
-#endif
 	printk("atafb_init: start\n");
 
 	if (!MACH_IS_ATARI)
@@ -3251,14 +3247,4 @@ int __init atafb_init(void)
 	return 0;
 }
 
-module_init(atafb_init);
-
-#ifdef MODULE
-MODULE_LICENSE("GPL");
-
-int cleanup_module(void)
-{
-	unregister_framebuffer(&fb_info);
-	return atafb_deinit();
-}
-#endif /* MODULE */
+device_initcall(atafb_init);
