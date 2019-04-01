@@ -69,6 +69,7 @@ enum mt76_txq_id {
 	MT_TXQ_MCU,
 	MT_TXQ_BEACON,
 	MT_TXQ_CAB,
+	MT_TXQ_FWDL,
 	__MT_TXQ_MAX
 };
 
