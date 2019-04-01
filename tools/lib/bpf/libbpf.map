@@ -153,4 +153,7 @@ LIBBPF_0.0.2 {
 		xsk_socket__delete;
 		xsk_umem__fd;
 		xsk_socket__fd;
+		bpf_program__get_prog_info_linear;
+		bpf_program__bpil_addr_to_offs;
+		bpf_program__bpil_offs_to_addr;
 } LIBBPF_0.0.1;

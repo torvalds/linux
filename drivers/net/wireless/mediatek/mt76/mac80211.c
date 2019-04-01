@@ -679,18 +679,14 @@ out:
 	return ret;
 }
 
-static void
-mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
-	        struct ieee80211_sta *sta)
+void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta)
 {
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
-	int idx = wcid->idx;
-	int i;
+	int i, idx = wcid->idx;
 
 	rcu_assign_pointer(dev->wcid[idx], NULL);
 	synchronize_rcu();
-
-	mutex_lock(&dev->mutex);
 
 	if (dev->drv->sta_remove)
 		dev->drv->sta_remove(dev, vif, sta);
@@ -699,7 +695,15 @@ mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		mt76_txq_remove(dev, sta->txq[i]);
 	mt76_wcid_free(dev->wcid_mask, idx);
+}
+EXPORT_SYMBOL_GPL(__mt76_sta_remove);
 
+static void
+mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+		struct ieee80211_sta *sta)
+{
+	mutex_lock(&dev->mutex);
+	__mt76_sta_remove(dev, vif, sta);
 	mutex_unlock(&dev->mutex);
 }
 

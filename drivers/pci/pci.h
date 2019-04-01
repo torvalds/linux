@@ -273,6 +273,7 @@ enum pcie_link_width pcie_get_width_cap(struct pci_dev *dev);
 u32 pcie_bandwidth_capable(struct pci_dev *dev, enum pci_bus_speed *speed,
 			   enum pcie_link_width *width);
 void __pcie_print_link_status(struct pci_dev *dev, bool verbose);
+void pcie_report_downtraining(struct pci_dev *dev);
 
 /* Single Root I/O Virtualization */
 struct pci_sriov {

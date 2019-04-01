@@ -1160,6 +1160,11 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 			 */
 			error = -EDEADLK;
 			spin_lock(&blocked_lock_lock);
+			/*
+			 * Ensure that we don't find any locks blocked on this
+			 * request during deadlock detection.
+			 */
+			__locks_wake_up_blocks(request);
 			if (likely(!posix_locks_deadlock(request, fl))) {
 				error = FILE_LOCK_DEFERRED;
 				__locks_insert_block(fl, request,

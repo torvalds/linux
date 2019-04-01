@@ -51,6 +51,7 @@ struct mt76x02_calibration {
 	u16 false_cca;
 	s8 avg_rssi_all;
 	s8 agc_gain_adjust;
+	s8 agc_lowest_gain;
 	s8 low_gain;
 
 	s8 temp_vco;
@@ -114,8 +115,11 @@ struct mt76x02_dev {
 	struct mt76x02_dfs_pattern_detector dfs_pd;
 
 	/* edcca monitor */
+	unsigned long ed_trigger_timeout;
 	bool ed_tx_blocked;
 	bool ed_monitor;
+	u8 ed_monitor_enabled;
+	u8 ed_monitor_learning;
 	u8 ed_trigger;
 	u8 ed_silent;
 	ktime_t ed_time;
@@ -187,6 +191,13 @@ void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
 void mt76x02_init_debugfs(struct mt76x02_dev *dev);
+
+static inline bool is_mt76x0(struct mt76x02_dev *dev)
+{
+	return mt76_chip(&dev->mt76) == 0x7610 ||
+	       mt76_chip(&dev->mt76) == 0x7630 ||
+	       mt76_chip(&dev->mt76) == 0x7650;
+}
 
 static inline bool is_mt76x2(struct mt76x02_dev *dev)
 {

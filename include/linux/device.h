@@ -49,8 +49,6 @@ struct bus_attribute {
 	ssize_t (*store)(struct bus_type *bus, const char *buf, size_t count);
 };
 
-#define BUS_ATTR(_name, _mode, _show, _store)	\
-	struct bus_attribute bus_attr_##_name = __ATTR(_name, _mode, _show, _store)
 #define BUS_ATTR_RW(_name) \
 	struct bus_attribute bus_attr_##_name = __ATTR_RW(_name)
 #define BUS_ATTR_RO(_name) \
