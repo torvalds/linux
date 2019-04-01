@@ -54,6 +54,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>
@@ -3072,7 +3073,7 @@ int __init atafb_setup(char *options)
 	return 0;
 }
 
-int __init atafb_init(void)
+static int __init atafb_probe(struct platform_device *pdev)
 {
 	int pad, detected_mode, error;
 	unsigned int defmode = 0;
@@ -3083,9 +3084,6 @@ int __init atafb_init(void)
 		return -ENODEV;
 	atafb_setup(option);
 	printk("atafb_init: start\n");
-
-	if (!MACH_IS_ATARI)
-		return -ENODEV;
 
 	do {
 #ifdef ATAFB_EXT
@@ -3245,6 +3243,34 @@ int __init atafb_init(void)
 
 	/* TODO: This driver cannot be unloaded yet */
 	return 0;
+}
+
+static void atafb_shutdown(struct platform_device *pdev)
+{
+	/* Unblank before kexec */
+	if (fbhw->blank)
+		fbhw->blank(0);
+}
+
+static struct platform_driver atafb_driver = {
+	.shutdown	= atafb_shutdown,
+	.driver	= {
+		.name	= "atafb",
+	},
+};
+
+static int __init atafb_init(void)
+{
+	struct platform_device *pdev;
+
+	if (!MACH_IS_ATARI)
+		return -ENODEV;
+
+	pdev = platform_device_register_simple("atafb", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return platform_driver_probe(&atafb_driver, atafb_probe);
 }
 
 device_initcall(atafb_init);
