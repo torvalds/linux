@@ -23,6 +23,7 @@
    :maxdepth: 1
 
    howto
+   code-of-conduct
    submitting-patches
    coding-style
    development-process
