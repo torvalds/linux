@@ -16,10 +16,23 @@
 #include "cgroup_helpers.h"
 #include "bpf_rlimit.h"
 
-enum bpf_array_idx {
-	SRV_IDX,
-	CLI_IDX,
-	__NR_BPF_ARRAY_IDX,
+enum bpf_addr_array_idx {
+	ADDR_SRV_IDX,
+	ADDR_CLI_IDX,
+	__NR_BPF_ADDR_ARRAY_IDX,
+};
+
+enum bpf_result_array_idx {
+	EGRESS_SRV_IDX,
+	EGRESS_CLI_IDX,
+	INGRESS_LISTEN_IDX,
+	__NR_BPF_RESULT_ARRAY_IDX,
+};
+
+enum bpf_linum_array_idx {
+	EGRESS_LINUM_IDX,
+	INGRESS_LINUM_IDX,
+	__NR_BPF_LINUM_ARRAY_IDX,
 };
 
 #define CHECK(condition, tag, format...) ({				\
@@ -41,8 +54,16 @@ static int linum_map_fd;
 static int addr_map_fd;
 static int tp_map_fd;
 static int sk_map_fd;
-static __u32 srv_idx = SRV_IDX;
-static __u32 cli_idx = CLI_IDX;
+
+static __u32 addr_srv_idx = ADDR_SRV_IDX;
+static __u32 addr_cli_idx = ADDR_CLI_IDX;
+
+static __u32 egress_srv_idx = EGRESS_SRV_IDX;
+static __u32 egress_cli_idx = EGRESS_CLI_IDX;
+static __u32 ingress_listen_idx = INGRESS_LISTEN_IDX;
+
+static __u32 egress_linum_idx = EGRESS_LINUM_IDX;
+static __u32 ingress_linum_idx = INGRESS_LINUM_IDX;
 
 static void init_loopback6(struct sockaddr_in6 *sa6)
 {
@@ -93,28 +114,45 @@ static void print_tp(const struct bpf_tcp_sock *tp)
 
 static void check_result(void)
 {
-	struct bpf_tcp_sock srv_tp, cli_tp;
-	struct bpf_sock srv_sk, cli_sk;
-	__u32 linum, idx0 = 0;
+	struct bpf_tcp_sock srv_tp, cli_tp, listen_tp;
+	struct bpf_sock srv_sk, cli_sk, listen_sk;
+	__u32 ingress_linum, egress_linum;
 	int err;
 
-	err = bpf_map_lookup_elem(linum_map_fd, &idx0, &linum);
+	err = bpf_map_lookup_elem(linum_map_fd, &egress_linum_idx,
+				  &egress_linum);
 	CHECK(err == -1, "bpf_map_lookup_elem(linum_map_fd)",
 	      "err:%d errno:%d", err, errno);
 
-	err = bpf_map_lookup_elem(sk_map_fd, &srv_idx, &srv_sk);
-	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &srv_idx)",
-	      "err:%d errno:%d", err, errno);
-	err = bpf_map_lookup_elem(tp_map_fd, &srv_idx, &srv_tp);
-	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &srv_idx)",
+	err = bpf_map_lookup_elem(linum_map_fd, &ingress_linum_idx,
+				  &ingress_linum);
+	CHECK(err == -1, "bpf_map_lookup_elem(linum_map_fd)",
 	      "err:%d errno:%d", err, errno);
 
-	err = bpf_map_lookup_elem(sk_map_fd, &cli_idx, &cli_sk);
-	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &cli_idx)",
+	err = bpf_map_lookup_elem(sk_map_fd, &egress_srv_idx, &srv_sk);
+	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &egress_srv_idx)",
 	      "err:%d errno:%d", err, errno);
-	err = bpf_map_lookup_elem(tp_map_fd, &cli_idx, &cli_tp);
-	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &cli_idx)",
+	err = bpf_map_lookup_elem(tp_map_fd, &egress_srv_idx, &srv_tp);
+	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &egress_srv_idx)",
 	      "err:%d errno:%d", err, errno);
+
+	err = bpf_map_lookup_elem(sk_map_fd, &egress_cli_idx, &cli_sk);
+	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &egress_cli_idx)",
+	      "err:%d errno:%d", err, errno);
+	err = bpf_map_lookup_elem(tp_map_fd, &egress_cli_idx, &cli_tp);
+	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &egress_cli_idx)",
+	      "err:%d errno:%d", err, errno);
+
+	err = bpf_map_lookup_elem(sk_map_fd, &ingress_listen_idx, &listen_sk);
+	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &ingress_listen_idx)",
+	      "err:%d errno:%d", err, errno);
+	err = bpf_map_lookup_elem(tp_map_fd, &ingress_listen_idx, &listen_tp);
+	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &ingress_listen_idx)",
+	      "err:%d errno:%d", err, errno);
+
+	printf("listen_sk: ");
+	print_sk(&listen_sk);
+	printf("\n");
 
 	printf("srv_sk: ");
 	print_sk(&srv_sk);
@@ -124,6 +162,10 @@ static void check_result(void)
 	print_sk(&cli_sk);
 	printf("\n");
 
+	printf("listen_tp: ");
+	print_tp(&listen_tp);
+	printf("\n");
+
 	printf("srv_tp: ");
 	print_tp(&srv_tp);
 	printf("\n");
@@ -131,6 +173,19 @@ static void check_result(void)
 	printf("cli_tp: ");
 	print_tp(&cli_tp);
 	printf("\n");
+
+	CHECK(listen_sk.state != 10 ||
+	      listen_sk.family != AF_INET6 ||
+	      listen_sk.protocol != IPPROTO_TCP ||
+	      memcmp(listen_sk.src_ip6, &in6addr_loopback,
+		     sizeof(listen_sk.src_ip6)) ||
+	      listen_sk.dst_ip6[0] || listen_sk.dst_ip6[1] ||
+	      listen_sk.dst_ip6[2] || listen_sk.dst_ip6[3] ||
+	      listen_sk.src_port != ntohs(srv_sa6.sin6_port) ||
+	      listen_sk.dst_port,
+	      "Unexpected listen_sk",
+	      "Check listen_sk output. ingress_linum:%u",
+	      ingress_linum);
 
 	CHECK(srv_sk.state == 10 ||
 	      !srv_sk.state ||
@@ -142,7 +197,8 @@ static void check_result(void)
 		     sizeof(srv_sk.dst_ip6)) ||
 	      srv_sk.src_port != ntohs(srv_sa6.sin6_port) ||
 	      srv_sk.dst_port != cli_sa6.sin6_port,
-	      "Unexpected srv_sk", "Check srv_sk output. linum:%u", linum);
+	      "Unexpected srv_sk", "Check srv_sk output. egress_linum:%u",
+	      egress_linum);
 
 	CHECK(cli_sk.state == 10 ||
 	      !cli_sk.state ||
@@ -154,21 +210,31 @@ static void check_result(void)
 		     sizeof(cli_sk.dst_ip6)) ||
 	      cli_sk.src_port != ntohs(cli_sa6.sin6_port) ||
 	      cli_sk.dst_port != srv_sa6.sin6_port,
-	      "Unexpected cli_sk", "Check cli_sk output. linum:%u", linum);
+	      "Unexpected cli_sk", "Check cli_sk output. egress_linum:%u",
+	      egress_linum);
+
+	CHECK(listen_tp.data_segs_out ||
+	      listen_tp.data_segs_in ||
+	      listen_tp.total_retrans ||
+	      listen_tp.bytes_acked,
+	      "Unexpected listen_tp", "Check listen_tp output. ingress_linum:%u",
+	      ingress_linum);
 
 	CHECK(srv_tp.data_segs_out != 1 ||
 	      srv_tp.data_segs_in ||
 	      srv_tp.snd_cwnd != 10 ||
 	      srv_tp.total_retrans ||
 	      srv_tp.bytes_acked != DATA_LEN,
-	      "Unexpected srv_tp", "Check srv_tp output. linum:%u", linum);
+	      "Unexpected srv_tp", "Check srv_tp output. egress_linum:%u",
+	      egress_linum);
 
 	CHECK(cli_tp.data_segs_out ||
 	      cli_tp.data_segs_in != 1 ||
 	      cli_tp.snd_cwnd != 10 ||
 	      cli_tp.total_retrans ||
 	      cli_tp.bytes_received != DATA_LEN,
-	      "Unexpected cli_tp", "Check cli_tp output. linum:%u", linum);
+	      "Unexpected cli_tp", "Check cli_tp output. egress_linum:%u",
+	      egress_linum);
 }
 
 static void test(void)
@@ -211,10 +277,10 @@ static void test(void)
 	      err, errno);
 
 	/* Update addr_map with srv_sa6 and cli_sa6 */
-	err = bpf_map_update_elem(addr_map_fd, &srv_idx, &srv_sa6, 0);
+	err = bpf_map_update_elem(addr_map_fd, &addr_srv_idx, &srv_sa6, 0);
 	CHECK(err, "map_update", "err:%d errno:%d", err, errno);
 
-	err = bpf_map_update_elem(addr_map_fd, &cli_idx, &cli_sa6, 0);
+	err = bpf_map_update_elem(addr_map_fd, &addr_cli_idx, &cli_sa6, 0);
 	CHECK(err, "map_update", "err:%d errno:%d", err, errno);
 
 	/* Connect from cli_sa6 to srv_sa6 */
@@ -273,9 +339,9 @@ int main(int argc, char **argv)
 	struct bpf_prog_load_attr attr = {
 		.file = "test_sock_fields_kern.o",
 		.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
-		.expected_attach_type = BPF_CGROUP_INET_EGRESS,
 	};
-	int cgroup_fd, prog_fd, err;
+	int cgroup_fd, egress_fd, ingress_fd, err;
+	struct bpf_program *ingress_prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 
@@ -293,11 +359,23 @@ int main(int argc, char **argv)
 	err = join_cgroup(TEST_CGROUP);
 	CHECK(err, "join_cgroup", "err:%d errno:%d", err, errno);
 
-	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
+	err = bpf_prog_load_xattr(&attr, &obj, &egress_fd);
 	CHECK(err, "bpf_prog_load_xattr()", "err:%d", err);
 
-	err = bpf_prog_attach(prog_fd, cgroup_fd, BPF_CGROUP_INET_EGRESS, 0);
+	ingress_prog = bpf_object__find_program_by_title(obj,
+							 "cgroup_skb/ingress");
+	CHECK(!ingress_prog,
+	      "bpf_object__find_program_by_title(cgroup_skb/ingress)",
+	      "not found");
+	ingress_fd = bpf_program__fd(ingress_prog);
+
+	err = bpf_prog_attach(egress_fd, cgroup_fd, BPF_CGROUP_INET_EGRESS, 0);
 	CHECK(err == -1, "bpf_prog_attach(CPF_CGROUP_INET_EGRESS)",
+	      "err:%d errno%d", err, errno);
+
+	err = bpf_prog_attach(ingress_fd, cgroup_fd,
+			      BPF_CGROUP_INET_INGRESS, 0);
+	CHECK(err == -1, "bpf_prog_attach(CPF_CGROUP_INET_INGRESS)",
 	      "err:%d errno%d", err, errno);
 	close(cgroup_fd);
 

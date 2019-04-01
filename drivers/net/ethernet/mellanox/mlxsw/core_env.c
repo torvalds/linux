@@ -113,7 +113,7 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 		return 0;
 	default:
 		/* Do not consider thresholds for zero temperature. */
-		if (!MLXSW_REG_MTMP_TEMP_TO_MC(module_temp)) {
+		if (MLXSW_REG_MTMP_TEMP_TO_MC(module_temp) == 0) {
 			*temp = 0;
 			return 0;
 		}

@@ -122,6 +122,10 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 #define PPC_NTOHS_OFFS(r, base, i)	PPC_LHZ_OFFS(r, base, i)
 #endif
 
+#define PPC_BPF_LL(r, base, i) do { PPC_LWZ(r, base, i); } while(0)
+#define PPC_BPF_STL(r, base, i) do { PPC_STW(r, base, i); } while(0)
+#define PPC_BPF_STLU(r, base, i) do { PPC_STWU(r, base, i); } while(0)
+
 #define SEEN_DATAREF 0x10000 /* might call external helpers */
 #define SEEN_XREG    0x20000 /* X reg is used */
 #define SEEN_MEM     0x40000 /* SEEN_MEM+(1<<n) = use mem[n] for temporary

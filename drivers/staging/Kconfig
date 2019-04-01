@@ -114,8 +114,6 @@ source "drivers/staging/ralink-gdma/Kconfig"
 
 source "drivers/staging/mt7621-mmc/Kconfig"
 
-source "drivers/staging/mt7621-eth/Kconfig"
-
 source "drivers/staging/mt7621-dts/Kconfig"
 
 source "drivers/staging/gasket/Kconfig"

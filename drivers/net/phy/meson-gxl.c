@@ -201,6 +201,7 @@ static int meson_gxl_ack_interrupt(struct phy_device *phydev)
 static int meson_gxl_config_intr(struct phy_device *phydev)
 {
 	u16 val;
+	int ret;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
 		val = INTSRC_ANEG_PR
@@ -212,6 +213,11 @@ static int meson_gxl_config_intr(struct phy_device *phydev)
 	} else {
 		val = 0;
 	}
+
+	/* Ack any pending IRQ */
+	ret = meson_gxl_ack_interrupt(phydev);
+	if (ret)
+		return ret;
 
 	return phy_write(phydev, INTSRC_MASK, val);
 }
