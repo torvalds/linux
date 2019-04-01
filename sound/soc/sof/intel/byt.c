@@ -605,10 +605,6 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.irq_handler	= byt_irq_handler,
 	.irq_thread	= byt_irq_thread,
 
-	/* mailbox */
-	.mailbox_read	= sof_mailbox_read,
-	.mailbox_write	= sof_mailbox_write,
-
 	/* ipc */
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
@@ -771,10 +767,6 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 	.irq_handler	= byt_irq_handler,
 	.irq_thread	= byt_irq_thread,
 
-	/* mailbox */
-	.mailbox_read	= sof_mailbox_read,
-	.mailbox_write	= sof_mailbox_write,
-
 	/* ipc */
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
@@ -831,10 +823,6 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* doorbell */
 	.irq_handler	= byt_irq_handler,
 	.irq_thread	= byt_irq_thread,
-
-	/* mailbox */
-	.mailbox_read	= sof_mailbox_read,
-	.mailbox_write	= sof_mailbox_write,
 
 	/* ipc */
 	.send_msg	= byt_send_msg,

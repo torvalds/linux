@@ -106,12 +106,6 @@ struct snd_sof_dsp_ops {
 	irqreturn_t (*irq_handler)(int irq, void *context); /* mandatory */
 	irqreturn_t (*irq_thread)(int irq, void *context); /* mandatory */
 
-	/* mailbox */
-	void (*mailbox_read)(struct snd_sof_dev *sof_dev, u32 offset,
-			     void *addr, size_t bytes); /* mandatory */
-	void (*mailbox_write)(struct snd_sof_dev *sof_dev, u32 offset,
-			      void *addr, size_t bytes); /* mandatory */
-
 	/* ipc */
 	int (*send_msg)(struct snd_sof_dev *sof_dev,
 			struct snd_sof_ipc_msg *msg); /* mandatory */

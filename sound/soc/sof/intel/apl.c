@@ -44,10 +44,6 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.irq_handler	= hda_dsp_ipc_irq_handler,
 	.irq_thread	= hda_dsp_ipc_irq_thread,
 
-	/* mailbox */
-	.mailbox_read	= sof_mailbox_read,
-	.mailbox_write	= sof_mailbox_write,
-
 	/* ipc */
 	.send_msg	= hda_dsp_ipc_send_msg,
 	.fw_ready	= hda_dsp_ipc_fw_ready,

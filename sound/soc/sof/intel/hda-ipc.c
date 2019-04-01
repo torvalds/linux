@@ -408,7 +408,7 @@ void hda_ipc_msg_data(struct snd_sof_dev *sdev,
 		      void *p, size_t sz)
 {
 	if (!substream || !sdev->stream_box.size) {
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
+		sof_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
 	} else {
 		struct hdac_stream *hstream = substream->runtime->private_data;
 		struct sof_intel_hda_stream *hda_stream;
@@ -419,9 +419,8 @@ void hda_ipc_msg_data(struct snd_sof_dev *sdev,
 
 		/* The stream might already be closed */
 		if (hstream)
-			snd_sof_dsp_mailbox_read(sdev,
-						 hda_stream->stream.posn_offset,
-						 p, sz);
+			sof_mailbox_read(sdev, hda_stream->stream.posn_offset,
+					 p, sz);
 	}
 }
 

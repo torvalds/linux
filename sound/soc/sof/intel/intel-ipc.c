@@ -30,14 +30,13 @@ void intel_ipc_msg_data(struct snd_sof_dev *sdev,
 			void *p, size_t sz)
 {
 	if (!substream || !sdev->stream_box.size) {
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
+		sof_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
 	} else {
 		struct intel_stream *stream = substream->runtime->private_data;
 
 		/* The stream might already be closed */
 		if (stream)
-			snd_sof_dsp_mailbox_read(sdev, stream->posn_offset,
-						 p, sz);
+			sof_mailbox_read(sdev, stream->posn_offset, p, sz);
 	}
 }
 EXPORT_SYMBOL(intel_ipc_msg_data);

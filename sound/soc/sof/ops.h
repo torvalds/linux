@@ -221,31 +221,6 @@ static inline void snd_sof_dsp_block_write(struct snd_sof_dev *sdev, u32 bar,
 	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
 }
 
-/* mailbox */
-static inline void snd_sof_dsp_mailbox_read(struct snd_sof_dev *sdev,
-					    u32 offset, void *message,
-					    size_t bytes)
-{
-	if (sof_ops(sdev)->mailbox_read) {
-		sof_ops(sdev)->mailbox_read(sdev, offset, message, bytes);
-		return;
-	}
-
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
-}
-
-static inline void snd_sof_dsp_mailbox_write(struct snd_sof_dev *sdev,
-					     u32 offset, void *message,
-					     size_t bytes)
-{
-	if (sof_ops(sdev)->mailbox_write) {
-		sof_ops(sdev)->mailbox_write(sdev, offset, message, bytes);
-		return;
-	}
-
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
-}
-
 /* ipc */
 static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 				       struct snd_sof_ipc_msg *msg)
