@@ -2389,6 +2389,8 @@ static const struct drm_encoder_funcs amdgpu_dm_encoder_funcs = {
 static int fill_dc_scaling_info(const struct drm_plane_state *state,
 				struct dc_scaling_info *scaling_info)
 {
+	int scale_w, scale_h;
+
 	memset(scaling_info, 0, sizeof(*scaling_info));
 
 	/* Source is fixed 16.16 but we ignore mantissa for now... */
@@ -2418,6 +2420,19 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 
 	/* DRM doesn't specify clipping on destination output. */
 	scaling_info->clip_rect = scaling_info->dst_rect;
+
+	/* TODO: Validate scaling per-format with DC plane caps */
+	scale_w = scaling_info->dst_rect.width * 1000 /
+		  scaling_info->src_rect.width;
+
+	if (scale_w < 250 || scale_w > 16000)
+		return -EINVAL;
+
+	scale_h = scaling_info->dst_rect.height * 1000 /
+		  scaling_info->src_rect.height;
+
+	if (scale_h < 250 || scale_h > 16000)
+		return -EINVAL;
 
 	/*
 	 * The "scaling_quality" can be ignored for now, quality = 0 has DC
