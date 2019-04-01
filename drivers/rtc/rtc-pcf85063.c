@@ -277,11 +277,45 @@ static int pcf85063_set_offset(struct device *dev, long offset)
 	return regmap_write(pcf85063->regmap, PCF85063_REG_OFFSET, reg);
 }
 
+static int pcf85063_ioctl(struct device *dev, unsigned int cmd,
+			  unsigned long arg)
+{
+	struct pcf85063 *pcf85063 = dev_get_drvdata(dev);
+	int status, ret = 0;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		ret = regmap_read(pcf85063->regmap, PCF85063_REG_SC, &status);
+		if (ret < 0)
+			return ret;
+
+		if (status & PCF85063_REG_SC_OS)
+			dev_warn(&pcf85063->rtc->dev, "Voltage low, data loss detected.\n");
+
+		status &= PCF85063_REG_SC_OS;
+
+		if (copy_to_user((void __user *)arg, &status, sizeof(int)))
+			return -EFAULT;
+
+		return 0;
+
+	case RTC_VL_CLR:
+		ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_SC,
+					 PCF85063_REG_SC_OS, 0);
+
+		return ret;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 static const struct rtc_class_ops pcf85063_rtc_ops = {
 	.read_time	= pcf85063_rtc_read_time,
 	.set_time	= pcf85063_rtc_set_time,
 	.read_offset	= pcf85063_read_offset,
 	.set_offset	= pcf85063_set_offset,
+	.ioctl		= pcf85063_ioctl,
 };
 
 static const struct rtc_class_ops pcf85063_rtc_ops_alarm = {
@@ -292,6 +326,7 @@ static const struct rtc_class_ops pcf85063_rtc_ops_alarm = {
 	.read_alarm	= pcf85063_rtc_read_alarm,
 	.set_alarm	= pcf85063_rtc_set_alarm,
 	.alarm_irq_enable = pcf85063_rtc_alarm_irq_enable,
+	.ioctl		= pcf85063_ioctl,
 };
 
 static int pcf85063_nvmem_read(void *priv, unsigned int offset,
