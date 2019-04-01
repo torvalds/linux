@@ -1475,7 +1475,7 @@ static const struct snd_soc_component_driver skl_component  = {
 	.ops		= &skl_platform_ops,
 	.pcm_new	= skl_pcm_new,
 	.pcm_free	= skl_pcm_free,
-	.ignore_module_refcount = 1, /* do not increase the refcount in core */
+	.module_get_upon_open = 1, /* increment refcount when a pcm is opened */
 };
 
 int skl_platform_register(struct device *dev)
