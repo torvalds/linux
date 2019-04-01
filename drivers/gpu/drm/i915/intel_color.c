@@ -359,6 +359,22 @@ static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state
 	I915_WRITE(CGM_PIPE_MODE(pipe), crtc_state->cgm_mode);
 }
 
+/* i965+ "10.6" bit interpolated format "even DW" (low 8 bits) */
+static u32 i965_lut_10p6_ldw(const struct drm_color_lut *color)
+{
+	return (color->red & 0xff) << 16 |
+		(color->green & 0xff) << 8 |
+		(color->blue & 0xff);
+}
+
+/* i965+ "10.6" interpolated format "odd DW" (high 8 bits) */
+static u32 i965_lut_10p6_udw(const struct drm_color_lut *color)
+{
+	return (color->red >> 8) << 16 |
+		(color->green >> 8) << 8 |
+		(color->blue >> 8);
+}
+
 static u32 ilk_lut_10(const struct drm_color_lut *color)
 {
 	return drm_color_lut_extract(color->red, 10) << 20 |
@@ -466,6 +482,37 @@ static void skl_color_commit(const struct intel_crtc_state *crtc_state)
 		icl_load_csc_matrix(crtc_state);
 	else
 		ilk_load_csc_matrix(crtc_state);
+}
+
+static void i965_load_lut_10p6(struct intel_crtc *crtc,
+			       const struct drm_property_blob *blob)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_color_lut *lut = blob->data;
+	int i, lut_size = drm_color_lut_size(blob);
+	enum pipe pipe = crtc->pipe;
+
+	for (i = 0; i < lut_size - 1; i++) {
+		I915_WRITE(PALETTE(pipe, 2 * i + 0),
+			   i965_lut_10p6_ldw(&lut[i]));
+		I915_WRITE(PALETTE(pipe, 2 * i + 1),
+			   i965_lut_10p6_udw(&lut[i]));
+	}
+
+	I915_WRITE(PIPEGCMAX(pipe, 0), lut[i].red);
+	I915_WRITE(PIPEGCMAX(pipe, 1), lut[i].green);
+	I915_WRITE(PIPEGCMAX(pipe, 2), lut[i].blue);
+}
+
+static void i965_load_luts(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
+
+	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+		i9xx_load_luts(crtc_state);
+	else
+		i965_load_lut_10p6(crtc, gamma_lut);
 }
 
 static void ilk_load_lut_10(struct intel_crtc *crtc,
@@ -917,6 +964,15 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static u32 i9xx_gamma_mode(struct intel_crtc_state *crtc_state)
+{
+	if (!crtc_state->gamma_enable ||
+	    crtc_state_is_legacy_gamma(crtc_state))
+		return GAMMA_MODE_MODE_8BIT;
+	else
+		return GAMMA_MODE_MODE_10BIT; /* i965+ only */
+}
+
 static int i9xx_color_check(struct intel_crtc_state *crtc_state)
 {
 	int ret;
@@ -929,7 +985,7 @@ static int i9xx_color_check(struct intel_crtc_state *crtc_state)
 		crtc_state->base.gamma_lut &&
 		!crtc_state->c8_planes;
 
-	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
+	crtc_state->gamma_mode = i9xx_gamma_mode(crtc_state);
 
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
@@ -1185,6 +1241,10 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.color_check = chv_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = cherryview_load_luts;
+		} else if (INTEL_GEN(dev_priv) >= 4) {
+			dev_priv->display.color_check = i9xx_color_check;
+			dev_priv->display.color_commit = i9xx_color_commit;
+			dev_priv->display.load_luts = i965_load_luts;
 		} else {
 			dev_priv->display.color_check = i9xx_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;

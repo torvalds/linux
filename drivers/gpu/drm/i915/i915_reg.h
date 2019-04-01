@@ -5795,6 +5795,10 @@ enum {
 #define PIPEFRAMEPIXEL(pipe)	_MMIO_PIPE2(pipe, _PIPEAFRAMEPIXEL)
 #define PIPESTAT(pipe)		_MMIO_PIPE2(pipe, _PIPEASTAT)
 
+#define  _PIPEAGCMAX           0x70010
+#define  _PIPEBGCMAX           0x71010
+#define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(pipe, _PIPEAGCMAX + (i) * 4)
+
 #define _PIPE_MISC_A			0x70030
 #define _PIPE_MISC_B			0x71030
 #define   PIPEMISC_YUV420_ENABLE	(1 << 27)
