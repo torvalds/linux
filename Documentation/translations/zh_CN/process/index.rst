@@ -25,6 +25,7 @@
    howto
    submitting-patches
    coding-style
+   development-process
    email-clients
 
 其它大多数开发人员感兴趣的社区指南：
