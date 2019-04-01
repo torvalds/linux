@@ -148,7 +148,7 @@ static int dafb_setpalette(unsigned int regno, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   struct fb_info *info)
 {
-	static int lastreg = -1;
+	static int lastreg = -2;
 	unsigned long flags;
 
 	local_irq_save(flags);
