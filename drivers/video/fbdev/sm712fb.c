@@ -1329,6 +1329,11 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 {
 	sfb->fb->fix.smem_start = pci_resource_start(pdev, 0);
 
+	if (sfb->chip_id == 0x720)
+		/* on SM720, the framebuffer starts at the 1 MB offset */
+		sfb->fb->fix.smem_start += 0x00200000;
+
+	/* XXX: is it safe for SM720 on Big-Endian? */
 	if (sfb->fb->var.bits_per_pixel == 32)
 		sfb->fb->fix.smem_start += big_addr;
 
@@ -1366,12 +1371,45 @@ static inline void sm7xx_init_hw(void)
 	outb_p(0x11, 0x3c5);
 }
 
+static u_long sm7xx_vram_probe(struct smtcfb_info *sfb)
+{
+	u8 vram;
+
+	switch (sfb->chip_id) {
+	case 0x710:
+	case 0x712:
+		/*
+		 * Assume SM712 graphics chip has 4MB VRAM.
+		 *
+		 * FIXME: SM712 can have 2MB VRAM, which is used on earlier
+		 * laptops, such as IBM Thinkpad 240X. This driver would
+		 * probably crash on those machines. If anyone gets one of
+		 * those and is willing to help, run "git blame" and send me
+		 * an E-mail.
+		 */
+		return 0x00400000;
+	case 0x720:
+		outb_p(0x76, 0x3c4);
+		vram = inb_p(0x3c5) >> 6;
+
+		if (vram == 0x00)
+			return 0x00800000;  /* 8 MB */
+		else if (vram == 0x01)
+			return 0x01000000;  /* 16 MB */
+		else if (vram == 0x02)
+			return 0x00400000;  /* illegal, fallback to 4 MB */
+		else if (vram == 0x03)
+			return 0x00400000;  /* 4 MB */
+	}
+	return 0;  /* unknown hardware */
+}
+
 static int smtcfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;
 	struct fb_info *info;
-	u_long smem_size = 0x00800000;	/* default 8MB */
+	u_long smem_size;
 	int err;
 	unsigned long mmio_base;
 
@@ -1428,12 +1466,15 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	mmio_base = pci_resource_start(pdev, 0);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &sfb->chip_rev_id);
 
+	smem_size = sm7xx_vram_probe(sfb);
+	dev_info(&pdev->dev, "%lu MiB of VRAM detected.\n",
+					smem_size / 1048576);
+
 	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
 		sfb->fb->fix.mmio_start = mmio_base + 0x00400000;
 		sfb->fb->fix.mmio_len = 0x00400000;
-		smem_size = SM712_VIDEOMEMORYSIZE;
 		sfb->lfb = ioremap(mmio_base, mmio_addr);
 		if (!sfb->lfb) {
 			dev_err(&pdev->dev,
@@ -1465,8 +1506,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	case 0x720:
 		sfb->fb->fix.mmio_start = mmio_base;
 		sfb->fb->fix.mmio_len = 0x00200000;
-		smem_size = SM722_VIDEOMEMORYSIZE;
-		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
+		sfb->dp_regs = ioremap(mmio_base, 0x00200000 + smem_size);
 		sfb->lfb = sfb->dp_regs + 0x00200000;
 		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->dp_regs + 0x000c0000);
