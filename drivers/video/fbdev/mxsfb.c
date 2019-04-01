@@ -181,6 +181,7 @@ struct mxsfb_info {
 	const struct mxsfb_devdata *devdata;
 	u32 sync;
 	struct regulator *reg_lcd;
+	int pre_init;
 };
 
 #define mxsfb_is_v3(host) (host->devdata->ipversion == 3)
@@ -418,6 +419,12 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		return -ENOMEM;
 
 	fb_info->fix.line_length = line_size;
+
+	if (host->pre_init) {
+		mxsfb_enable_controller(fb_info);
+		host->pre_init = 0;
+		return 0;
+	}
 
 	/*
 	 * It seems, you can't re-program the controller if it is still running.
@@ -931,6 +938,10 @@ static int mxsfb_probe(struct platform_device *pdev)
 	if (IS_ERR(host->reg_lcd))
 		host->reg_lcd = NULL;
 
+#if defined(CONFIG_FB_PRE_INIT_FB)
+	host->pre_init = 1;
+#endif
+
 	fb_info->pseudo_palette = devm_kcalloc(&pdev->dev, 16, sizeof(u32),
 					       GFP_KERNEL);
 	if (!fb_info->pseudo_palette) {
@@ -963,6 +974,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 		mxsfb_enable_controller(fb_info);
 	}
 
+	host->pre_init = 0;
 	dev_info(&pdev->dev, "initialized\n");
 
 	return 0;

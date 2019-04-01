@@ -2183,7 +2183,7 @@ config FB_EP93XX
 
 config FB_PRE_INIT_FB
 	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
-	depends on FB && FB_MB862XX_LIME
+	depends on FB && (FB_MB862XX_LIME || FB_MXS)
 	---help---
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
