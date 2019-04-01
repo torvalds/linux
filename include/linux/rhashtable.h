@@ -82,6 +82,8 @@ struct bucket_table {
 
 	struct bucket_table __rcu *future_tbl;
 
+	struct lockdep_map	dep_map;
+
 	struct rhash_lock_head __rcu *buckets[] ____cacheline_aligned_in_smp;
 };
 
@@ -102,23 +104,38 @@ struct bucket_table {
  * this is safe.
  */
 
-static inline void rht_lock(struct rhash_lock_head **bkt)
+static inline void rht_lock(struct bucket_table *tbl,
+			    struct rhash_lock_head **bkt)
 {
 	local_bh_disable();
 	bit_spin_lock(1, (unsigned long *)bkt);
+	lock_map_acquire(&tbl->dep_map);
 }
 
-static inline void rht_unlock(struct rhash_lock_head **bkt)
+static inline void rht_lock_nested(struct bucket_table *tbl,
+				   struct rhash_lock_head **bucket,
+				   unsigned int subclass)
 {
+	local_bh_disable();
+	bit_spin_lock(1, (unsigned long *)bucket);
+	lock_acquire_exclusive(&tbl->dep_map, subclass, 0, NULL, _THIS_IP_);
+}
+
+static inline void rht_unlock(struct bucket_table *tbl,
+			      struct rhash_lock_head **bkt)
+{
+	lock_map_release(&tbl->dep_map);
 	bit_spin_unlock(1, (unsigned long *)bkt);
 	local_bh_enable();
 }
 
-static inline void rht_assign_unlock(struct rhash_lock_head **bkt,
+static inline void rht_assign_unlock(struct bucket_table *tbl,
+				     struct rhash_lock_head **bkt,
 				     struct rhash_head *obj)
 {
 	struct rhash_head **p = (struct rhash_head **)bkt;
 
+	lock_map_release(&tbl->dep_map);
 	rcu_assign_pointer(*p, obj);
 	preempt_enable();
 	__release(bitlock);
@@ -672,11 +689,11 @@ static inline void *__rhashtable_insert_fast(
 	if (!bkt)
 		goto out;
 	pprev = NULL;
-	rht_lock(bkt);
+	rht_lock(tbl, bkt);
 
 	if (unlikely(rcu_access_pointer(tbl->future_tbl))) {
 slow_path:
-		rht_unlock(bkt);
+		rht_unlock(tbl, bkt);
 		rcu_read_unlock();
 		return rhashtable_insert_slow(ht, key, obj);
 	}
@@ -708,9 +725,9 @@ slow_path:
 		RCU_INIT_POINTER(list->rhead.next, head);
 		if (pprev) {
 			rcu_assign_pointer(*pprev, obj);
-			rht_unlock(bkt);
+			rht_unlock(tbl, bkt);
 		} else
-			rht_assign_unlock(bkt, obj);
+			rht_assign_unlock(tbl, bkt, obj);
 		data = NULL;
 		goto out;
 	}
@@ -737,7 +754,7 @@ slow_path:
 	}
 
 	atomic_inc(&ht->nelems);
-	rht_assign_unlock(bkt, obj);
+	rht_assign_unlock(tbl, bkt, obj);
 
 	if (rht_grow_above_75(ht, tbl))
 		schedule_work(&ht->run_work);
@@ -749,7 +766,7 @@ out:
 	return data;
 
 out_unlock:
-	rht_unlock(bkt);
+	rht_unlock(tbl, bkt);
 	goto out;
 }
 
@@ -951,7 +968,7 @@ static inline int __rhashtable_remove_fast_one(
 	if (!bkt)
 		return -ENOENT;
 	pprev = NULL;
-	rht_lock(bkt);
+	rht_lock(tbl, bkt);
 
 	rht_for_each_from(he, rht_ptr(*bkt), tbl, hash) {
 		struct rhlist_head *list;
@@ -995,14 +1012,14 @@ static inline int __rhashtable_remove_fast_one(
 
 		if (pprev) {
 			rcu_assign_pointer(*pprev, obj);
-			rht_unlock(bkt);
+			rht_unlock(tbl, bkt);
 		} else {
-			rht_assign_unlock(bkt, obj);
+			rht_assign_unlock(tbl, bkt, obj);
 		}
 		goto unlocked;
 	}
 
-	rht_unlock(bkt);
+	rht_unlock(tbl, bkt);
 unlocked:
 	if (err > 0) {
 		atomic_dec(&ht->nelems);
@@ -1110,7 +1127,7 @@ static inline int __rhashtable_replace_fast(
 		return -ENOENT;
 
 	pprev = NULL;
-	rht_lock(bkt);
+	rht_lock(tbl, bkt);
 
 	rht_for_each_from(he, rht_ptr(*bkt), tbl, hash) {
 		if (he != obj_old) {
@@ -1121,15 +1138,15 @@ static inline int __rhashtable_replace_fast(
 		rcu_assign_pointer(obj_new->next, obj_old->next);
 		if (pprev) {
 			rcu_assign_pointer(*pprev, obj_new);
-			rht_unlock(bkt);
+			rht_unlock(tbl, bkt);
 		} else {
-			rht_assign_unlock(bkt, obj_new);
+			rht_assign_unlock(tbl, bkt, obj_new);
 		}
 		err = 0;
 		goto unlocked;
 	}
 
-	rht_unlock(bkt);
+	rht_unlock(tbl, bkt);
 
 unlocked:
 	return err;

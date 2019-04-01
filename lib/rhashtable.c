@@ -173,6 +173,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	struct bucket_table *tbl = NULL;
 	size_t size;
 	int i;
+	static struct lock_class_key __key;
 
 	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
 	tbl = kvzalloc(size, gfp);
@@ -186,6 +187,8 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 
 	if (tbl == NULL)
 		return NULL;
+
+	lockdep_init_map(&tbl->dep_map, "rhashtable_bucket", &__key, 0);
 
 	tbl->size = size;
 
@@ -244,14 +247,14 @@ static int rhashtable_rehash_one(struct rhashtable *ht,
 
 	new_hash = head_hashfn(ht, new_tbl, entry);
 
-	rht_lock(&new_tbl->buckets[new_hash]);
+	rht_lock_nested(new_tbl, &new_tbl->buckets[new_hash], SINGLE_DEPTH_NESTING);
 
 	head = rht_ptr(rht_dereference_bucket(new_tbl->buckets[new_hash],
 					      new_tbl, new_hash));
 
 	RCU_INIT_POINTER(entry->next, head);
 
-	rht_assign_unlock(&new_tbl->buckets[new_hash], entry);
+	rht_assign_unlock(new_tbl, &new_tbl->buckets[new_hash], entry);
 
 	if (pprev)
 		rcu_assign_pointer(*pprev, next);
@@ -272,14 +275,14 @@ static int rhashtable_rehash_chain(struct rhashtable *ht,
 
 	if (!bkt)
 		return 0;
-	rht_lock(bkt);
+	rht_lock(old_tbl, bkt);
 
 	while (!(err = rhashtable_rehash_one(ht, bkt, old_hash)))
 		;
 
 	if (err == -ENOENT)
 		err = 0;
-	rht_unlock(bkt);
+	rht_unlock(old_tbl, bkt);
 
 	return err;
 }
@@ -600,7 +603,7 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 			new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 			data = ERR_PTR(-EAGAIN);
 		} else {
-			rht_lock(bkt);
+			rht_lock(tbl, bkt);
 			data = rhashtable_lookup_one(ht, bkt, tbl,
 						     hash, key, obj);
 			new_tbl = rhashtable_insert_one(ht, bkt, tbl,
@@ -608,7 +611,7 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 			if (PTR_ERR(new_tbl) != -EEXIST)
 				data = ERR_CAST(new_tbl);
 
-			rht_unlock(bkt);
+			rht_unlock(tbl, bkt);
 		}
 	} while (!IS_ERR_OR_NULL(new_tbl));
 
