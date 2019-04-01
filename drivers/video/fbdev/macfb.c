@@ -136,7 +136,6 @@ static struct fb_fix_screeninfo macfb_fix = {
 static void *slot_addr;
 static struct fb_info fb_info;
 static u32 pseudo_palette[16];
-static int inverse;
 static int vidtest;
 
 /*
@@ -520,7 +519,7 @@ static void __init macfb_setup(char *options)
 			continue;
 
 		if (!strcmp(this_opt, "inverse"))
-			inverse = 1;
+			fb_invert_cmaps();
 		else
 			if (!strcmp(this_opt, "vidtest"))
 				vidtest = 1; /* enable experimental CLUT code */
