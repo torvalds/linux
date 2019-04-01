@@ -426,8 +426,8 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 	/* Enable IRQ */
 	reg_set(ldev->regs, LTDC_IER, IER_RRIE | IER_FUIE | IER_TERRIE);
 
-	/* Immediately commit the planes */
-	reg_set(ldev->regs, LTDC_SRCR, SRCR_IMR);
+	/* Commit shadow registers = update planes at next vblank */
+	reg_set(ldev->regs, LTDC_SRCR, SRCR_VBR);
 
 	/* Enable LTDC */
 	reg_set(ldev->regs, LTDC_GCR, GCR_LTDCEN);
