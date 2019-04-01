@@ -1574,87 +1574,6 @@ static struct omap_hwmod omap44xx_mcpdm_hwmod = {
 };
 
 /*
- * 'mcspi' class
- * multichannel serial port interface (mcspi) / master/slave synchronous serial
- * bus
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_mcspi_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_RESET_STATUS |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_mcspi_hwmod_class = {
-	.name	= "mcspi",
-	.sysc	= &omap44xx_mcspi_sysc,
-};
-
-/* mcspi1 */
-static struct omap_hwmod omap44xx_mcspi1_hwmod = {
-	.name		= "mcspi1",
-	.class		= &omap44xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4_per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4PER_MCSPI1_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4PER_MCSPI1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* mcspi2 */
-static struct omap_hwmod omap44xx_mcspi2_hwmod = {
-	.name		= "mcspi2",
-	.class		= &omap44xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4_per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4PER_MCSPI2_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4PER_MCSPI2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* mcspi3 */
-static struct omap_hwmod omap44xx_mcspi3_hwmod = {
-	.name		= "mcspi3",
-	.class		= &omap44xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4_per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4PER_MCSPI3_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4PER_MCSPI3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* mcspi4 */
-static struct omap_hwmod omap44xx_mcspi4_hwmod = {
-	.name		= "mcspi4",
-	.class		= &omap44xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4_per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4PER_MCSPI4_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4PER_MCSPI4_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'mmu' class
  * The memory management unit performs virtual to physical address translation
  * for its requestors.
@@ -3240,38 +3159,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_abe__mcpdm = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per -> mcspi1 */
-static struct omap_hwmod_ocp_if omap44xx_l4_per__mcspi1 = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_mcspi1_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per -> mcspi2 */
-static struct omap_hwmod_ocp_if omap44xx_l4_per__mcspi2 = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_mcspi2_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per -> mcspi3 */
-static struct omap_hwmod_ocp_if omap44xx_l4_per__mcspi3 = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_mcspi3_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per -> mcspi4 */
-static struct omap_hwmod_ocp_if omap44xx_l4_per__mcspi4 = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_mcspi4_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> ocmc_ram */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ocmc_ram = {
 	.master		= &omap44xx_l3_main_2_hwmod,
@@ -3635,10 +3522,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_abe__mcbsp3,
 	&omap44xx_l4_per__mcbsp4,
 	&omap44xx_l4_abe__mcpdm,
-	&omap44xx_l4_per__mcspi1,
-	&omap44xx_l4_per__mcspi2,
-	&omap44xx_l4_per__mcspi3,
-	&omap44xx_l4_per__mcspi4,
 	&omap44xx_l3_main_2__mmu_ipu,
 	&omap44xx_l4_cfg__mmu_dsp,
 	&omap44xx_l3_main_2__ocmc_ram,
