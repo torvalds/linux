@@ -142,6 +142,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_DBG_DEST	= 38,
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWL_UCODE_TLV_FW_DBG_TRIGGER	= 40,
+	IWL_UCODE_TLV_CMD_VERSIONS	= 48,
 	IWL_UCODE_TLV_FW_GSCAN_CAPA	= 50,
 	IWL_UCODE_TLV_FW_MEM_SEG	= 51,
 	IWL_UCODE_TLV_IML		= 52,
@@ -941,6 +942,22 @@ struct iwl_fw_dbg_conf_tlv {
 	u8 reserved;
 	u8 num_of_hcmds;
 	struct iwl_fw_dbg_conf_hcmd hcmd;
+} __packed;
+
+#define IWL_FW_CMD_VER_UNKNOWN 99
+
+/**
+ * struct iwl_fw_cmd_version - firmware command version entry
+ * @cmd: command ID
+ * @group: group ID
+ * @cmd_ver: command version
+ * @notif_ver: notification version
+ */
+struct iwl_fw_cmd_version {
+	u8 cmd;
+	u8 group;
+	u8 cmd_ver;
+	u8 notif_ver;
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */

@@ -179,6 +179,7 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 		kfree(drv->fw.dbg.trigger_tlv[i]);
 	kfree(drv->fw.dbg.mem_tlv);
 	kfree(drv->fw.iml);
+	kfree(drv->fw.ucode_capa.cmd_versions);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -1143,6 +1144,23 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
 			if (iwlwifi_mod_params.enable_ini)
 				iwl_fw_dbg_copy_tlv(drv->trans, tlv, false);
+			break;
+		case IWL_UCODE_TLV_CMD_VERSIONS:
+			if (tlv_len % sizeof(struct iwl_fw_cmd_version)) {
+				IWL_ERR(drv,
+					"Invalid length for command versions: %u\n",
+					tlv_len);
+				tlv_len /= sizeof(struct iwl_fw_cmd_version);
+				tlv_len *= sizeof(struct iwl_fw_cmd_version);
+			}
+			if (WARN_ON(capa->cmd_versions))
+				return -EINVAL;
+			capa->cmd_versions = kmemdup(tlv_data, tlv_len,
+						     GFP_KERNEL);
+			if (!capa->cmd_versions)
+				return -ENOMEM;
+			capa->n_cmd_versions =
+				tlv_len / sizeof(struct iwl_fw_cmd_version);
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
