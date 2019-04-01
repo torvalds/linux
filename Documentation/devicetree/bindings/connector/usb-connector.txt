@@ -47,7 +47,7 @@ Required properties for usb-c-connector with power delivery support:
 Required nodes:
 - any data bus to the connector should be modeled using the OF graph bindings
   specified in bindings/graph.txt, unless the bus is between parent node and
-  the connector. Since single connector can have multpile data buses every bus
+  the connector. Since single connector can have multiple data buses every bus
   has assigned OF graph port number as follows:
     0: High Speed (HS), present in all connectors,
     1: Super Speed (SS), present in SS capable connectors,
