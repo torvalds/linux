@@ -87,11 +87,6 @@ bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)
 		apic_test_vector(vector, apic->regs + APIC_IRR);
 }
 
-static inline void apic_clear_vector(int vec, void *bitmap)
-{
-	clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
-}
-
 static inline int __apic_test_and_set_vector(int vec, void *bitmap)
 {
 	return __test_and_set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
@@ -445,12 +440,12 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 
 	if (unlikely(vcpu->arch.apicv_active)) {
 		/* need to update RVI */
-		apic_clear_vector(vec, apic->regs + APIC_IRR);
+		kvm_lapic_clear_vector(vec, apic->regs + APIC_IRR);
 		kvm_x86_ops->hwapic_irr_update(vcpu,
 				apic_find_highest_irr(apic));
 	} else {
 		apic->irr_pending = false;
-		apic_clear_vector(vec, apic->regs + APIC_IRR);
+		kvm_lapic_clear_vector(vec, apic->regs + APIC_IRR);
 		if (apic_search_irr(apic) != -1)
 			apic->irr_pending = true;
 	}
@@ -1055,9 +1050,11 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		if (apic_test_vector(vector, apic->regs + APIC_TMR) != !!trig_mode) {
 			if (trig_mode)
-				kvm_lapic_set_vector(vector, apic->regs + APIC_TMR);
+				kvm_lapic_set_vector(vector,
+						     apic->regs + APIC_TMR);
 			else
-				apic_clear_vector(vector, apic->regs + APIC_TMR);
+				kvm_lapic_clear_vector(vector,
+						       apic->regs + APIC_TMR);
 		}
 
 		if (vcpu->arch.apicv_active)
@@ -2333,7 +2330,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 
 	/*
 	 * APIC is created enabled. This will prevent kvm_lapic_set_base from
-	 * thinking that APIC satet has changed.
+	 * thinking that APIC state has changed.
 	 */
 	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
 	static_key_slow_inc(&apic_sw_disabled.key); /* sw disabled at reset */

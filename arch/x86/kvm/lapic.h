@@ -130,6 +130,11 @@ void kvm_lapic_exit(void);
 #define VEC_POS(v) ((v) & (32 - 1))
 #define REG_POS(v) (((v) >> 5) << 4)
 
+static inline void kvm_lapic_clear_vector(int vec, void *bitmap)
+{
+	clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+}
+
 static inline void kvm_lapic_set_vector(int vec, void *bitmap)
 {
 	set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
