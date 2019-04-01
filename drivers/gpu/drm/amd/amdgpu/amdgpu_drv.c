@@ -251,7 +251,9 @@ module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_
 
 /**
  * DOC: dpm (int)
- * Override for dynamic power management setting (1 = enable, 0 = disable). The default is -1 (auto).
+ * Override for dynamic power management setting
+ * (0 = disable, 1 = enable, 2 = enable sw smu driver for vega20)
+ * The default is -1 (auto).
  */
 MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(dpm, amdgpu_dpm, int, 0444);

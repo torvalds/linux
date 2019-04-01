@@ -168,13 +168,12 @@ int smu_update_table_with_arg(struct smu_context *smu, uint16_t table_id, uint16
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
-	if (amdgpu_dpm != 1)
-		return false;
-
-	if (adev->asic_type >= CHIP_VEGA20 && adev->asic_type != CHIP_RAVEN)
+	if (adev->asic_type == CHIP_VEGA20)
+		return (amdgpu_dpm == 2) ? true : false;
+	else if (adev->asic_type >= CHIP_NAVI10)
 		return true;
-
-	return false;
+	else
+		return false;
 }
 
 int smu_sys_get_pp_table(struct smu_context *smu, void **table)
