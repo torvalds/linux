@@ -717,7 +717,8 @@ bool __skb_flow_bpf_dissect(struct bpf_prog *prog,
 	/* Restore state */
 	memcpy(cb, &cb_saved, sizeof(cb_saved));
 
-	flow_keys->nhoff = clamp_t(u16, flow_keys->nhoff, 0, skb->len);
+	flow_keys->nhoff = clamp_t(u16, flow_keys->nhoff,
+				   skb_network_offset(skb), skb->len);
 	flow_keys->thoff = clamp_t(u16, flow_keys->thoff,
 				   flow_keys->nhoff, skb->len);
 
