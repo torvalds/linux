@@ -92,7 +92,6 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 {
 	struct bpf_flow_keys *keys = skb->flow_keys;
 
-	keys->n_proto = proto;
 	switch (proto) {
 	case bpf_htons(ETH_P_IP):
 		bpf_tail_call(skb, &jmp_table, IP);
@@ -119,7 +118,9 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 SEC("flow_dissector")
 int _dissect(struct __sk_buff *skb)
 {
-	return parse_eth_proto(skb, skb->protocol);
+	struct bpf_flow_keys *keys = skb->flow_keys;
+
+	return parse_eth_proto(skb, keys->n_proto);
 }
 
 /* Parses on IPPROTO_* */
@@ -358,6 +359,7 @@ PROG(VLAN)(struct __sk_buff *skb)
 	    vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021Q))
 		return BPF_DROP;
 
+	keys->n_proto = vlan->h_vlan_encapsulated_proto;
 	return parse_eth_proto(skb, vlan->h_vlan_encapsulated_proto);
 }
 
