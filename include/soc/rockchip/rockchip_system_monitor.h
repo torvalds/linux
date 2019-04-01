@@ -17,6 +17,11 @@ struct volt_adjust_table {
 	int volt;		/* Voltage in microvolt */
 };
 
+struct temp_freq_table {
+	int temp;		/* millicelsius */
+	unsigned int freq;	/* KHz */
+};
+
 /**
  * struct temp_opp_table - System monitor device OPP description structure
  * @rate:		Frequency in hertz
@@ -41,6 +46,7 @@ struct temp_opp_table {
  * @opp_table:		Frequency and voltage information of device
  * @devp:		Device-specific system monitor profile
  * @node:		Node in monitor_dev_list
+ * @temp_freq_table:	Maximum frequency at different temperature
  * @low_limit:		Limit maximum frequency when low temperature, in Hz
  * @high_limit:		Limit maximum frequency when high temperature, in Hz
  * @max_volt:		Maximum voltage in microvolt
@@ -51,6 +57,8 @@ struct temp_opp_table {
  *			in Hz
  * @video_4k_freq:	Maximum frequency when paly 4k video, in KHz
  * @status_limit:	Minimum frequency of all status frequency, in KHz
+ * @freq_table:		Optional list of frequencies in descending order
+ * @max_state:		The size of freq_table
  * @low_temp:		Low temperature trip point, in millicelsius
  * @high_temp:		High temperature trip point, in millicelsius
  * @temp_hysteresis:	A low hysteresis value on low_temp, in millicelsius
@@ -66,6 +74,7 @@ struct monitor_dev_info {
 	struct temp_opp_table *opp_table;
 	struct monitor_dev_profile *devp;
 	struct list_head node;
+	struct temp_freq_table *temp_freq_table;
 	unsigned long low_limit;
 	unsigned long high_limit;
 	unsigned long max_volt;
@@ -74,6 +83,8 @@ struct monitor_dev_info {
 	unsigned long wide_temp_limit;
 	unsigned int video_4k_freq;
 	unsigned int status_limit;
+	unsigned long *freq_table;
+	unsigned int max_state;
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;
@@ -103,4 +114,7 @@ int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 int rockchip_monitor_suspend_low_temp_adjust(struct monitor_dev_info *info);
+int
+rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
+					  int temp, unsigned long *state);
 #endif

@@ -585,6 +585,44 @@ err:
 	return ret;
 }
 
+static int rockchip_get_temp_freq_table(struct device_node *np,
+					char *porp_name,
+					struct temp_freq_table **freq_table)
+{
+	struct temp_freq_table *table;
+	const struct property *prop;
+	int count, i;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 2)
+		return -EINVAL;
+
+	table = kzalloc(sizeof(*table) * (count / 2 + 1), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u32_index(np, porp_name, 2 * i,
+					   &table[i].temp);
+		of_property_read_u32_index(np, porp_name, 2 * i + 1,
+					   &table[i].freq);
+	}
+	table[i].freq = UINT_MAX;
+	*freq_table = table;
+
+	return 0;
+}
+
 static int monitor_device_parse_dt(struct device *dev,
 				   struct monitor_dev_info *info)
 {
@@ -592,6 +630,7 @@ static int monitor_device_parse_dt(struct device *dev,
 	int ret = 0;
 	bool is_wide_temp_en = false;
 	bool is_4k_limit_en = false;
+	bool is_temp_freq_en = false;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np)
@@ -602,7 +641,10 @@ static int monitor_device_parse_dt(struct device *dev,
 	if (!of_property_read_u32(np, "rockchip,video-4k-freq",
 				  &info->video_4k_freq))
 		is_4k_limit_en = true;
-	if (is_wide_temp_en || is_4k_limit_en)
+	if (!rockchip_get_temp_freq_table(np, "rockchip,temp-freq-table",
+					  &info->temp_freq_table))
+		is_temp_freq_en = true;
+	if (is_wide_temp_en || is_4k_limit_en || is_temp_freq_en)
 		ret = 0;
 	else
 		ret = -EINVAL;
@@ -853,6 +895,104 @@ static int system_monitor_devfreq_notifier_call(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int monitor_set_freq_table(struct device *dev,
+				  struct monitor_dev_info *info)
+{
+	struct dev_pm_opp *opp;
+	unsigned long freq, *freq_table;
+	unsigned int i;
+	int count;
+
+	/* Initialize the freq_table from OPP table */
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count <= 0)
+		return -EINVAL;
+
+	info->max_state = count;
+	freq_table = kcalloc(count, sizeof(*info->freq_table), GFP_KERNEL);
+	if (!freq_table) {
+		info->max_state = 0;
+		return -ENOMEM;
+	}
+
+	rcu_read_lock();
+	for (i = 0, freq = ULONG_MAX; i < info->max_state; i++, freq--) {
+		opp = dev_pm_opp_find_freq_floor(dev, &freq);
+		if (IS_ERR(opp)) {
+			kfree(freq_table);
+			info->max_state = 0;
+			rcu_read_unlock();
+			return PTR_ERR(opp);
+		}
+		freq_table[i] = freq;
+	}
+	rcu_read_unlock();
+
+	info->freq_table = freq_table;
+
+	return 0;
+}
+
+static unsigned long monitor_freq_to_state(struct monitor_dev_info *info,
+					   unsigned long freq)
+{
+	unsigned long i = 0;
+
+	if (!info->freq_table) {
+		dev_info(info->dev, "failed to get freq_table");
+		return 0;
+	}
+
+	for (i = 0; i < info->max_state; i++) {
+		if (freq >= info->freq_table[i])
+			return i;
+	}
+
+	return info->max_state - 1;
+}
+
+static int monitor_temp_to_state(struct monitor_dev_info *info,
+				 int temp, unsigned long *state)
+{
+	unsigned long target_freq = 0;
+	int i;
+
+	if (temp == THERMAL_TEMP_INVALID)
+		return 0;
+	if (info->temp_freq_table) {
+		for (i = 0; info->temp_freq_table[i].freq != UINT_MAX; i++) {
+			if (temp > info->temp_freq_table[i].temp)
+				target_freq = info->temp_freq_table[i].freq;
+		}
+		if (target_freq)
+			*state = monitor_freq_to_state(info,
+						       target_freq * 1000);
+		else
+			*state = 0;
+	}
+
+	return 0;
+}
+
+int
+rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
+					  int temp, unsigned long *state)
+{
+	struct monitor_dev_info *info;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (cdev->np != info->dev->of_node)
+			continue;
+		monitor_temp_to_state(info, temp, state);
+		break;
+	}
+	up_read(&mdev_list_sem);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_system_monitor_adjust_cdev_state);
+
 struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
 				 struct monitor_dev_profile *devp)
@@ -873,6 +1013,8 @@ rockchip_system_monitor_register(struct device *dev,
 	ret = monitor_device_parse_dt(dev, info);
 	if (ret)
 		goto free_info;
+
+	monitor_set_freq_table(dev, info);
 
 	if (info->devp->type == MONITOR_TPYE_DEV) {
 		info->devfreq_nb.notifier_call =
@@ -915,6 +1057,7 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 
 	kfree(info->low_temp_adjust_table);
 	kfree(info->opp_table);
+	kfree(info->freq_table);
 	kfree(info);
 }
 EXPORT_SYMBOL(rockchip_system_monitor_unregister);
