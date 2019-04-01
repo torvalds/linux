@@ -4,13 +4,12 @@
 
 :Original: :ref:`Documentation/process/howto.rst <process_howto>`
 
-如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
-交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
-译存在问题，请联系中文版维护者::
+译者::
 
     英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
     中文版维护者： 李阳  Li Yang <leoyang.li@nxp.com>
     中文版翻译者： 李阳  Li Yang <leoyang.li@nxp.com>
+                   时奎亮 Alex Shi <alex.shi@linux.alibaba.com>
     中文版校译者:
                    钟宇  TripleX Chung <xxx.phy@gmail.com>
                    陈琦  Maggie Chen <chenqi@beyondsoft.com>
