@@ -853,8 +853,8 @@ section if needed.
 
 .. hint:: Add a new field with the type :c:type:`struct work_struct`
 	  in your device structure. Initialize this field. Schedule
-	  the work after N seconds from the timer's handler using
-	  :c:func:`schedule_work`.
+	  the work from the timer handler using :c:func:`schedule_work`.
+	  Schedule the timer handler aften N seconds from the ioctl.
 
 6. Kernel thread
 ----------------
