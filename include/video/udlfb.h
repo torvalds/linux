@@ -48,6 +48,7 @@ struct dlfb_data {
 	int base8;
 	u32 pseudo_palette[256];
 	int blank_mode; /*one of FB_BLANK_ */
+	struct mutex render_mutex;
 	int damage_x;
 	int damage_y;
 	int damage_x2;
