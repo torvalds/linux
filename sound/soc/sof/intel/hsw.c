@@ -674,10 +674,17 @@ const struct snd_sof_dsp_ops sof_hsw_ops = {
 	.send_msg	= hsw_send_msg,
 	.fw_ready	= hsw_fw_ready,
 
+	.ipc_msg_data	= intel_ipc_msg_data,
+	.ipc_pcm_params	= intel_ipc_pcm_params,
+
 	/* debug */
 	.debug_map  = hsw_debugfs,
 	.debug_map_count    = ARRAY_SIZE(hsw_debugfs),
 	.dbg_dump   = hsw_dump,
+
+	/* stream callbacks */
+	.pcm_open	= intel_pcm_open,
+	.pcm_close	= intel_pcm_close,
 
 	/* Module loading */
 	.load_module    = snd_sof_parse_module_memcpy,
