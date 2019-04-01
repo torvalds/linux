@@ -2023,7 +2023,7 @@ static int apic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 		apic_debug("%s: offset 0x%x with length 0x%x, and value is "
 			   "0x%x\n", __func__, offset, len, val);
 
-	kvm_lapic_reg_write(apic, offset & 0xff0, val);
+	kvm_lapic_reg_write(apic, offset, val);
 
 	return 0;
 }
