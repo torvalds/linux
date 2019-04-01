@@ -18,7 +18,14 @@ This device has two video ports. Their connections are modeled using the OF
 graph bindings specified in [1]. Each port node shall have a single endpoint.
 
 - Port 0 is the DPI input port. Its endpoint subnode shall contain a
-  pclk-sample property and a remote-endpoint property as specified in [1].
+  pclk-sample and bus-width property and a remote-endpoint property as specified
+  in [1].
+  - If pclk-sample is not defined, pclk-sample = 0 should be assumed for
+    backward compatibility.
+  - If bus-width is not defined then bus-width = 24 should be assumed for
+    backward compatibility.
+    bus-width = 24: 24 data lines are connected and single-edge mode
+    bus-width = 12: 12 data lines are connected and dual-edge mode
 
 - Port 1 is the DVI output port. Its endpoint subnode shall contain a
   remote-endpoint property is specified in [1].
@@ -43,6 +50,7 @@ tfp410: encoder@0 {
 
 			tfp410_in: endpoint@0 {
 				pclk-sample = <1>;
+				bus-width = <24>;
 				remote-endpoint = <&dpi_out>;
 			};
 		};
