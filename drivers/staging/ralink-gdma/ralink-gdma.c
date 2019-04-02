@@ -826,7 +826,6 @@ static int gdma_dma_probe(struct platform_device *pdev)
 			       struct_size(dma_dev, chan, data->chancnt),
 			       GFP_KERNEL);
 	if (!dma_dev) {
-		dev_err(&pdev->dev, "alloc dma device failed\n");
 		return -EINVAL;
 	}
 	dma_dev->data = data;
