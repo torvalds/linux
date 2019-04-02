@@ -291,8 +291,9 @@ void media_devnode_unregister(struct media_devnode *devnode)
 	mutex_lock(&media_devnode_lock);
 	/* Delete the cdev on this minor as well */
 	cdev_device_del(&devnode->cdev, &devnode->dev);
-	mutex_unlock(&media_devnode_lock);
 	devnode->media_dev = NULL;
+	mutex_unlock(&media_devnode_lock);
+
 	put_device(&devnode->dev);
 }
 
