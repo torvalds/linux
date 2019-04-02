@@ -919,6 +919,9 @@ int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb)
 {
 	struct nlattr *group = nla_nest_start(skb, TIPC_NLA_SOCK_GROUP);
 
+	if (!group)
+		return -EMSGSIZE;
+
 	if (nla_put_u32(skb, TIPC_NLA_SOCK_GROUP_ID,
 			grp->type) ||
 	    nla_put_u32(skb, TIPC_NLA_SOCK_GROUP_INSTANCE,

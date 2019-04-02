@@ -111,6 +111,7 @@ starting from ``0.0.1``.
 
 Every time ABI is being changed, e.g. because a new symbol is added or
 semantic of existing symbol is changed, ABI version should be bumped.
+This bump in ABI version is at most once per kernel development cycle.
 
 For example, if current state of ``libbpf.map`` is:
 

@@ -482,7 +482,7 @@ static void hardware_init(struct net_device *dev)
 	write_reg_high(ioaddr, IMR, ISRh_RxErr);
 
 	lp->tx_unit_busy = 0;
-    lp->pac_cnt_in_tx_buf = 0;
+	lp->pac_cnt_in_tx_buf = 0;
 	lp->saved_tx_size = 0;
 }
 

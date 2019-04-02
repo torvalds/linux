@@ -4335,10 +4335,8 @@ static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
 		/* If vxlan->dev is in the same netns, it has already been added
 		 * to the list by the previous loop.
 		 */
-		if (!net_eq(dev_net(vxlan->dev), net)) {
-			gro_cells_destroy(&vxlan->gro_cells);
+		if (!net_eq(dev_net(vxlan->dev), net))
 			unregister_netdevice_queue(vxlan->dev, head);
-		}
 	}
 
 	for (h = 0; h < PORT_HASH_SIZE; ++h)

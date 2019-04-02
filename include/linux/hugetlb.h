@@ -203,7 +203,6 @@ static inline void hugetlb_show_meminfo(void)
 #define pud_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
-#define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
 #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
 				src_addr, pagep)	({ BUG(); 0; })
 #define huge_pte_offset(mm, address, sz)	0
@@ -233,6 +232,13 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
 			unsigned long end, struct page *ref_page)
 {
 	BUG();
+}
+static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
+				struct vm_area_struct *vma, unsigned long address,
+				unsigned int flags)
+{
+	BUG();
+	return 0;
 }
 
 #endif /* !CONFIG_HUGETLB_PAGE */

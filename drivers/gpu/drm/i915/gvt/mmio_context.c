@@ -132,6 +132,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 
 	{RCS, GEN9_GAMT_ECO_REG_RW_IA, 0x0, false}, /* 0x4ab0 */
 	{RCS, GEN9_CSFE_CHICKEN1_RCS, 0xffff, false}, /* 0x20d4 */
+	{RCS, _MMIO(0x20D8), 0xffff, true}, /* 0x20d8 */
 
 	{RCS, GEN8_GARBCNTL, 0x0, false}, /* 0xb004 */
 	{RCS, GEN7_FF_THREAD_MODE, 0x0, false}, /* 0x20a0 */

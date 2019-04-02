@@ -59,7 +59,8 @@ static int blk_mq_poll_stats_bkt(const struct request *rq)
 }
 
 /*
- * Check if any of the ctx's have pending work in this hardware queue
+ * Check if any of the ctx, dispatch list or elevator
+ * have pending work in this hardware queue.
  */
 static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 {
@@ -782,7 +783,6 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,
 	if (kick_requeue_list)
 		blk_mq_kick_requeue_list(q);
 }
-EXPORT_SYMBOL(blk_mq_add_to_requeue_list);
 
 void blk_mq_kick_requeue_list(struct request_queue *q)
 {
@@ -1072,7 +1072,13 @@ static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode,
 	hctx = container_of(wait, struct blk_mq_hw_ctx, dispatch_wait);
 
 	spin_lock(&hctx->dispatch_wait_lock);
-	list_del_init(&wait->entry);
+	if (!list_empty(&wait->entry)) {
+		struct sbitmap_queue *sbq;
+
+		list_del_init(&wait->entry);
+		sbq = &hctx->tags->bitmap_tags;
+		atomic_dec(&sbq->ws_active);
+	}
 	spin_unlock(&hctx->dispatch_wait_lock);
 
 	blk_mq_run_hw_queue(hctx, true);
@@ -1088,13 +1094,13 @@ static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode,
 static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 				 struct request *rq)
 {
+	struct sbitmap_queue *sbq = &hctx->tags->bitmap_tags;
 	struct wait_queue_head *wq;
 	wait_queue_entry_t *wait;
 	bool ret;
 
 	if (!(hctx->flags & BLK_MQ_F_TAG_SHARED)) {
-		if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
-			set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+		blk_mq_sched_mark_restart_hctx(hctx);
 
 		/*
 		 * It's possible that a tag was freed in the window between the
@@ -1111,7 +1117,7 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	if (!list_empty_careful(&wait->entry))
 		return false;
 
-	wq = &bt_wait_ptr(&hctx->tags->bitmap_tags, hctx)->wait;
+	wq = &bt_wait_ptr(sbq, hctx)->wait;
 
 	spin_lock_irq(&wq->lock);
 	spin_lock(&hctx->dispatch_wait_lock);
@@ -1121,6 +1127,7 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 		return false;
 	}
 
+	atomic_inc(&sbq->ws_active);
 	wait->flags &= ~WQ_FLAG_EXCLUSIVE;
 	__add_wait_queue(wq, wait);
 
@@ -1141,6 +1148,7 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	 * someone else gets the wakeup.
 	 */
 	list_del_init(&wait->entry);
+	atomic_dec(&sbq->ws_active);
 	spin_unlock(&hctx->dispatch_wait_lock);
 	spin_unlock_irq(&wq->lock);
 
@@ -2857,7 +2865,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	/*
 	 * Default to classic polling
 	 */
-	q->poll_nsec = -1;
+	q->poll_nsec = BLK_MQ_POLL_CLASSIC;
 
 	blk_mq_init_cpu_queues(q, set->nr_hw_queues);
 	blk_mq_add_queue_tag_set(set, q);
@@ -3392,7 +3400,7 @@ static bool blk_mq_poll_hybrid(struct request_queue *q,
 {
 	struct request *rq;
 
-	if (q->poll_nsec == -1)
+	if (q->poll_nsec == BLK_MQ_POLL_CLASSIC)
 		return false;
 
 	if (!blk_qc_t_is_internal(cookie))

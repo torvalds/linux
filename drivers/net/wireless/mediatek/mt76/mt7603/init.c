@@ -112,7 +112,7 @@ static void
 mt7603_phy_init(struct mt7603_dev *dev)
 {
 	int rx_chains = dev->mt76.antenna_mask;
-	int tx_chains = __sw_hweight8(rx_chains) - 1;
+	int tx_chains = hweight8(rx_chains) - 1;
 
 	mt76_rmw(dev, MT_WF_RMAC_RMCR,
 		 (MT_WF_RMAC_RMCR_SMPS_MODE |

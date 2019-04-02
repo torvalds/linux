@@ -8,38 +8,51 @@
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 
-enum bpf_array_idx {
-	SRV_IDX,
-	CLI_IDX,
-	__NR_BPF_ARRAY_IDX,
+enum bpf_addr_array_idx {
+	ADDR_SRV_IDX,
+	ADDR_CLI_IDX,
+	__NR_BPF_ADDR_ARRAY_IDX,
+};
+
+enum bpf_result_array_idx {
+	EGRESS_SRV_IDX,
+	EGRESS_CLI_IDX,
+	INGRESS_LISTEN_IDX,
+	__NR_BPF_RESULT_ARRAY_IDX,
+};
+
+enum bpf_linum_array_idx {
+	EGRESS_LINUM_IDX,
+	INGRESS_LINUM_IDX,
+	__NR_BPF_LINUM_ARRAY_IDX,
 };
 
 struct bpf_map_def SEC("maps") addr_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(struct sockaddr_in6),
-	.max_entries = __NR_BPF_ARRAY_IDX,
+	.max_entries = __NR_BPF_ADDR_ARRAY_IDX,
 };
 
 struct bpf_map_def SEC("maps") sock_result_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(struct bpf_sock),
-	.max_entries = __NR_BPF_ARRAY_IDX,
+	.max_entries = __NR_BPF_RESULT_ARRAY_IDX,
 };
 
 struct bpf_map_def SEC("maps") tcp_sock_result_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(struct bpf_tcp_sock),
-	.max_entries = __NR_BPF_ARRAY_IDX,
+	.max_entries = __NR_BPF_RESULT_ARRAY_IDX,
 };
 
 struct bpf_map_def SEC("maps") linum_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(__u32),
-	.max_entries = 1,
+	.max_entries = __NR_BPF_LINUM_ARRAY_IDX,
 };
 
 static bool is_loopback6(__u32 *a6)
@@ -100,18 +113,20 @@ static void tpcpy(struct bpf_tcp_sock *dst,
 
 #define RETURN {						\
 	linum = __LINE__;					\
-	bpf_map_update_elem(&linum_map, &idx0, &linum, 0);	\
+	bpf_map_update_elem(&linum_map, &linum_idx, &linum, 0);	\
 	return 1;						\
 }
 
 SEC("cgroup_skb/egress")
-int read_sock_fields(struct __sk_buff *skb)
+int egress_read_sock_fields(struct __sk_buff *skb)
 {
-	__u32 srv_idx = SRV_IDX, cli_idx = CLI_IDX, idx;
+	__u32 srv_idx = ADDR_SRV_IDX, cli_idx = ADDR_CLI_IDX, result_idx;
 	struct sockaddr_in6 *srv_sa6, *cli_sa6;
 	struct bpf_tcp_sock *tp, *tp_ret;
 	struct bpf_sock *sk, *sk_ret;
-	__u32 linum, idx0 = 0;
+	__u32 linum, linum_idx;
+
+	linum_idx = EGRESS_LINUM_IDX;
 
 	sk = skb->sk;
 	if (!sk || sk->state == 10)
@@ -132,14 +147,55 @@ int read_sock_fields(struct __sk_buff *skb)
 		RETURN;
 
 	if (sk->src_port == bpf_ntohs(srv_sa6->sin6_port))
-		idx = srv_idx;
+		result_idx = EGRESS_SRV_IDX;
 	else if (sk->src_port == bpf_ntohs(cli_sa6->sin6_port))
-		idx = cli_idx;
+		result_idx = EGRESS_CLI_IDX;
 	else
 		RETURN;
 
-	sk_ret = bpf_map_lookup_elem(&sock_result_map, &idx);
-	tp_ret = bpf_map_lookup_elem(&tcp_sock_result_map, &idx);
+	sk_ret = bpf_map_lookup_elem(&sock_result_map, &result_idx);
+	tp_ret = bpf_map_lookup_elem(&tcp_sock_result_map, &result_idx);
+	if (!sk_ret || !tp_ret)
+		RETURN;
+
+	skcpy(sk_ret, sk);
+	tpcpy(tp_ret, tp);
+
+	RETURN;
+}
+
+SEC("cgroup_skb/ingress")
+int ingress_read_sock_fields(struct __sk_buff *skb)
+{
+	__u32 srv_idx = ADDR_SRV_IDX, result_idx = INGRESS_LISTEN_IDX;
+	struct bpf_tcp_sock *tp, *tp_ret;
+	struct bpf_sock *sk, *sk_ret;
+	struct sockaddr_in6 *srv_sa6;
+	__u32 linum, linum_idx;
+
+	linum_idx = INGRESS_LINUM_IDX;
+
+	sk = skb->sk;
+	if (!sk || sk->family != AF_INET6 || !is_loopback6(sk->src_ip6))
+		RETURN;
+
+	srv_sa6 = bpf_map_lookup_elem(&addr_map, &srv_idx);
+	if (!srv_sa6 || sk->src_port != bpf_ntohs(srv_sa6->sin6_port))
+		RETURN;
+
+	if (sk->state != 10 && sk->state != 12)
+		RETURN;
+
+	sk = bpf_get_listener_sock(sk);
+	if (!sk)
+		RETURN;
+
+	tp = bpf_tcp_sock(sk);
+	if (!tp)
+		RETURN;
+
+	sk_ret = bpf_map_lookup_elem(&sock_result_map, &result_idx);
+	tp_ret = bpf_map_lookup_elem(&tcp_sock_result_map, &result_idx);
 	if (!sk_ret || !tp_ret)
 		RETURN;
 

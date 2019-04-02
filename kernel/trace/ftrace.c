@@ -1992,7 +1992,7 @@ static void print_bug_type(void)
  * modifying the code. @failed should be one of either:
  * EFAULT - if the problem happens on reading the @ip address
  * EINVAL - if what is read at @ip is not what was expected
- * EPERM - if the problem happens on writting to the @ip address
+ * EPERM - if the problem happens on writing to the @ip address
  */
 void ftrace_bug(int failed, struct dyn_ftrace *rec)
 {
@@ -2391,7 +2391,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 		return ftrace_modify_call(rec, ftrace_old_addr, ftrace_addr);
 	}
 
-	return -1; /* unknow ftrace bug */
+	return -1; /* unknown ftrace bug */
 }
 
 void __weak ftrace_replace_code(int mod_flags)
@@ -3004,7 +3004,7 @@ ftrace_allocate_pages(unsigned long num_to_init)
 	int cnt;
 
 	if (!num_to_init)
-		return 0;
+		return NULL;
 
 	start_pg = pg = kzalloc(sizeof(*pg), GFP_KERNEL);
 	if (!pg)
@@ -4755,7 +4755,7 @@ static int
 ftrace_set_addr(struct ftrace_ops *ops, unsigned long ip, int remove,
 		int reset, int enable)
 {
-	return ftrace_set_hash(ops, 0, 0, ip, remove, reset, enable);
+	return ftrace_set_hash(ops, NULL, 0, ip, remove, reset, enable);
 }
 
 /**
@@ -5463,7 +5463,7 @@ void ftrace_create_filter_files(struct ftrace_ops *ops,
 
 /*
  * The name "destroy_filter_files" is really a misnomer. Although
- * in the future, it may actualy delete the files, but this is
+ * in the future, it may actually delete the files, but this is
  * really intended to make sure the ops passed in are disabled
  * and that when this function returns, the caller is free to
  * free the ops.
@@ -5786,7 +5786,7 @@ void ftrace_module_enable(struct module *mod)
 	/*
 	 * If the tracing is enabled, go ahead and enable the record.
 	 *
-	 * The reason not to enable the record immediatelly is the
+	 * The reason not to enable the record immediately is the
 	 * inherent check of ftrace_make_nop/ftrace_make_call for
 	 * correct previous instructions.  Making first the NOP
 	 * conversion puts the module to the correct state, thus

@@ -275,14 +275,14 @@ out_free:
 	return ret;
 }
 
-int __init brcmstb_l2_edge_intc_of_init(struct device_node *np,
+static int __init brcmstb_l2_edge_intc_of_init(struct device_node *np,
 	struct device_node *parent)
 {
 	return brcmstb_l2_intc_of_init(np, parent, &l2_edge_intc_init);
 }
 IRQCHIP_DECLARE(brcmstb_l2_intc, "brcm,l2-intc", brcmstb_l2_edge_intc_of_init);
 
-int __init brcmstb_l2_lvl_intc_of_init(struct device_node *np,
+static int __init brcmstb_l2_lvl_intc_of_init(struct device_node *np,
 	struct device_node *parent)
 {
 	return brcmstb_l2_intc_of_init(np, parent, &l2_lvl_intc_init);

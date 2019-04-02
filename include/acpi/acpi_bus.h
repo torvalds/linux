@@ -91,8 +91,8 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const guid_t *guid, u64 rev,
 bool acpi_dev_found(const char *hid);
 bool acpi_dev_present(const char *hid, const char *uid, s64 hrv);
 
-const char *
-acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv);
+struct acpi_device *
+acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv);
 
 #ifdef CONFIG_ACPI
 

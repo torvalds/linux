@@ -18,6 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_defact.h>
 #include <net/tc_act/tc_defact.h>
@@ -60,14 +61,26 @@ static int alloc_defdata(struct tcf_defact *d, const struct nlattr *defdata)
 	return 0;
 }
 
-static void reset_policy(struct tcf_defact *d, const struct nlattr *defdata,
-			 struct tc_defact *p)
+static int reset_policy(struct tc_action *a, const struct nlattr *defdata,
+			struct tc_defact *p, struct tcf_proto *tp,
+			struct netlink_ext_ack *extack)
 {
+	struct tcf_chain *goto_ch = NULL;
+	struct tcf_defact *d;
+	int err;
+
+	err = tcf_action_check_ctrlact(p->action, tp, &goto_ch, extack);
+	if (err < 0)
+		return err;
+	d = to_defact(a);
 	spin_lock_bh(&d->tcf_lock);
-	d->tcf_action = p->action;
+	goto_ch = tcf_action_set_ctrlact(a, p->action, goto_ch);
 	memset(d->tcfd_defdata, 0, SIMP_MAX_DATA);
 	nla_strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	spin_unlock_bh(&d->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+	return 0;
 }
 
 static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
@@ -78,10 +91,11 @@ static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
 static int tcf_simp_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind, bool rtnl_held,
-			 struct netlink_ext_ack *extack)
+			 struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
 	struct nlattr *tb[TCA_DEF_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_defact *parm;
 	struct tcf_defact *d;
 	bool exists = false;
@@ -122,27 +136,37 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		}
 
 		d = to_defact(*a);
-		ret = alloc_defdata(d, tb[TCA_DEF_DATA]);
-		if (ret < 0) {
-			tcf_idr_release(*a, bind);
-			return ret;
-		}
-		d->tcf_action = parm->action;
+		err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch,
+					       extack);
+		if (err < 0)
+			goto release_idr;
+
+		err = alloc_defdata(d, tb[TCA_DEF_DATA]);
+		if (err < 0)
+			goto put_chain;
+
+		tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 		ret = ACT_P_CREATED;
 	} else {
-		d = to_defact(*a);
-
 		if (!ovr) {
-			tcf_idr_release(*a, bind);
-			return -EEXIST;
+			err = -EEXIST;
+			goto release_idr;
 		}
 
-		reset_policy(d, tb[TCA_DEF_DATA], parm);
+		err = reset_policy(*a, tb[TCA_DEF_DATA], parm, tp, extack);
+		if (err)
+			goto release_idr;
 	}
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,

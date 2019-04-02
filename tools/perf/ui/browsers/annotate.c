@@ -750,7 +750,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			continue;
 		case 'r':
 			{
-				script_browse(NULL);
+				script_browse(NULL, NULL);
 				continue;
 			}
 		case 'k':

@@ -2356,7 +2356,7 @@ F:	arch/arm/mm/cache-uniphier.c
 F:	arch/arm64/boot/dts/socionext/uniphier*
 F:	drivers/bus/uniphier-system-bus.c
 F:	drivers/clk/uniphier/
-F:	drivers/dmaengine/uniphier-mdmac.c
+F:	drivers/dma/uniphier-mdmac.c
 F:	drivers/gpio/gpio-uniphier.c
 F:	drivers/i2c/busses/i2c-uniphier*
 F:	drivers/irqchip/irq-uniphier-aidet.c
@@ -6410,7 +6410,6 @@ L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git locking/core
 S:	Maintained
 F:	kernel/futex.c
-F:	kernel/futex_compat.c
 F:	include/asm-generic/futex.h
 F:	include/linux/futex.h
 F:	include/uapi/linux/futex.h
@@ -8097,6 +8096,16 @@ F:	drivers/iommu/
 F:	include/linux/iommu.h
 F:	include/linux/of_iommu.h
 F:	include/linux/iova.h
+
+IO_URING
+M:	Jens Axboe <axboe@kernel.dk>
+L:	linux-block@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
+T:	git git://git.kernel.dk/linux-block
+T:	git git://git.kernel.dk/liburing
+S:	Maintained
+F:	fs/io_uring.c
+F:	include/uapi/linux/io_uring.h
 
 IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>

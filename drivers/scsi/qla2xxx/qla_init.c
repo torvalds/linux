@@ -4991,6 +4991,13 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		if ((domain & 0xf0) == 0xf0)
 			continue;
 
+		/* Bypass if not same domain and area of adapter. */
+		if (area && domain && ((area != vha->d_id.b.area) ||
+		    (domain != vha->d_id.b.domain)) &&
+		    (ha->current_topology == ISP_CFG_NL))
+			continue;
+
+
 		/* Bypass invalid local loop ID. */
 		if (loop_id > LAST_LOCAL_LOOP_ID)
 			continue;

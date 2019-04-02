@@ -833,7 +833,7 @@ static int parse_rbd_opts_token(char *c, void *private)
 		pctx->opts->queue_depth = intval;
 		break;
 	case Opt_alloc_size:
-		if (intval < 1) {
+		if (intval < SECTOR_SIZE) {
 			pr_err("alloc_size out of range\n");
 			return -EINVAL;
 		}
@@ -924,23 +924,6 @@ static void rbd_put_client(struct rbd_client *rbdc)
 		kref_put(&rbdc->kref, rbd_client_release);
 }
 
-static int wait_for_latest_osdmap(struct ceph_client *client)
-{
-	u64 newest_epoch;
-	int ret;
-
-	ret = ceph_monc_get_version(&client->monc, "osdmap", &newest_epoch);
-	if (ret)
-		return ret;
-
-	if (client->osdc.osdmap->epoch >= newest_epoch)
-		return 0;
-
-	ceph_osdc_maybe_request_map(&client->osdc);
-	return ceph_monc_wait_osdmap(&client->monc, newest_epoch,
-				     client->options->mount_timeout);
-}
-
 /*
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.  Either way, ceph_opts is consumed by this
@@ -960,7 +943,8 @@ static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 		 * Using an existing client.  Make sure ->pg_pools is up to
 		 * date before we look up the pool id in do_rbd_add().
 		 */
-		ret = wait_for_latest_osdmap(rbdc->client);
+		ret = ceph_wait_for_latest_osdmap(rbdc->client,
+					rbdc->client->options->mount_timeout);
 		if (ret) {
 			rbd_warn(NULL, "failed to get latest osdmap: %d", ret);
 			rbd_put_client(rbdc);
@@ -4203,12 +4187,12 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	q->limits.max_sectors = queue_max_hw_sectors(q);
 	blk_queue_max_segments(q, USHRT_MAX);
 	blk_queue_max_segment_size(q, UINT_MAX);
-	blk_queue_io_min(q, objset_bytes);
-	blk_queue_io_opt(q, objset_bytes);
+	blk_queue_io_min(q, rbd_dev->opts->alloc_size);
+	blk_queue_io_opt(q, rbd_dev->opts->alloc_size);
 
 	if (rbd_dev->opts->trim) {
 		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-		q->limits.discard_granularity = objset_bytes;
+		q->limits.discard_granularity = rbd_dev->opts->alloc_size;
 		blk_queue_max_discard_sectors(q, objset_bytes >> SECTOR_SHIFT);
 		blk_queue_max_write_zeroes_sectors(q, objset_bytes >> SECTOR_SHIFT);
 	}
