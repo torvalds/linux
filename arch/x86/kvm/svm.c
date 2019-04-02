@@ -6232,27 +6232,23 @@ static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 	return 0;
 }
 
-static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, u64 smbase)
+static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *nested_vmcb;
 	struct page *page;
-	struct {
-		u64 guest;
-		u64 vmcb;
-	} svm_state_save;
+	u64 guest;
+	u64 vmcb;
 	int ret;
 
-	ret = kvm_vcpu_read_guest(vcpu, smbase + 0xfed8, &svm_state_save,
-				  sizeof(svm_state_save));
-	if (ret)
-		return ret;
+	guest = GET_SMSTATE(u64, smstate, 0x7ed8);
+	vmcb = GET_SMSTATE(u64, smstate, 0x7ee0);
 
-	if (svm_state_save.guest) {
+	if (guest) {
 		vcpu->arch.hflags &= ~HF_SMM_MASK;
-		nested_vmcb = nested_svm_map(svm, svm_state_save.vmcb, &page);
+		nested_vmcb = nested_svm_map(svm, vmcb, &page);
 		if (nested_vmcb)
-			enter_svm_guest_mode(svm, svm_state_save.vmcb, nested_vmcb, page);
+			enter_svm_guest_mode(svm, vmcb, nested_vmcb, page);
 		else
 			ret = 1;
 		vcpu->arch.hflags |= HF_SMM_MASK;

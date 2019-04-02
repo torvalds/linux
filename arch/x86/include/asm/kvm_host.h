@@ -1182,7 +1182,7 @@ struct kvm_x86_ops {
 
 	int (*smi_allowed)(struct kvm_vcpu *vcpu);
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
-	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
+	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, const char *smstate);
 	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
 
 	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
@@ -1591,5 +1591,8 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
 
 #define put_smstate(type, buf, offset, val)                      \
 	*(type *)((buf) + (offset) - 0x7e00) = val
+
+#define GET_SMSTATE(type, buf, offset)		\
+	(*(type *)((buf) + (offset) - 0x7e00))
 
 #endif /* _ASM_X86_KVM_HOST_H */

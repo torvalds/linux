@@ -5963,9 +5963,10 @@ static void emulator_set_hflags(struct x86_emulate_ctxt *ctxt, unsigned emul_fla
 	kvm_set_hflags(emul_to_vcpu(ctxt), emul_flags);
 }
 
-static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt, u64 smbase)
+static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
+				  const char *smstate)
 {
-	return kvm_x86_ops->pre_leave_smm(emul_to_vcpu(ctxt), smbase);
+	return kvm_x86_ops->pre_leave_smm(emul_to_vcpu(ctxt), smstate);
 }
 
 static const struct x86_emulate_ops emulate_ops = {
