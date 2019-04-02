@@ -1131,8 +1131,6 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 
 	m = kmalloc(sizeof(struct videocodec_master), GFP_KERNEL);
 	if (!m) {
-		dprintk(1, KERN_ERR "%s: %s - no memory\n",
-			ZR_DEVNAME(zr), __func__);
 		return m;
 	}
 
