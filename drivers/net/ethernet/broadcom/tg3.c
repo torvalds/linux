@@ -12763,9 +12763,6 @@ static int tg3_set_phys_id(struct net_device *dev,
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (!netif_running(tp->dev))
-		return -EAGAIN;
-
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
 		return 1;	/* cycle on/off once per second */
