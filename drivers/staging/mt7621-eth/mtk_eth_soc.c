@@ -741,7 +741,8 @@ static int mtk_pdma_tx_map(struct sk_buff *skb, struct net_device *dev,
 	wmb();
 	atomic_set(&ring->tx_free_count, mtk_pdma_empty_txd(ring));
 
-	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) || !skb->xmit_more)
+	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) ||
+	    !netdev_xmit_more())
 		mtk_reg_w32(eth, ring->tx_next_idx, MTK_REG_TX_CTX_IDX0);
 
 	return 0;
@@ -935,7 +936,8 @@ static int mtk_qdma_tx_map(struct sk_buff *skb, struct net_device *dev,
 	 */
 	wmb();
 
-	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) || !skb->xmit_more)
+	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) ||
+	    !netdev_xmit_more())
 		mtk_w32(eth, txd->txd2, MTK_QTX_CTX_PTR);
 
 	return 0;

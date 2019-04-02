@@ -909,7 +909,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 		nfp_net_tx_ring_stop(nd_q, tx_ring);
 
 	tx_ring->wr_ptr_add += nr_frags + 1;
-	if (__netdev_tx_sent_queue(nd_q, txbuf->real_len, skb->xmit_more))
+	if (__netdev_tx_sent_queue(nd_q, txbuf->real_len, netdev_xmit_more()))
 		nfp_net_tx_xmit_more_flush(tx_ring);
 
 	return NETDEV_TX_OK;

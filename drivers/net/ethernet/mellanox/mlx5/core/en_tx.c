@@ -297,7 +297,8 @@ static inline void mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq,
 static inline void
 mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     u8 opcode, u16 ds_cnt, u8 num_wqebbs, u32 num_bytes, u8 num_dma,
-		     struct mlx5e_tx_wqe_info *wi, struct mlx5_wqe_ctrl_seg *cseg)
+		     struct mlx5e_tx_wqe_info *wi, struct mlx5_wqe_ctrl_seg *cseg,
+		     bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 
@@ -320,14 +321,14 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		sq->stats->stopped++;
 	}
 
-	if (!skb->xmit_more || netif_xmit_stopped(sq->txq))
+	if (!xmit_more || netif_xmit_stopped(sq->txq))
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
 
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5e_tx_wqe *wqe, u16 pi)
+			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5_wqe_ctrl_seg *cseg;
@@ -360,7 +361,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	stats->bytes     += num_bytes;
-	stats->xmit_more += skb->xmit_more;
+	stats->xmit_more += netdev_xmit_more();
 
 	headlen = skb->len - ihs - skb->data_len;
 	ds_cnt += !!headlen;
@@ -423,7 +424,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		goto err_drop;
 
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
-			     num_dma, wi, cseg);
+			     num_dma, wi, cseg, xmit_more);
 
 	return NETDEV_TX_OK;
 
@@ -449,7 +450,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!skb))
 		return NETDEV_TX_OK;
 
-	return mlx5e_sq_xmit(sq, skb, wqe, pi);
+	return mlx5e_sq_xmit(sq, skb, wqe, pi, netdev_xmit_more());
 }
 
 static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
@@ -659,7 +660,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	stats->bytes     += num_bytes;
-	stats->xmit_more += skb->xmit_more;
+	stats->xmit_more += netdev_xmit_more();
 
 	headlen = skb->len - ihs - skb->data_len;
 	ds_cnt += !!headlen;
@@ -704,7 +705,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		goto err_drop;
 
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
-			     num_dma, wi, cseg);
+			     num_dma, wi, cseg, false);
 
 	return NETDEV_TX_OK;
 

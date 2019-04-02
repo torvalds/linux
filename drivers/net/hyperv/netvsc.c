@@ -964,7 +964,7 @@ int netvsc_send(struct net_device *ndev,
 	/* Keep aggregating only if stack says more data is coming
 	 * and not doing mixed modes send and not flow blocked
 	 */
-	xmit_more = skb->xmit_more &&
+	xmit_more = netdev_xmit_more() &&
 		!packet->cp_partial &&
 		!netif_xmit_stopped(netdev_get_tx_queue(ndev, packet->q_idx));
 

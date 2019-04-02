@@ -8156,7 +8156,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
-	if (!skb->xmit_more || netif_xmit_stopped(txq)) {
+	if (!netdev_xmit_more() || netif_xmit_stopped(txq)) {
 		/* Packets are ready, update Tx producer idx on card. */
 		tw32_tx_mbox(tnapi->prodmbox, entry);
 		mmiowb();

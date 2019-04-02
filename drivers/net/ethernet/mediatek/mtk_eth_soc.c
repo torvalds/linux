@@ -767,7 +767,8 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	 */
 	wmb();
 
-	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) || !skb->xmit_more)
+	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) ||
+	    !netdev_xmit_more())
 		mtk_w32(eth, txd->txd2, MTK_QTX_CTX_PTR);
 
 	return 0;

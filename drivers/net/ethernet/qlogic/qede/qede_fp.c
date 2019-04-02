@@ -1665,12 +1665,12 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	txq->tx_db.data.bd_prod =
 		cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 
-	if (!skb->xmit_more || netif_xmit_stopped(netdev_txq))
+	if (!netdev_xmit_more() || netif_xmit_stopped(netdev_txq))
 		qede_update_tx_producer(txq);
 
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
-		if (skb->xmit_more)
+		if (netdev_xmit_more())
 			qede_update_tx_producer(txq);
 
 		netif_tx_stop_queue(netdev_txq);

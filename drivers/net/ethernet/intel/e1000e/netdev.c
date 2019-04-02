@@ -5897,7 +5897,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				     DIV_ROUND_UP(PAGE_SIZE,
 						  adapter->tx_fifo_limit) + 2));
 
-		if (!skb->xmit_more ||
+		if (!netdev_xmit_more() ||
 		    netif_xmit_stopped(netdev_get_tx_queue(netdev, 0))) {
 			if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
 				e1000e_update_tdt_wa(tx_ring,
