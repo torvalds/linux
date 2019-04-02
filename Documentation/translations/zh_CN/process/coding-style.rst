@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/process/coding-style.rst <codingsytle>`
+:Original: :ref:`Documentation/process/coding-style.rst <codingstyle>`
 
 .. _cn_codingstyle:
 
