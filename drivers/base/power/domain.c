@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/domain.c - Common code related to device power domains.
  *
  * Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
-
 #define pr_fmt(fmt) "PM: " fmt
 
 #include <linux/delay.h>
