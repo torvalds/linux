@@ -69,6 +69,7 @@ struct clk_pll_characteristics {
 	struct clk_range *output;
 	u16 *icpll;
 	u8 *out;
+	u8 upll : 1;
 };
 
 struct clk_programmable_layout {
@@ -168,6 +169,11 @@ at91_clk_register_pll(struct regmap *regmap, const char *name,
 struct clk_hw * __init
 at91_clk_register_plldiv(struct regmap *regmap, const char *name,
 			 const char *parent_name);
+
+struct clk_hw * __init
+sam9x60_clk_register_pll(struct regmap *regmap, spinlock_t *lock,
+			 const char *name, const char *parent_name, u8 id,
+			 const struct clk_pll_characteristics *characteristics);
 
 struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap, const char *name,
