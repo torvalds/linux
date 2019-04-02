@@ -48,7 +48,7 @@ static const int ldo_cont_enable_time[] = {
 static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 {
 	enum lm363x_regulator_id id = rdev_get_id(rdev);
-	u8 val, addr, mask;
+	unsigned int val, addr, mask;
 
 	switch (id) {
 	case LM3631_LDO_CONT:
@@ -71,7 +71,7 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	if (regmap_read(rdev->regmap, addr, (unsigned int *)&val))
+	if (regmap_read(rdev->regmap, addr, &val))
 		return -EINVAL;
 
 	val = (val & mask) >> LM3631_ENTIME_SHIFT;
