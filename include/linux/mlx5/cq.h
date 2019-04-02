@@ -170,7 +170,7 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 	doorbell[0] = cpu_to_be32(sn << 28 | cmd | ci);
 	doorbell[1] = cpu_to_be32(cq->cqn);
 
-	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, NULL);
+	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL);
 }
 
 static inline void mlx5_cq_hold(struct mlx5_core_cq *cq)
