@@ -117,6 +117,8 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_LINK_TYPE]		= { .type = NLA_NUL_STRING,
 				    .len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
 	[RDMA_NLDEV_SYS_ATTR_NETNS_MODE]	= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_DEV_PROTOCOL]		= { .type = NLA_NUL_STRING,
+				    .len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -199,6 +201,8 @@ static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
 static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 {
 	char fw[IB_FW_VERSION_NAME_MAX];
+	int ret = 0;
+	u8 port;
 
 	if (fill_nldev_handle(msg, device))
 		return -EMSGSIZE;
@@ -227,7 +231,25 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 		return -EMSGSIZE;
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_NODE_TYPE, device->node_type))
 		return -EMSGSIZE;
-	return 0;
+
+	/*
+	 * Link type is determined on first port and mlx4 device
+	 * which can potentially have two different link type for the same
+	 * IB device is considered as better to be avoided in the future,
+	 */
+	port = rdma_start_port(device);
+	if (rdma_cap_opa_mad(device, port))
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_PROTOCOL, "opa");
+	else if (rdma_protocol_ib(device, port))
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_PROTOCOL, "ib");
+	else if (rdma_protocol_iwarp(device, port))
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_PROTOCOL, "iw");
+	else if (rdma_protocol_roce(device, port))
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_PROTOCOL, "roce");
+	else if (rdma_protocol_usnic(device, port))
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_PROTOCOL,
+				     "usnic");
+	return ret;
 }
 
 static int fill_port_info(struct sk_buff *msg,

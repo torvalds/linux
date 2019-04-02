@@ -471,6 +471,11 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_SYS_ATTR_NETNS_MODE,		/* u8 */
 
 	/*
+	 * Device protocol, e.g. ib, iw, usnic, roce and opa
+	 */
+	RDMA_NLDEV_ATTR_DEV_PROTOCOL,		/* string */
+
+	/*
 	 * Always the end
 	 */
 	RDMA_NLDEV_ATTR_MAX
