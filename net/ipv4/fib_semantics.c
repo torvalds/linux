@@ -1075,6 +1075,21 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh)
 	return nh->nh_saddr;
 }
 
+__be32 fib_result_prefsrc(struct net *net, struct fib_result *res)
+{
+	struct fib_nh_common *nhc = res->nhc;
+	struct fib_nh *nh;
+
+	if (res->fi->fib_prefsrc)
+		return res->fi->fib_prefsrc;
+
+	nh = container_of(nhc, struct fib_nh, nh_common);
+	if (nh->nh_saddr_genid == atomic_read(&net->ipv4.dev_addr_genid))
+		return nh->nh_saddr;
+
+	return fib_info_update_nh_saddr(net, nh);
+}
+
 static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 {
 	if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
@@ -1762,20 +1777,22 @@ void fib_select_multipath(struct fib_result *res, int hash)
 	struct net *net = fi->fib_net;
 	bool first = false;
 
-	for_nexthops(fi) {
+	change_nexthops(fi) {
 		if (net->ipv4.sysctl_fib_multipath_use_neigh) {
-			if (!fib_good_nh(nh))
+			if (!fib_good_nh(nexthop_nh))
 				continue;
 			if (!first) {
 				res->nh_sel = nhsel;
+				res->nhc = &nexthop_nh->nh_common;
 				first = true;
 			}
 		}
 
-		if (hash > atomic_read(&nh->fib_nh_upper_bound))
+		if (hash > atomic_read(&nexthop_nh->fib_nh_upper_bound))
 			continue;
 
 		res->nh_sel = nhsel;
+		res->nhc = &nexthop_nh->nh_common;
 		return;
 	} endfor_nexthops(fi);
 }
@@ -1802,5 +1819,5 @@ void fib_select_path(struct net *net, struct fib_result *res,
 
 check_saddr:
 	if (!fl4->saddr)
-		fl4->saddr = FIB_RES_PREFSRC(net, *res);
+		fl4->saddr = fib_result_prefsrc(net, res);
 }
