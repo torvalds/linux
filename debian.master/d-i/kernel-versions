@@ -7,7 +7,6 @@ armhf	-		generic		-				-	-
 armhf	-		generic-lpae	-				-	-
 
 arm64	-		generic		-				-	-
-arm64	-		snapdragon	-				-	-
 
 ppc64el	-		generic		-				-	-
 

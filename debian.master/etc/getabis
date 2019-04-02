@@ -13,6 +13,5 @@ getall armhf generic-lpae
 getall amd64 generic lowlatency
 getall i386 generic lowlatency
 getall arm64 generic
-getall arm64 snapdragon
 getall ppc64el generic
 getall s390x generic
