@@ -4495,12 +4495,40 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	return r;
 }
 
+static long kvm_s390_guest_sida_op(struct kvm_vcpu *vcpu,
+				   struct kvm_s390_mem_op *mop)
+{
+	void __user *uaddr = (void __user *)mop->buf;
+	int r = 0;
+
+	if (mop->flags || !mop->size)
+		return -EINVAL;
+	if (mop->size + mop->sida_offset < mop->size)
+		return -EINVAL;
+	if (mop->size + mop->sida_offset > sida_size(vcpu->arch.sie_block))
+		return -E2BIG;
+
+	switch (mop->op) {
+	case KVM_S390_MEMOP_SIDA_READ:
+		if (copy_to_user(uaddr, (void *)(sida_origin(vcpu->arch.sie_block) +
+				 mop->sida_offset), mop->size))
+			r = -EFAULT;
+
+		break;
+	case KVM_S390_MEMOP_SIDA_WRITE:
+		if (copy_from_user((void *)(sida_origin(vcpu->arch.sie_block) +
+				   mop->sida_offset), uaddr, mop->size))
+			r = -EFAULT;
+		break;
+	}
+	return r;
+}
 static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
 				  struct kvm_s390_mem_op *mop)
 {
 	void __user *uaddr = (void __user *)mop->buf;
 	void *tmpbuf = NULL;
-	int r, srcu_idx;
+	int r = 0;
 	const u64 supported_flags = KVM_S390_MEMOP_F_INJECT_EXCEPTION
 				    | KVM_S390_MEMOP_F_CHECK_ONLY;
 
@@ -4510,13 +4538,14 @@ static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
 	if (mop->size > MEM_OP_MAX_SIZE)
 		return -E2BIG;
 
+	if (kvm_s390_pv_cpu_is_protected(vcpu))
+		return -EINVAL;
+
 	if (!(mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY)) {
 		tmpbuf = vmalloc(mop->size);
 		if (!tmpbuf)
 			return -ENOMEM;
 	}
-
-	srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	switch (mop->op) {
 	case KVM_S390_MEMOP_LOGICAL_READ:
@@ -4543,16 +4572,37 @@ static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
 		}
 		r = write_guest(vcpu, mop->gaddr, mop->ar, tmpbuf, mop->size);
 		break;
-	default:
-		r = -EINVAL;
 	}
-
-	srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 
 	if (r > 0 && (mop->flags & KVM_S390_MEMOP_F_INJECT_EXCEPTION) != 0)
 		kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
 
 	vfree(tmpbuf);
+	return r;
+}
+
+static long kvm_s390_guest_memsida_op(struct kvm_vcpu *vcpu,
+				      struct kvm_s390_mem_op *mop)
+{
+	int r, srcu_idx;
+
+	srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	switch (mop->op) {
+	case KVM_S390_MEMOP_LOGICAL_READ:
+	case KVM_S390_MEMOP_LOGICAL_WRITE:
+		r = kvm_s390_guest_mem_op(vcpu, mop);
+		break;
+	case KVM_S390_MEMOP_SIDA_READ:
+	case KVM_S390_MEMOP_SIDA_WRITE:
+		/* we are locked against sida going away by the vcpu->mutex */
+		r = kvm_s390_guest_sida_op(vcpu, mop);
+		break;
+	default:
+		r = -EINVAL;
+	}
+
+	srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 	return r;
 }
 
@@ -4686,7 +4736,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		struct kvm_s390_mem_op mem_op;
 
 		if (copy_from_user(&mem_op, argp, sizeof(mem_op)) == 0)
-			r = kvm_s390_guest_mem_op(vcpu, &mem_op);
+			r = kvm_s390_guest_memsida_op(vcpu, &mem_op);
 		else
 			r = -EFAULT;
 		break;
