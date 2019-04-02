@@ -656,6 +656,8 @@ static const char * const hdmi_cec_parents[] = { "osc32k", "pll-periph0-2x" };
 static const struct ccu_mux_fixed_prediv hdmi_cec_predivs[] = {
 	{ .index = 1, .div = 36621 },
 };
+
+#define SUN50I_H6_HDMI_CEC_CLK_REG		0xb10
 static struct ccu_mux hdmi_cec_clk = {
 	.enable		= BIT(31),
 
@@ -1199,6 +1201,15 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 	val = readl(reg + SUN50I_H6_PLL_AUDIO_REG);
 	val &= ~(GENMASK(21, 16) | BIT(0));
 	writel(val | (7 << 16), reg + SUN50I_H6_PLL_AUDIO_REG);
+
+	/*
+	 * First clock parent (osc32K) is unusable for CEC. But since there
+	 * is no good way to force parent switch (both run with same frequency),
+	 * just set second clock parent here.
+	 */
+	val = readl(reg + SUN50I_H6_HDMI_CEC_CLK_REG);
+	val |= BIT(24);
+	writel(val, reg + SUN50I_H6_HDMI_CEC_CLK_REG);
 
 	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun50i_h6_ccu_desc);
 }
