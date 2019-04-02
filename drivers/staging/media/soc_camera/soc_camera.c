@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * camera image capture (abstract) bus driver
  *
@@ -10,12 +11,7 @@
  * SoCs. Later it should also be used for i.MX31 SoCs from Freescale.
  * It can handle multiple cameras and / or multiple buses, which can
  * be used, e.g., in stereo-vision applications.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
