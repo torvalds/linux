@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This files contains card eeprom (93c46 or 93c56) programming routines,
  *  memory is addressed by 16 bits words.
  *
  *  This is part of rtl8180 OpenSource driver.
  *  Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
- *  Released under the terms of GPL (General Public Licence)
  *
  *  Parts of this driver are based on the GPL part of the
  *  official realtek driver.

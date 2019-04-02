@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Merged with mainline ieee80211.h in Aug 2004.  Original ieee802_11
  * remains copyright by the original authors
@@ -15,11 +16,6 @@
  *
  * Modified for Realtek's wi-fi cards by Andrea Merello
  * <andrea.merello@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 #ifndef IEEE80211_H
 #define IEEE80211_H

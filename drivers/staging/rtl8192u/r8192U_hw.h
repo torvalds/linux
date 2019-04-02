@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	This is part of rtl8187 OpenSource driver.
  *	Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
- *	Released under the terms of GPL (General Public Licence)
  *
  *	Parts of this driver are based on the GPL part of the
  *	official Realtek driver.
