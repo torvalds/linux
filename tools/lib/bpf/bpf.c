@@ -223,7 +223,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 		return -EINVAL;
 
 	log_level = load_attr->log_level;
-	if (log_level > 2 || (log_level && !log_buf))
+	if (log_level > (4 | 2 | 1) || (log_level && !log_buf))
 		return -EINVAL;
 
 	name_len = load_attr->name ? strlen(load_attr->name) : 0;
