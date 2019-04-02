@@ -1958,14 +1958,18 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 			      unsigned long u_volt)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *tmp_opp, *opp = ERR_PTR(-ENODEV);
+	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
-	unsigned long tol;
+
+	/* keep the node allocated */
+	new_opp = kmalloc(sizeof(*new_opp), GFP_KERNEL);
+	if (!new_opp)
+		return -ENOMEM;
 
 	mutex_lock(&opp_table_lock);
 
 	/* Find the opp_table */
-	opp_table = _find_opp_table_unlocked(dev);
+	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		r = PTR_ERR(opp_table);
 		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
@@ -1985,24 +1989,27 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 	}
 
 	/* Is update really needed? */
-	if (opp->supplies[0].u_volt == u_volt)
+	if (opp->u_volt == u_volt)
 		goto unlock;
+	/* copy the old data over */
+	*new_opp = *opp;
 
-	/* adjust voltage node */
-	tol = u_volt * opp_table->voltage_tolerance_v1 / 100;
-	opp->supplies[0].u_volt = u_volt;
-	opp->supplies[0].u_volt_min = u_volt - tol;
-	opp->supplies[0].u_volt_max = u_volt + tol;
+	/* plug in new node */
+	new_opp->u_volt = u_volt;
 
+	list_replace_rcu(&opp->node, &new_opp->node);
 	mutex_unlock(&opp_table_lock);
+	call_srcu(&opp_table->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
 
 	/* Notify the change of the OPP */
-	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADJUST_VOLTAGE, opp);
+	srcu_notifier_call_chain(&opp_table->srcu_head, OPP_EVENT_ADJUST_VOLTAGE,
+				 new_opp);
 
 	return 0;
 
 unlock:
 	mutex_unlock(&opp_table_lock);
+	kfree(new_opp);
 	return r;
 }
 
