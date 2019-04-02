@@ -3,7 +3,7 @@
  * NAND Flash Controller Device Driver
  * Copyright © 2009-2010, Intel Corporation and its suppliers.
  *
- * Copyright (c) 2017 Socionext Inc.
+ * Copyright (c) 2017-2019 Socionext Inc.
  *   Reworked by Masahiro Yamada <yamada.masahiro@socionext.com>
  */
 
@@ -42,14 +42,15 @@
 #define DENALI_INVALID_BANK	-1
 #define DENALI_NR_BANKS		4
 
-static inline struct denali_nand_info *mtd_to_denali(struct mtd_info *mtd)
+static struct denali_chip *to_denali_chip(struct nand_chip *chip)
 {
-	return container_of(mtd_to_nand(mtd), struct denali_nand_info, nand);
+	return container_of(chip, struct denali_chip, chip);
 }
 
-static struct denali_nand_info *to_denali(struct nand_chip *chip)
+static struct denali_controller *to_denali_controller(struct nand_chip *chip)
 {
-	return container_of(chip, struct denali_nand_info, nand);
+	return container_of(chip->controller, struct denali_controller,
+			    controller);
 }
 
 /*
@@ -57,12 +58,12 @@ static struct denali_nand_info *to_denali(struct nand_chip *chip)
  * type, bank, block, and page address).  The slave data is the actual data to
  * be transferred.  This mode requires 28 bits of address region allocated.
  */
-static u32 denali_direct_read(struct denali_nand_info *denali, u32 addr)
+static u32 denali_direct_read(struct denali_controller *denali, u32 addr)
 {
 	return ioread32(denali->host + addr);
 }
 
-static void denali_direct_write(struct denali_nand_info *denali, u32 addr,
+static void denali_direct_write(struct denali_controller *denali, u32 addr,
 				u32 data)
 {
 	iowrite32(data, denali->host + addr);
@@ -74,35 +75,20 @@ static void denali_direct_write(struct denali_nand_info *denali, u32 addr,
  * control information and transferred data are latched by the registers in
  * the translation module.
  */
-static u32 denali_indexed_read(struct denali_nand_info *denali, u32 addr)
+static u32 denali_indexed_read(struct denali_controller *denali, u32 addr)
 {
 	iowrite32(addr, denali->host + DENALI_INDEXED_CTRL);
 	return ioread32(denali->host + DENALI_INDEXED_DATA);
 }
 
-static void denali_indexed_write(struct denali_nand_info *denali, u32 addr,
+static void denali_indexed_write(struct denali_controller *denali, u32 addr,
 				 u32 data)
 {
 	iowrite32(addr, denali->host + DENALI_INDEXED_CTRL);
 	iowrite32(data, denali->host + DENALI_INDEXED_DATA);
 }
 
-/*
- * Use the configuration feature register to determine the maximum number of
- * banks that the hardware supports.
- */
-static void denali_detect_max_banks(struct denali_nand_info *denali)
-{
-	uint32_t features = ioread32(denali->reg + FEATURES);
-
-	denali->max_banks = 1 << FIELD_GET(FEATURES__N_BANKS, features);
-
-	/* the encoding changed from rev 5.0 to 5.1 */
-	if (denali->revision < 0x0501)
-		denali->max_banks <<= 1;
-}
-
-static void denali_enable_irq(struct denali_nand_info *denali)
+static void denali_enable_irq(struct denali_controller *denali)
 {
 	int i;
 
@@ -111,7 +97,7 @@ static void denali_enable_irq(struct denali_nand_info *denali)
 	iowrite32(GLOBAL_INT_EN_FLAG, denali->reg + GLOBAL_INT_ENABLE);
 }
 
-static void denali_disable_irq(struct denali_nand_info *denali)
+static void denali_disable_irq(struct denali_controller *denali)
 {
 	int i;
 
@@ -120,14 +106,14 @@ static void denali_disable_irq(struct denali_nand_info *denali)
 	iowrite32(0, denali->reg + GLOBAL_INT_ENABLE);
 }
 
-static void denali_clear_irq(struct denali_nand_info *denali,
+static void denali_clear_irq(struct denali_controller *denali,
 			     int bank, uint32_t irq_status)
 {
 	/* write one to clear bits */
 	iowrite32(irq_status, denali->reg + INTR_STATUS(bank));
 }
 
-static void denali_clear_irq_all(struct denali_nand_info *denali)
+static void denali_clear_irq_all(struct denali_controller *denali)
 {
 	int i;
 
@@ -137,7 +123,7 @@ static void denali_clear_irq_all(struct denali_nand_info *denali)
 
 static irqreturn_t denali_isr(int irq, void *dev_id)
 {
-	struct denali_nand_info *denali = dev_id;
+	struct denali_controller *denali = dev_id;
 	irqreturn_t ret = IRQ_NONE;
 	uint32_t irq_status;
 	int i;
@@ -165,7 +151,7 @@ static irqreturn_t denali_isr(int irq, void *dev_id)
 	return ret;
 }
 
-static void denali_reset_irq(struct denali_nand_info *denali)
+static void denali_reset_irq(struct denali_controller *denali)
 {
 	unsigned long flags;
 
@@ -175,8 +161,7 @@ static void denali_reset_irq(struct denali_nand_info *denali)
 	spin_unlock_irqrestore(&denali->irq_lock, flags);
 }
 
-static uint32_t denali_wait_for_irq(struct denali_nand_info *denali,
-				    uint32_t irq_mask)
+static u32 denali_wait_for_irq(struct denali_controller *denali, u32 irq_mask)
 {
 	unsigned long time_left, flags;
 	uint32_t irq_status;
@@ -208,9 +193,41 @@ static uint32_t denali_wait_for_irq(struct denali_nand_info *denali,
 
 static void denali_select_target(struct nand_chip *chip, int cs)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
+	struct denali_chip_sel *sel = &to_denali_chip(chip)->sels[cs];
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	denali->active_bank = cs;
+	denali->active_bank = sel->bank;
+
+	iowrite32(1 << (chip->phys_erase_shift - chip->page_shift),
+		  denali->reg + PAGES_PER_BLOCK);
+	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,
+		  denali->reg + DEVICE_WIDTH);
+	iowrite32(mtd->writesize, denali->reg + DEVICE_MAIN_AREA_SIZE);
+	iowrite32(mtd->oobsize, denali->reg + DEVICE_SPARE_AREA_SIZE);
+	iowrite32(chip->options & NAND_ROW_ADDR_3 ?
+		  0 : TWO_ROW_ADDR_CYCLES__FLAG,
+		  denali->reg + TWO_ROW_ADDR_CYCLES);
+	iowrite32(FIELD_PREP(ECC_CORRECTION__ERASE_THRESHOLD, 1) |
+		  FIELD_PREP(ECC_CORRECTION__VALUE, chip->ecc.strength),
+		  denali->reg + ECC_CORRECTION);
+	iowrite32(chip->ecc.size, denali->reg + CFG_DATA_BLOCK_SIZE);
+	iowrite32(chip->ecc.size, denali->reg + CFG_LAST_DATA_BLOCK_SIZE);
+	iowrite32(chip->ecc.steps, denali->reg + CFG_NUM_DATA_BLOCKS);
+
+	if (chip->options & NAND_KEEP_TIMINGS)
+		return;
+
+	/* update timing registers unless NAND_KEEP_TIMINGS is set */
+	iowrite32(sel->hwhr2_and_we_2_re, denali->reg + TWHR2_AND_WE_2_RE);
+	iowrite32(sel->tcwaw_and_addr_2_data,
+		  denali->reg + TCWAW_AND_ADDR_2_DATA);
+	iowrite32(sel->re_2_we, denali->reg + RE_2_WE);
+	iowrite32(sel->acc_clks, denali->reg + ACC_CLKS);
+	iowrite32(sel->rdwr_en_lo_cnt, denali->reg + RDWR_EN_LO_CNT);
+	iowrite32(sel->rdwr_en_hi_cnt, denali->reg + RDWR_EN_HI_CNT);
+	iowrite32(sel->cs_setup_cnt, denali->reg + CS_SETUP_CNT);
+	iowrite32(sel->re_2_re, denali->reg + RE_2_RE);
 }
 
 static int denali_change_column(struct nand_chip *chip, unsigned int offset,
@@ -226,7 +243,7 @@ static int denali_change_column(struct nand_chip *chip, unsigned int offset,
 
 static int denali_payload_xfer(struct nand_chip *chip, void *buf, bool write)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int writesize = mtd->writesize;
@@ -263,7 +280,7 @@ static int denali_payload_xfer(struct nand_chip *chip, void *buf, bool write)
 
 static int denali_oob_xfer(struct nand_chip *chip, void *buf, bool write)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int writesize = mtd->writesize;
@@ -393,7 +410,7 @@ static int denali_check_erased_page(struct nand_chip *chip, u8 *buf,
 				    unsigned long uncor_ecc_flags,
 				    unsigned int max_bitflips)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_ecc_stats *ecc_stats = &nand_to_mtd(chip)->ecc_stats;
 	uint8_t *ecc_code = chip->oob_poi + denali->oob_skip_bytes;
 	int ecc_steps = chip->ecc.steps;
@@ -426,7 +443,7 @@ static int denali_check_erased_page(struct nand_chip *chip, u8 *buf,
 static int denali_hw_ecc_fixup(struct nand_chip *chip,
 			       unsigned long *uncor_ecc_flags)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_ecc_stats *ecc_stats = &nand_to_mtd(chip)->ecc_stats;
 	int bank = denali->active_bank;
 	uint32_t ecc_cor;
@@ -461,7 +478,7 @@ static int denali_hw_ecc_fixup(struct nand_chip *chip,
 static int denali_sw_ecc_fixup(struct nand_chip *chip,
 			       unsigned long *uncor_ecc_flags, uint8_t *buf)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_ecc_stats *ecc_stats = &nand_to_mtd(chip)->ecc_stats;
 	unsigned int ecc_size = chip->ecc.size;
 	unsigned int bitflips = 0;
@@ -532,7 +549,7 @@ static int denali_sw_ecc_fixup(struct nand_chip *chip,
 	return max_bitflips;
 }
 
-static void denali_setup_dma64(struct denali_nand_info *denali,
+static void denali_setup_dma64(struct denali_controller *denali,
 			       dma_addr_t dma_addr, int page, bool write)
 {
 	uint32_t mode;
@@ -557,7 +574,7 @@ static void denali_setup_dma64(struct denali_nand_info *denali,
 	denali->host_write(denali, mode, upper_32_bits(dma_addr));
 }
 
-static void denali_setup_dma32(struct denali_nand_info *denali,
+static void denali_setup_dma32(struct denali_controller *denali,
 			       dma_addr_t dma_addr, int page, bool write)
 {
 	uint32_t mode;
@@ -581,7 +598,7 @@ static void denali_setup_dma32(struct denali_nand_info *denali,
 	denali->host_write(denali, mode | 0x14000, 0x2400);
 }
 
-static int denali_pio_read(struct denali_nand_info *denali, u32 *buf,
+static int denali_pio_read(struct denali_controller *denali, u32 *buf,
 			   size_t size, int page)
 {
 	u32 addr = DENALI_MAP01 | DENALI_BANK(denali) | page;
@@ -608,7 +625,7 @@ static int denali_pio_read(struct denali_nand_info *denali, u32 *buf,
 	return irq_status & ecc_err_mask ? -EBADMSG : 0;
 }
 
-static int denali_pio_write(struct denali_nand_info *denali, const u32 *buf,
+static int denali_pio_write(struct denali_controller *denali, const u32 *buf,
 			    size_t size, int page)
 {
 	u32 addr = DENALI_MAP01 | DENALI_BANK(denali) | page;
@@ -628,7 +645,7 @@ static int denali_pio_write(struct denali_nand_info *denali, const u32 *buf,
 	return 0;
 }
 
-static int denali_pio_xfer(struct denali_nand_info *denali, void *buf,
+static int denali_pio_xfer(struct denali_controller *denali, void *buf,
 			   size_t size, int page, bool write)
 {
 	if (write)
@@ -637,7 +654,7 @@ static int denali_pio_xfer(struct denali_nand_info *denali, void *buf,
 		return denali_pio_read(denali, buf, size, page);
 }
 
-static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
+static int denali_dma_xfer(struct denali_controller *denali, void *buf,
 			   size_t size, int page, bool write)
 {
 	dma_addr_t dma_addr;
@@ -697,7 +714,7 @@ static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
 static int denali_page_xfer(struct nand_chip *chip, void *buf, size_t size,
 			    int page, bool write)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 
 	denali_select_target(chip, chip->cur_cs);
 
@@ -710,8 +727,8 @@ static int denali_page_xfer(struct nand_chip *chip, void *buf, size_t size,
 static int denali_read_page(struct nand_chip *chip, uint8_t *buf,
 			    int oob_required, int page)
 {
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
 	unsigned long uncor_ecc_flags = 0;
 	int stat = 0;
 	int ret;
@@ -751,7 +768,8 @@ static int denali_write_page(struct nand_chip *chip, const uint8_t *buf,
 static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 				       const struct nand_data_interface *conf)
 {
-	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
+	struct denali_controller *denali = to_denali_controller(chip);
+	struct denali_chip_sel *sel;
 	const struct nand_sdr_timings *timings;
 	unsigned long t_x, mult_x;
 	int acc_clks, re_2_we, re_2_re, we_2_re, addr_2_data;
@@ -780,6 +798,8 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	if (chipnr == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
+	sel = &to_denali_chip(chip)->sels[chipnr];
+
 	/* tREA -> ACC_CLKS */
 	acc_clks = DIV_ROUND_UP(timings->tREA_max, t_x);
 	acc_clks = min_t(int, acc_clks, ACC_CLKS__VALUE);
@@ -787,7 +807,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + ACC_CLKS);
 	tmp &= ~ACC_CLKS__VALUE;
 	tmp |= FIELD_PREP(ACC_CLKS__VALUE, acc_clks);
-	iowrite32(tmp, denali->reg + ACC_CLKS);
+	sel->acc_clks = tmp;
 
 	/* tRWH -> RE_2_WE */
 	re_2_we = DIV_ROUND_UP(timings->tRHW_min, t_x);
@@ -796,7 +816,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + RE_2_WE);
 	tmp &= ~RE_2_WE__VALUE;
 	tmp |= FIELD_PREP(RE_2_WE__VALUE, re_2_we);
-	iowrite32(tmp, denali->reg + RE_2_WE);
+	sel->re_2_we = tmp;
 
 	/* tRHZ -> RE_2_RE */
 	re_2_re = DIV_ROUND_UP(timings->tRHZ_max, t_x);
@@ -805,7 +825,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + RE_2_RE);
 	tmp &= ~RE_2_RE__VALUE;
 	tmp |= FIELD_PREP(RE_2_RE__VALUE, re_2_re);
-	iowrite32(tmp, denali->reg + RE_2_RE);
+	sel->re_2_re = tmp;
 
 	/*
 	 * tCCS, tWHR -> WE_2_RE
@@ -819,7 +839,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + TWHR2_AND_WE_2_RE);
 	tmp &= ~TWHR2_AND_WE_2_RE__WE_2_RE;
 	tmp |= FIELD_PREP(TWHR2_AND_WE_2_RE__WE_2_RE, we_2_re);
-	iowrite32(tmp, denali->reg + TWHR2_AND_WE_2_RE);
+	sel->hwhr2_and_we_2_re = tmp;
 
 	/* tADL -> ADDR_2_DATA */
 
@@ -834,7 +854,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + TCWAW_AND_ADDR_2_DATA);
 	tmp &= ~TCWAW_AND_ADDR_2_DATA__ADDR_2_DATA;
 	tmp |= FIELD_PREP(TCWAW_AND_ADDR_2_DATA__ADDR_2_DATA, addr_2_data);
-	iowrite32(tmp, denali->reg + TCWAW_AND_ADDR_2_DATA);
+	sel->tcwaw_and_addr_2_data = tmp;
 
 	/* tREH, tWH -> RDWR_EN_HI_CNT */
 	rdwr_en_hi = DIV_ROUND_UP(max(timings->tREH_min, timings->tWH_min),
@@ -844,7 +864,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + RDWR_EN_HI_CNT);
 	tmp &= ~RDWR_EN_HI_CNT__VALUE;
 	tmp |= FIELD_PREP(RDWR_EN_HI_CNT__VALUE, rdwr_en_hi);
-	iowrite32(tmp, denali->reg + RDWR_EN_HI_CNT);
+	sel->rdwr_en_hi_cnt = tmp;
 
 	/* tRP, tWP -> RDWR_EN_LO_CNT */
 	rdwr_en_lo = DIV_ROUND_UP(max(timings->tRP_min, timings->tWP_min), t_x);
@@ -857,7 +877,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + RDWR_EN_LO_CNT);
 	tmp &= ~RDWR_EN_LO_CNT__VALUE;
 	tmp |= FIELD_PREP(RDWR_EN_LO_CNT__VALUE, rdwr_en_lo);
-	iowrite32(tmp, denali->reg + RDWR_EN_LO_CNT);
+	sel->rdwr_en_lo_cnt = tmp;
 
 	/* tCS, tCEA -> CS_SETUP_CNT */
 	cs_setup = max3((int)DIV_ROUND_UP(timings->tCS_min, t_x) - rdwr_en_lo,
@@ -868,38 +888,9 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp = ioread32(denali->reg + CS_SETUP_CNT);
 	tmp &= ~CS_SETUP_CNT__VALUE;
 	tmp |= FIELD_PREP(CS_SETUP_CNT__VALUE, cs_setup);
-	iowrite32(tmp, denali->reg + CS_SETUP_CNT);
+	sel->cs_setup_cnt = tmp;
 
 	return 0;
-}
-
-static void denali_hw_init(struct denali_nand_info *denali)
-{
-	/*
-	 * The REVISION register may not be reliable.  Platforms are allowed to
-	 * override it.
-	 */
-	if (!denali->revision)
-		denali->revision = swab16(ioread32(denali->reg + REVISION));
-
-	/*
-	 * Set how many bytes should be skipped before writing data in OOB.
-	 * If a non-zero value has already been set (by firmware or something),
-	 * just use it.  Otherwise, set the driver default.
-	 */
-	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
-	if (!denali->oob_skip_bytes) {
-		denali->oob_skip_bytes = DENALI_DEFAULT_OOB_SKIP_BYTES;
-		iowrite32(denali->oob_skip_bytes,
-			  denali->reg + SPARE_AREA_SKIP_BYTES);
-	}
-
-	denali_detect_max_banks(denali);
-	iowrite32(0, denali->reg + TRANSFER_SPARE_REG);
-	iowrite32(0x0F, denali->reg + RB_PIN_ENABLED);
-	iowrite32(CHIP_EN_DONT_CARE__FLAG, denali->reg + CHIP_ENABLE_DONT_CARE);
-	iowrite32(ECC_ENABLE__FLAG, denali->reg + ECC_ENABLE);
-	iowrite32(0xffff, denali->reg + SPARE_AREA_MARKER);
 }
 
 int denali_calc_ecc_bytes(int step_size, int strength)
@@ -912,10 +903,10 @@ EXPORT_SYMBOL(denali_calc_ecc_bytes);
 static int denali_ooblayout_ecc(struct mtd_info *mtd, int section,
 				struct mtd_oob_region *oobregion)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct denali_controller *denali = to_denali_controller(chip);
 
-	if (section)
+	if (section > 0)
 		return -ERANGE;
 
 	oobregion->offset = denali->oob_skip_bytes;
@@ -927,10 +918,10 @@ static int denali_ooblayout_ecc(struct mtd_info *mtd, int section,
 static int denali_ooblayout_free(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *oobregion)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct denali_controller *denali = to_denali_controller(chip);
 
-	if (section)
+	if (section > 0)
 		return -ERANGE;
 
 	oobregion->offset = chip->ecc.total + denali->oob_skip_bytes;
@@ -946,7 +937,7 @@ static const struct mtd_ooblayout_ops denali_ooblayout_ops = {
 
 static int denali_multidev_fixup(struct nand_chip *chip)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_memory_organization *memorg;
 
@@ -1001,37 +992,9 @@ static int denali_multidev_fixup(struct nand_chip *chip)
 
 static int denali_attach_chip(struct nand_chip *chip)
 {
+	struct denali_controller *denali = to_denali_controller(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
 	int ret;
-
-	if (ioread32(denali->reg + FEATURES) & FEATURES__DMA)
-		denali->dma_avail = true;
-
-	if (denali->dma_avail) {
-		int dma_bit = denali->caps & DENALI_CAP_DMA_64BIT ? 64 : 32;
-
-		ret = dma_set_mask(denali->dev, DMA_BIT_MASK(dma_bit));
-		if (ret) {
-			dev_info(denali->dev,
-				 "Failed to set DMA mask. Disabling DMA.\n");
-			denali->dma_avail = false;
-		}
-	}
-
-	if (denali->dma_avail) {
-		chip->options |= NAND_USE_BOUNCE_BUFFER;
-		chip->buf_align = 16;
-		if (denali->caps & DENALI_CAP_DMA_64BIT)
-			denali->setup_dma = denali_setup_dma64;
-		else
-			denali->setup_dma = denali_setup_dma32;
-	}
-
-	chip->bbt_options |= NAND_BBT_USE_FLASH;
-	chip->bbt_options |= NAND_BBT_NO_OOB;
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
-	chip->options |= NAND_NO_SUBPAGE_WRITE;
 
 	ret = nand_ecc_choose_conf(chip, denali->ecc_caps,
 				   mtd->oobsize - denali->oob_skip_bytes);
@@ -1044,33 +1007,6 @@ static int denali_attach_chip(struct nand_chip *chip)
 		"chosen ECC settings: step=%d, strength=%d, bytes=%d\n",
 		chip->ecc.size, chip->ecc.strength, chip->ecc.bytes);
 
-	iowrite32(FIELD_PREP(ECC_CORRECTION__ERASE_THRESHOLD, 1) |
-		  FIELD_PREP(ECC_CORRECTION__VALUE, chip->ecc.strength),
-		  denali->reg + ECC_CORRECTION);
-	iowrite32(mtd->erasesize / mtd->writesize,
-		  denali->reg + PAGES_PER_BLOCK);
-	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,
-		  denali->reg + DEVICE_WIDTH);
-	iowrite32(chip->options & NAND_ROW_ADDR_3 ? 0 : TWO_ROW_ADDR_CYCLES__FLAG,
-		  denali->reg + TWO_ROW_ADDR_CYCLES);
-	iowrite32(mtd->writesize, denali->reg + DEVICE_MAIN_AREA_SIZE);
-	iowrite32(mtd->oobsize, denali->reg + DEVICE_SPARE_AREA_SIZE);
-
-	iowrite32(chip->ecc.size, denali->reg + CFG_DATA_BLOCK_SIZE);
-	iowrite32(chip->ecc.size, denali->reg + CFG_LAST_DATA_BLOCK_SIZE);
-	/* chip->ecc.steps is set by nand_scan_tail(); not available here */
-	iowrite32(mtd->writesize / chip->ecc.size,
-		  denali->reg + CFG_NUM_DATA_BLOCKS);
-
-	mtd_set_ooblayout(mtd, &denali_ooblayout_ops);
-
-	chip->ecc.read_page = denali_read_page;
-	chip->ecc.read_page_raw = denali_read_page_raw;
-	chip->ecc.write_page = denali_write_page;
-	chip->ecc.write_page_raw = denali_write_page_raw;
-	chip->ecc.read_oob = denali_read_oob;
-	chip->ecc.write_oob = denali_write_oob;
-
 	ret = denali_multidev_fixup(chip);
 	if (ret)
 		return ret;
@@ -1078,7 +1014,7 @@ static int denali_attach_chip(struct nand_chip *chip)
 	return 0;
 }
 
-static void denali_exec_in8(struct denali_nand_info *denali, u32 type,
+static void denali_exec_in8(struct denali_controller *denali, u32 type,
 			    u8 *buf, unsigned int len)
 {
 	int i;
@@ -1087,7 +1023,7 @@ static void denali_exec_in8(struct denali_nand_info *denali, u32 type,
 		buf[i] = denali->host_read(denali, type | DENALI_BANK(denali));
 }
 
-static void denali_exec_in16(struct denali_nand_info *denali, u32 type,
+static void denali_exec_in16(struct denali_controller *denali, u32 type,
 			     u8 *buf, unsigned int len)
 {
 	u32 data;
@@ -1101,7 +1037,7 @@ static void denali_exec_in16(struct denali_nand_info *denali, u32 type,
 	}
 }
 
-static void denali_exec_in(struct denali_nand_info *denali, u32 type,
+static void denali_exec_in(struct denali_controller *denali, u32 type,
 			   u8 *buf, unsigned int len, bool width16)
 {
 	if (width16)
@@ -1110,7 +1046,7 @@ static void denali_exec_in(struct denali_nand_info *denali, u32 type,
 		denali_exec_in8(denali, type, buf, len);
 }
 
-static void denali_exec_out8(struct denali_nand_info *denali, u32 type,
+static void denali_exec_out8(struct denali_controller *denali, u32 type,
 			     const u8 *buf, unsigned int len)
 {
 	int i;
@@ -1119,7 +1055,7 @@ static void denali_exec_out8(struct denali_nand_info *denali, u32 type,
 		denali->host_write(denali, type | DENALI_BANK(denali), buf[i]);
 }
 
-static void denali_exec_out16(struct denali_nand_info *denali, u32 type,
+static void denali_exec_out16(struct denali_controller *denali, u32 type,
 			      const u8 *buf, unsigned int len)
 {
 	int i;
@@ -1129,7 +1065,7 @@ static void denali_exec_out16(struct denali_nand_info *denali, u32 type,
 				   buf[i + 1] << 16 | buf[i]);
 }
 
-static void denali_exec_out(struct denali_nand_info *denali, u32 type,
+static void denali_exec_out(struct denali_controller *denali, u32 type,
 			    const u8 *buf, unsigned int len, bool width16)
 {
 	if (width16)
@@ -1138,7 +1074,7 @@ static void denali_exec_out(struct denali_nand_info *denali, u32 type,
 		denali_exec_out8(denali, type, buf, len);
 }
 
-static int denali_exec_waitrdy(struct denali_nand_info *denali)
+static int denali_exec_waitrdy(struct denali_controller *denali)
 {
 	u32 irq_stat;
 
@@ -1154,7 +1090,7 @@ static int denali_exec_waitrdy(struct denali_nand_info *denali)
 static int denali_exec_instr(struct nand_chip *chip,
 			     const struct nand_op_instr *instr)
 {
-	struct denali_nand_info *denali = to_denali(chip);
+	struct denali_controller *denali = to_denali_controller(chip);
 
 	switch (instr->type) {
 	case NAND_OP_CMD_INSTR:
@@ -1204,7 +1140,7 @@ static int denali_exec_op(struct nand_chip *chip,
 	 * Some commands contain NAND_OP_WAITRDY_INSTR.
 	 * irq must be cleared here to catch the R/B# interrupt there.
 	 */
-	denali_reset_irq(to_denali(chip));
+	denali_reset_irq(to_denali_controller(chip));
 
 	for (i = 0; i < op->ninstrs; i++) {
 		ret = denali_exec_instr(chip, &op->instrs[i]);
@@ -1221,18 +1157,169 @@ static const struct nand_controller_ops denali_controller_ops = {
 	.setup_data_interface = denali_setup_data_interface,
 };
 
-int denali_init(struct denali_nand_info *denali)
+int denali_chip_init(struct denali_controller *denali,
+		     struct denali_chip *dchip)
 {
-	struct nand_chip *chip = &denali->nand;
+	struct nand_chip *chip = &dchip->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct denali_chip *dchip2;
+	int i, j, ret;
+
+	chip->controller = &denali->controller;
+
+	/* sanity checks for bank numbers */
+	for (i = 0; i < dchip->nsels; i++) {
+		unsigned int bank = dchip->sels[i].bank;
+
+		if (bank >= denali->nbanks) {
+			dev_err(denali->dev, "unsupported bank %d\n", bank);
+			return -EINVAL;
+		}
+
+		for (j = 0; j < i; j++) {
+			if (bank == dchip->sels[j].bank) {
+				dev_err(denali->dev,
+					"bank %d is assigned twice in the same chip\n",
+					bank);
+				return -EINVAL;
+			}
+		}
+
+		list_for_each_entry(dchip2, &denali->chips, node) {
+			for (j = 0; j < dchip2->nsels; j++) {
+				if (bank == dchip2->sels[j].bank) {
+					dev_err(denali->dev,
+						"bank %d is already used\n",
+						bank);
+					return -EINVAL;
+				}
+			}
+		}
+	}
+
+	mtd->dev.parent = denali->dev;
+
+	/*
+	 * Fallback to the default name if DT did not give "label" property.
+	 * Use "label" property if multiple chips are connected.
+	 */
+	if (!mtd->name && list_empty(&denali->chips))
+		mtd->name = "denali-nand";
+
+	if (denali->dma_avail) {
+		chip->options |= NAND_USE_BOUNCE_BUFFER;
+		chip->buf_align = 16;
+	}
+
+	/* clk rate info is needed for setup_data_interface */
+	if (!denali->clk_rate || !denali->clk_x_rate)
+		chip->options |= NAND_KEEP_TIMINGS;
+
+	chip->bbt_options |= NAND_BBT_USE_FLASH;
+	chip->bbt_options |= NAND_BBT_NO_OOB;
+	chip->options |= NAND_NO_SUBPAGE_WRITE;
+	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
+	chip->ecc.read_page = denali_read_page;
+	chip->ecc.write_page = denali_write_page;
+	chip->ecc.read_page_raw = denali_read_page_raw;
+	chip->ecc.write_page_raw = denali_write_page_raw;
+	chip->ecc.read_oob = denali_read_oob;
+	chip->ecc.write_oob = denali_write_oob;
+
+	mtd_set_ooblayout(mtd, &denali_ooblayout_ops);
+
+	ret = nand_scan(chip, dchip->nsels);
+	if (ret)
+		return ret;
+
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret) {
+		dev_err(denali->dev, "Failed to register MTD: %d\n", ret);
+		goto cleanup_nand;
+	}
+
+	list_add_tail(&dchip->node, &denali->chips);
+
+	return 0;
+
+cleanup_nand:
+	nand_cleanup(chip);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(denali_chip_init);
+
+int denali_init(struct denali_controller *denali)
+{
 	u32 features = ioread32(denali->reg + FEATURES);
 	int ret;
 
-	mtd->dev.parent = denali->dev;
-	denali_hw_init(denali);
-
+	nand_controller_init(&denali->controller);
+	denali->controller.ops = &denali_controller_ops;
 	init_completion(&denali->complete);
 	spin_lock_init(&denali->irq_lock);
+	INIT_LIST_HEAD(&denali->chips);
+	denali->active_bank = DENALI_INVALID_BANK;
+
+	/*
+	 * The REVISION register may not be reliable. Platforms are allowed to
+	 * override it.
+	 */
+	if (!denali->revision)
+		denali->revision = swab16(ioread32(denali->reg + REVISION));
+
+	denali->nbanks = 1 << FIELD_GET(FEATURES__N_BANKS, features);
+
+	/* the encoding changed from rev 5.0 to 5.1 */
+	if (denali->revision < 0x0501)
+		denali->nbanks <<= 1;
+
+	if (features & FEATURES__DMA)
+		denali->dma_avail = true;
+
+	if (denali->dma_avail) {
+		int dma_bit = denali->caps & DENALI_CAP_DMA_64BIT ? 64 : 32;
+
+		ret = dma_set_mask(denali->dev, DMA_BIT_MASK(dma_bit));
+		if (ret) {
+			dev_info(denali->dev,
+				 "Failed to set DMA mask. Disabling DMA.\n");
+			denali->dma_avail = false;
+		}
+	}
+
+	if (denali->dma_avail) {
+		if (denali->caps & DENALI_CAP_DMA_64BIT)
+			denali->setup_dma = denali_setup_dma64;
+		else
+			denali->setup_dma = denali_setup_dma32;
+	}
+
+	if (features & FEATURES__INDEX_ADDR) {
+		denali->host_read = denali_indexed_read;
+		denali->host_write = denali_indexed_write;
+	} else {
+		denali->host_read = denali_direct_read;
+		denali->host_write = denali_direct_write;
+	}
+
+	/*
+	 * Set how many bytes should be skipped before writing data in OOB.
+	 * If a non-zero value has already been set (by firmware or something),
+	 * just use it. Otherwise, set the driver's default.
+	 */
+	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
+	if (!denali->oob_skip_bytes) {
+		denali->oob_skip_bytes = DENALI_DEFAULT_OOB_SKIP_BYTES;
+		iowrite32(denali->oob_skip_bytes,
+			  denali->reg + SPARE_AREA_SKIP_BYTES);
+	}
+
+	iowrite32(0, denali->reg + TRANSFER_SPARE_REG);
+	iowrite32(GENMASK(denali->nbanks - 1, 0), denali->reg + RB_PIN_ENABLED);
+	iowrite32(CHIP_EN_DONT_CARE__FLAG, denali->reg + CHIP_ENABLE_DONT_CARE);
+	iowrite32(ECC_ENABLE__FLAG, denali->reg + ECC_ENABLE);
+	iowrite32(0xffff, denali->reg + SPARE_AREA_MARKER);
 
 	denali_clear_irq_all(denali);
 
@@ -1245,50 +1332,17 @@ int denali_init(struct denali_nand_info *denali)
 
 	denali_enable_irq(denali);
 
-	denali->active_bank = DENALI_INVALID_BANK;
-
-	nand_set_flash_node(chip, denali->dev->of_node);
-	/* Fallback to the default name if DT did not give "label" property */
-	if (!mtd->name)
-		mtd->name = "denali-nand";
-
-	if (features & FEATURES__INDEX_ADDR) {
-		denali->host_read = denali_indexed_read;
-		denali->host_write = denali_indexed_write;
-	} else {
-		denali->host_read = denali_direct_read;
-		denali->host_write = denali_direct_write;
-	}
-
-	/* clk rate info is needed for setup_data_interface */
-	if (!denali->clk_rate || !denali->clk_x_rate)
-		chip->options |= NAND_KEEP_TIMINGS;
-
-	chip->legacy.dummy_controller.ops = &denali_controller_ops;
-	ret = nand_scan(chip, denali->max_banks);
-	if (ret)
-		goto disable_irq;
-
-	ret = mtd_device_register(mtd, NULL, 0);
-	if (ret) {
-		dev_err(denali->dev, "Failed to register MTD: %d\n", ret);
-		goto cleanup_nand;
-	}
-
 	return 0;
-
-cleanup_nand:
-	nand_cleanup(chip);
-disable_irq:
-	denali_disable_irq(denali);
-
-	return ret;
 }
 EXPORT_SYMBOL(denali_init);
 
-void denali_remove(struct denali_nand_info *denali)
+void denali_remove(struct denali_controller *denali)
 {
-	nand_release(&denali->nand);
+	struct denali_chip *dchip;
+
+	list_for_each_entry(dchip, &denali->chips, node)
+		nand_release(&dchip->chip);
+
 	denali_disable_irq(denali);
 }
 EXPORT_SYMBOL(denali_remove);
