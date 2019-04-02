@@ -898,6 +898,7 @@ static int smtc_blank(int blank_mode, struct fb_info *info)
 		case 0x712:
 			smtc_seqw(0x6a, 0x16);
 			smtc_seqw(0x6b, 0x02);
+			break;
 		case 0x720:
 			smtc_seqw(0x6a, 0x0d);
 			smtc_seqw(0x6b, 0x02);
