@@ -56,7 +56,8 @@ struct temp_opp_table {
  * @wide_temp_limit:	Target maximum frequency when low or high temperature,
  *			in Hz
  * @video_4k_freq:	Maximum frequency when paly 4k video, in KHz
- * @status_limit:	Minimum frequency of all status frequency, in KHz
+ * @status_min_limit:	Minimum frequency of some status frequency, in KHz
+ * @status_max_limit:	Minimum frequency of all status frequency, in KHz
  * @freq_table:		Optional list of frequencies in descending order
  * @max_state:		The size of freq_table
  * @low_temp:		Low temperature trip point, in millicelsius
@@ -82,7 +83,8 @@ struct monitor_dev_info {
 	unsigned long high_temp_max_volt;
 	unsigned long wide_temp_limit;
 	unsigned int video_4k_freq;
-	unsigned int status_limit;
+	unsigned int status_min_limit;
+	unsigned int status_max_limit;
 	unsigned long *freq_table;
 	unsigned int max_state;
 	int low_temp;

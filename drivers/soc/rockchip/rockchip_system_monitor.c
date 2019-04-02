@@ -962,7 +962,7 @@ static unsigned long monitor_freq_to_state(struct monitor_dev_info *info,
 static int monitor_temp_to_state(struct monitor_dev_info *info,
 				 int temp, unsigned long *state)
 {
-	unsigned long target_freq = 0;
+	unsigned long target_state, target_freq = 0;
 	int i;
 
 	if (temp == THERMAL_TEMP_INVALID)
@@ -977,6 +977,13 @@ static int monitor_temp_to_state(struct monitor_dev_info *info,
 						       target_freq * 1000);
 		else
 			*state = 0;
+	}
+
+	if (info->status_min_limit) {
+		target_freq = info->status_min_limit * 1000;
+		target_state = monitor_freq_to_state(info, target_freq);
+		if (*state > target_state)
+			*state = target_state;
 	}
 
 	return 0;
@@ -1209,8 +1216,8 @@ static void rockchip_system_status_limit_freq(unsigned long status)
 			target_freq = info->video_4k_freq;
 		else
 			target_freq = 0;
-		if (target_freq != info->status_limit) {
-			info->status_limit = target_freq;
+		if (target_freq != info->status_max_limit) {
+			info->status_max_limit = target_freq;
 			cpu = cpumask_any(&info->devp->allowed_cpus);
 			cpufreq_update_policy(cpu);
 		}
@@ -1295,8 +1302,10 @@ static int rockchip_monitor_cpufreq_policy_notifier(struct notifier_block *nb,
 			if (limit_freq > info->wide_temp_limit / 1000)
 				limit_freq = info->wide_temp_limit / 1000;
 		}
-		if (info->status_limit && limit_freq > info->status_limit)
-			limit_freq = info->status_limit;
+		if (info->status_max_limit &&
+		    limit_freq > info->status_max_limit)
+			limit_freq = info->status_max_limit;
+
 		if (limit_freq < policy->max)
 			cpufreq_verify_within_limits(policy, 0, limit_freq);
 	}
