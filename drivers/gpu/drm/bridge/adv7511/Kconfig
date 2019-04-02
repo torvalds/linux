@@ -29,7 +29,3 @@ config DRM_I2C_ADV7511_CEC
 	default y
 	help
 	  When selected the HDMI transmitter will support the CEC feature.
-
-config ADV7511_SNAPDRAGON_HACKS
-	bool "Dragonboard 410c ADV7511 hacks"
-	default n
