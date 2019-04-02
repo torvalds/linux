@@ -39,11 +39,13 @@
 #error "Number of MSIX interrupts must be smaller or equal to GOYA_MSIX_ENTRIES"
 #endif
 
-#define QMAN_FENCE_TIMEOUT_USEC		10000	/* 10 ms */
+#define QMAN_FENCE_TIMEOUT_USEC		10000		/* 10 ms */
 
-#define QMAN_STOP_TIMEOUT_USEC		100000	/* 100 ms */
+#define QMAN_STOP_TIMEOUT_USEC		100000		/* 100 ms */
 
-#define CORESIGHT_TIMEOUT_USEC		100000	/* 100 ms */
+#define CORESIGHT_TIMEOUT_USEC		100000		/* 100 ms */
+
+#define GOYA_CPU_TIMEOUT_USEC		10000000	/* 10s */
 
 #define TPC_ENABLED_MASK		0xFF
 
@@ -145,6 +147,9 @@ enum goya_fw_component {
 };
 
 struct goya_device {
+	void (*mmu_prepare_reg)(struct hl_device *hdev, u64 reg, u32 asid);
+	void (*qman0_set_security)(struct hl_device *hdev, bool secure);
+
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
 
@@ -180,6 +185,10 @@ void goya_init_security(struct hl_device *hdev);
 int goya_debug_coresight(struct hl_device *hdev, void *data);
 u64 goya_get_max_power(struct hl_device *hdev);
 void goya_set_max_power(struct hl_device *hdev, u64 value);
+int goya_test_queues(struct hl_device *hdev);
+void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
+int goya_mmu_clear_pgt_range(struct hl_device *hdev);
+int goya_mmu_set_dram_default_page(struct hl_device *hdev);
 
 void goya_late_fini(struct hl_device *hdev);
 int goya_suspend(struct hl_device *hdev);
@@ -195,5 +204,9 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt);
 int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
 int goya_send_heartbeat(struct hl_device *hdev);
+void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
+					dma_addr_t *dma_handle);
+void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
+					void *vaddr);
 
 #endif /* GOYAP_H_ */
