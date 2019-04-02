@@ -154,10 +154,8 @@ static struct prom_t __prombss prom;
 
 static unsigned long __prombss prom_entry;
 
-#define PROM_SCRATCH_SIZE 256
-
 static char __prombss of_stdout_device[256];
-static char __prombss prom_scratch[PROM_SCRATCH_SIZE];
+static char __prombss prom_scratch[256];
 
 static unsigned long __prombss dt_header_start;
 static unsigned long __prombss dt_struct_start, dt_struct_end;
@@ -1619,8 +1617,8 @@ static void __init prom_init_mem(void)
 		endp = p + (plen / sizeof(cell_t));
 
 #ifdef DEBUG_PROM
-		memset(path, 0, PROM_SCRATCH_SIZE);
-		call_prom("package-to-path", 3, 1, node, path, PROM_SCRATCH_SIZE-1);
+		memset(path, 0, sizeof(prom_scratch));
+		call_prom("package-to-path", 3, 1, node, path, sizeof(prom_scratch) - 1);
 		prom_debug("  node %s :\n", path);
 #endif /* DEBUG_PROM */
 
@@ -1928,10 +1926,10 @@ static void __init prom_initialize_tce_table(void)
 			local_alloc_bottom = base;
 
 		/* It seems OF doesn't null-terminate the path :-( */
-		memset(path, 0, PROM_SCRATCH_SIZE);
+		memset(path, 0, sizeof(prom_scratch));
 		/* Call OF to setup the TCE hardware */
 		if (call_prom("package-to-path", 3, 1, node,
-			      path, PROM_SCRATCH_SIZE-1) == PROM_ERROR) {
+			      path, sizeof(prom_scratch) - 1) == PROM_ERROR) {
 			prom_printf("package-to-path failed\n");
 		}
 
@@ -2292,14 +2290,14 @@ static void __init prom_check_displays(void)
 
 		/* It seems OF doesn't null-terminate the path :-( */
 		path = prom_scratch;
-		memset(path, 0, PROM_SCRATCH_SIZE);
+		memset(path, 0, sizeof(prom_scratch));
 
 		/*
 		 * leave some room at the end of the path for appending extra
 		 * arguments
 		 */
 		if (call_prom("package-to-path", 3, 1, node, path,
-			      PROM_SCRATCH_SIZE-10) == PROM_ERROR)
+			      sizeof(prom_scratch) - 10) == PROM_ERROR)
 			continue;
 		prom_printf("found display   : %s, opening... ", path);
 		
@@ -2495,8 +2493,8 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 
 	/* get it again for debugging */
 	path = prom_scratch;
-	memset(path, 0, PROM_SCRATCH_SIZE);
-	call_prom("package-to-path", 3, 1, node, path, PROM_SCRATCH_SIZE-1);
+	memset(path, 0, sizeof(prom_scratch));
+	call_prom("package-to-path", 3, 1, node, path, sizeof(prom_scratch) - 1);
 
 	/* get and store all properties */
 	prev_name = "";
