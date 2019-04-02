@@ -209,7 +209,7 @@ ifeq ($(DWARF2BTF),y)
 endif
 
 PROG_TESTS_H := $(OUTPUT)/prog_tests/tests.h
-$(OUTPUT)/test_progs: $(PROG_TESTS_H)
+test_progs.c: $(PROG_TESTS_H)
 $(OUTPUT)/test_progs: CFLAGS += $(TEST_PROGS_CFLAGS)
 $(OUTPUT)/test_progs: prog_tests/*.c
 
@@ -232,7 +232,7 @@ $(PROG_TESTS_H): $(PROG_TESTS_DIR) $(PROG_TESTS_FILES)
 		 ) > $(PROG_TESTS_H))
 
 VERIFIER_TESTS_H := $(OUTPUT)/verifier/tests.h
-$(OUTPUT)/test_verifier: $(VERIFIER_TESTS_H)
+test_verifier.c: $(VERIFIER_TESTS_H)
 $(OUTPUT)/test_verifier: CFLAGS += $(TEST_VERIFIER_CFLAGS)
 
 VERIFIER_TESTS_DIR = $(OUTPUT)/verifier
