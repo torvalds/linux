@@ -1331,8 +1331,10 @@ static void rkisp1_buf_queue(struct vb2_buffer *vb)
 			u32 sizeimage = pixm->plane_fmt[0].sizeimage;
 			u32 *buf = vb2_plane_vaddr(vb, 0);
 
-			*buf = RKISP1_DMATX_CHECK;
-			*(buf + sizeimage / 4 - 1) = RKISP1_DMATX_CHECK;
+			if (buf) {
+				*buf = RKISP1_DMATX_CHECK;
+				*(buf + sizeimage / 4 - 1) = RKISP1_DMATX_CHECK;
+			}
 		}
 	}
 
@@ -1585,7 +1587,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	node = queue_to_node(q);
 
 	q->type = buf_type;
-	q->io_modes = VB2_MMAP | VB2_DMABUF;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->drv_priv = stream;
 	q->ops = &rkisp1_vb2_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
@@ -2179,6 +2181,8 @@ void rkisp1_mipi_dmatx0_end(u32 status, struct rkisp1_device *dev)
 			u32 sizeimage = stream->out_fmt.plane_fmt[0].sizeimage;
 
 			buf = (u32 *)vb2_plane_vaddr(&stream->curr_buf->vb.vb2_buf, 0);
+			if (!buf)
+				goto out;
 			end = *(buf + sizeimage / 4 - 1);
 			while (end == RKISP1_DMATX_CHECK) {
 				udelay(1);
@@ -2198,6 +2202,7 @@ void rkisp1_mipi_dmatx0_end(u32 status, struct rkisp1_device *dev)
 				}
 			}
 		}
+out:
 		mi_frame_end(stream);
 	}
 }
