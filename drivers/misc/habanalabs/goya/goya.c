@@ -1688,12 +1688,11 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 
 	/*
 	 * Workaround for H2 #HW-23 bug
-	 * Set DMA max outstanding read requests to 240 on DMA CH 1. Set it
-	 * to 16 on KMD DMA
-	 * We need to limit only these DMAs because the user can only read
+	 * Set DMA max outstanding read requests to 240 on DMA CH 1.
+	 * This limitation is still large enough to not affect Gen4 bandwidth.
+	 * We need to only limit that DMA channel because the user can only read
 	 * from Host using DMA CH 1
 	 */
-	WREG32(mmDMA_CH_0_CFG0, 0x0fff0010);
 	WREG32(mmDMA_CH_1_CFG0, 0x0fff00F0);
 
 	goya->hw_cap_initialized |= HW_CAP_GOLDEN;
@@ -3693,7 +3692,7 @@ static int goya_validate_dma_pkt_mmu(struct hl_device *hdev,
 	 * WA for HW-23.
 	 * We can't allow user to read from Host using QMANs other than 1.
 	 */
-	if (parser->hw_queue_id > GOYA_QUEUE_ID_DMA_1 &&
+	if (parser->hw_queue_id != GOYA_QUEUE_ID_DMA_1 &&
 		hl_mem_area_inside_range(le64_to_cpu(user_dma_pkt->src_addr),
 				le32_to_cpu(user_dma_pkt->tsize),
 				hdev->asic_prop.va_space_host_start_address,
