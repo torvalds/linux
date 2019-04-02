@@ -95,10 +95,10 @@ struct snd_sof_dsp_ops {
 		      void __iomem *addr); /* mandatory */
 
 	/* memcpy IO */
-	void (*block_read)(struct snd_sof_dev *sof_dev, u32 bar,
+	void (*block_read)(struct snd_sof_dev *sof_dev,
 			   u32 offset, void *dest,
 			   size_t size); /* mandatory */
-	void (*block_write)(struct snd_sof_dev *sof_dev, u32 bar,
+	void (*block_write)(struct snd_sof_dev *sof_dev,
 			    u32 offset, void *src,
 			    size_t size); /* mandatory */
 
@@ -608,9 +608,9 @@ void sof_mailbox_write(struct snd_sof_dev *sdev, u32 offset,
 		       void *message, size_t bytes);
 void sof_mailbox_read(struct snd_sof_dev *sdev, u32 offset,
 		      void *message, size_t bytes);
-void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
+void sof_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
 		     size_t size);
-void sof_block_read(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *dest,
+void sof_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
 		    size_t size);
 
 void intel_ipc_msg_data(struct snd_sof_dev *sdev,

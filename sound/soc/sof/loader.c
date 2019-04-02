@@ -46,14 +46,14 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 		return -ENOMEM;
 
 	/* get first header */
-	snd_sof_dsp_block_read(sdev, sdev->mmio_bar, offset, ext_data,
+	snd_sof_dsp_block_read(sdev, offset, ext_data,
 			       sizeof(*ext_hdr));
 	ext_hdr = ext_data;
 
 	while (ext_hdr->hdr.cmd == SOF_IPC_FW_READY) {
 		/* read in ext structure */
 		offset += sizeof(*ext_hdr);
-		snd_sof_dsp_block_read(sdev, sdev->mmio_bar, offset,
+		snd_sof_dsp_block_read(sdev, offset,
 				   (void *)((u8 *)ext_data + sizeof(*ext_hdr)),
 				   ext_hdr->hdr.size - sizeof(*ext_hdr));
 
@@ -79,7 +79,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 
 		/* move to next header */
 		offset += ext_hdr->hdr.size;
-		snd_sof_dsp_block_read(sdev, sdev->mmio_bar, offset, ext_data,
+		snd_sof_dsp_block_read(sdev, offset, ext_data,
 				       sizeof(*ext_hdr));
 		ext_hdr = ext_data;
 	}
@@ -145,8 +145,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 				block->size);
 			return -EINVAL;
 		}
-		snd_sof_dsp_block_write(sdev, sdev->mmio_bar, offset,
-					block + 1, block->size);
+		snd_sof_dsp_block_write(sdev, offset, block + 1, block->size);
 
 		/* minus body size of block */
 		remaining -= block->size;
