@@ -267,7 +267,6 @@ const struct drm_mode_config_funcs bochs_mode_funcs = {
 int bochs_kms_init(struct bochs_device *bochs)
 {
 	drm_mode_config_init(bochs->dev);
-	bochs->mode_config_initialized = true;
 
 	bochs->dev->mode_config.max_width = 8192;
 	bochs->dev->mode_config.max_height = 8192;
@@ -292,9 +291,6 @@ int bochs_kms_init(struct bochs_device *bochs)
 
 void bochs_kms_fini(struct bochs_device *bochs)
 {
-	if (bochs->mode_config_initialized) {
-		drm_atomic_helper_shutdown(bochs->dev);
-		drm_mode_config_cleanup(bochs->dev);
-		bochs->mode_config_initialized = false;
-	}
+	drm_atomic_helper_shutdown(bochs->dev);
+	drm_mode_config_cleanup(bochs->dev);
 }

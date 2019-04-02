@@ -73,7 +73,6 @@ struct bochs_device {
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_connector connector;
-	bool mode_config_initialized;
 
 	/* ttm */
 	struct {
