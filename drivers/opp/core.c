@@ -130,27 +130,6 @@ unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
 
-struct regulator *dev_pm_opp_get_regulator(struct device *dev)
-{
-	struct opp_table *opp_table;
-	struct regulator *reg;
-
-	rcu_read_lock();
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		rcu_read_unlock();
-		return ERR_CAST(opp_table);
-	}
-
-	reg = opp_table->regulators[0];
-
-	rcu_read_unlock();
-
-	return reg;
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_get_regulator);
-
 /**
  * dev_pm_opp_is_turbo() - Returns if opp is turbo OPP or not
  * @opp: opp for which turbo mode is being verified
