@@ -512,6 +512,7 @@ int skl_uncore_pci_init(void);
 void snb_uncore_cpu_init(void);
 void nhm_uncore_cpu_init(void);
 void skl_uncore_cpu_init(void);
+void icl_uncore_cpu_init(void);
 int snb_pci2phy_map_init(int devid);
 
 /* uncore_snbep.c */
