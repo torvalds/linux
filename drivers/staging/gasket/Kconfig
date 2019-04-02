@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Gasket devices"
 
 config STAGING_GASKET_FRAMEWORK

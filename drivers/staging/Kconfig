@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig STAGING
 	bool "Staging drivers"
 	default n

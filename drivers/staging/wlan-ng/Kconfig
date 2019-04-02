@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PRISM2_USB
 	tristate "Prism2.5/3 USB driver"
 	depends on WLAN && USB && CFG80211

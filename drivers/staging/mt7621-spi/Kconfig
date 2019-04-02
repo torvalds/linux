@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config SPI_MT7621
 	tristate "MediaTek MT7621 SPI Controller"
 	depends on RALINK

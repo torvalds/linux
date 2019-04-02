@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config VIDEO_ROCKCHIP_VPU
 	tristate "Rockchip VPU driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
