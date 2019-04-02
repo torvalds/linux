@@ -383,16 +383,26 @@ static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
 
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
 
-static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 {
+	int i;
+
 	del_timer(&fwrt->dump.periodic_trig);
-	flush_delayed_work(&fwrt->dump.wk);
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
+		flush_delayed_work(&fwrt->dump.wks[i].wk);
+		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
+	}
 }
 
-static inline void iwl_fw_cancel_dump(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_cancel_dumps(struct iwl_fw_runtime *fwrt)
 {
+	int i;
+
 	del_timer(&fwrt->dump.periodic_trig);
-	cancel_delayed_work_sync(&fwrt->dump.wk);
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
+		cancel_delayed_work_sync(&fwrt->dump.wks[i].wk);
+		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
+	}
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -431,7 +441,6 @@ static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
-void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt);
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point);
 

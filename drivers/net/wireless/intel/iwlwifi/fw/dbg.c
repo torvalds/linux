@@ -1912,18 +1912,18 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 }
 
 static struct iwl_fw_error_dump_file *
-iwl_fw_error_ini_dump_file(struct iwl_fw_runtime *fwrt)
+iwl_fw_error_ini_dump_file(struct iwl_fw_runtime *fwrt,
+			   enum iwl_fw_ini_trigger_id trig_id)
 {
 	int size;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_ini_trigger *trigger;
-	enum iwl_fw_ini_trigger_id id = fwrt->dump.ini_trig_id;
 
-	if (!iwl_fw_ini_trigger_on(fwrt, id))
+	if (!iwl_fw_ini_trigger_on(fwrt, trig_id))
 		return NULL;
 
-	trigger = fwrt->dump.active_trigs[id].trig;
+	trigger = fwrt->dump.active_trigs[trig_id].trig;
 
 	size = iwl_fw_ini_get_trigger_len(fwrt, trigger);
 	if (!size)
@@ -1988,16 +1988,16 @@ static void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 
 out:
 	iwl_fw_free_dump_desc(fwrt);
-	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
 }
 
-static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt)
+static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 {
+	enum iwl_fw_ini_trigger_id trig_id = fwrt->dump.wks[wk_idx].ini_trig_id;
 	struct iwl_fw_error_dump_file *dump_file;
 	struct scatterlist *sg_dump_data;
 	u32 file_len;
 
-	dump_file = iwl_fw_error_ini_dump_file(fwrt);
+	dump_file = iwl_fw_error_ini_dump_file(fwrt, trig_id);
 	if (!dump_file)
 		goto out;
 
@@ -2012,8 +2012,7 @@ static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt)
 	}
 	vfree(dump_file);
 out:
-	fwrt->dump.ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
-	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
+	fwrt->dump.wks[wk_idx].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
 }
 
 const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
@@ -2039,7 +2038,10 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 		return ret;
 	}
 
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+	/* use wks[0] since dump flow prior to ini does not need to support
+	 * consecutive triggers collection
+	 */
+	if (test_and_set_bit(fwrt->dump.wks[0].idx, &fwrt->dump.active_wks))
 		return -EBUSY;
 
 	if (WARN_ON(fwrt->dump.desc))
@@ -2051,7 +2053,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	fwrt->dump.desc = desc;
 	fwrt->dump.monitor_only = monitor_only;
 
-	schedule_delayed_work(&fwrt->dump.wk, usecs_to_jiffies(delay));
+	schedule_delayed_work(&fwrt->dump.wks[0].wk, usecs_to_jiffies(delay));
 
 	return 0;
 }
@@ -2130,12 +2132,10 @@ int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_active_triggers *active;
 	u32 occur, delay;
+	unsigned long idx;
 
 	if (WARN_ON(!iwl_fw_ini_trigger_on(fwrt, id)))
 		return -EINVAL;
-
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
-		return -EBUSY;
 
 	if (!iwl_fw_ini_trigger_on(fwrt, id)) {
 		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
@@ -2157,14 +2157,24 @@ int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 		return 0;
 	}
 
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+	/* Check there is an available worker.
+	 * ffz return value is undefined if no zero exists,
+	 * so check against ~0UL first.
+	 */
+	if (fwrt->dump.active_wks == ~0UL)
 		return -EBUSY;
 
-	fwrt->dump.ini_trig_id = id;
+	idx = ffz(fwrt->dump.active_wks);
+
+	if (idx >= IWL_FW_RUNTIME_DUMP_WK_NUM ||
+	    test_and_set_bit(fwrt->dump.wks[idx].idx, &fwrt->dump.active_wks))
+		return -EBUSY;
+
+	fwrt->dump.wks[idx].ini_trig_id = id;
 
 	IWL_WARN(fwrt, "WRT: collecting data: ini trigger %d fired.\n", id);
 
-	schedule_delayed_work(&fwrt->dump.wk, usecs_to_jiffies(delay));
+	schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
 
 	return 0;
 }
@@ -2277,32 +2287,31 @@ IWL_EXPORT_SYMBOL(iwl_fw_start_dbg_conf);
 /* this function assumes dump_start was called beforehand and dump_end will be
  * called afterwards
  */
-void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
+static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 {
 	struct iwl_fw_dbg_params params = {0};
 
-	if (!test_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
 	if (fwrt->ops && fwrt->ops->fw_running &&
 	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
 		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
 		iwl_fw_free_dump_desc(fwrt);
-		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-		return;
+		goto out;
 	}
 
 	/* there's no point in fw dump if the bus is dead */
 	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
 		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
-		return;
+		goto out;
 	}
 
 	iwl_fw_dbg_stop_recording(fwrt, &params);
 
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection start\n");
 	if (fwrt->trans->ini_valid)
-		iwl_fw_error_ini_dump(fwrt);
+		iwl_fw_error_ini_dump(fwrt, wk_idx);
 	else
 		iwl_fw_error_dump(fwrt);
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection done\n");
@@ -2314,19 +2323,27 @@ void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
 		udelay(500);
 		iwl_fw_dbg_restart_recording(fwrt, &params);
 	}
+
+out:
+	clear_bit(wk_idx, &fwrt->dump.active_wks);
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_sync);
 
 void iwl_fw_error_dump_wk(struct work_struct *work)
 {
-	struct iwl_fw_runtime *fwrt =
-		container_of(work, struct iwl_fw_runtime, dump.wk.work);
+	struct iwl_fw_runtime *fwrt;
+	typeof(fwrt->dump.wks[0]) *wks;
 
+	wks = container_of(work, typeof(fwrt->dump.wks[0]), wk.work);
+	fwrt = container_of(wks, struct iwl_fw_runtime, dump.wks[wks->idx]);
+
+	/* assumes the op mode mutex is locked in dump_start since
+	 * iwl_fw_dbg_collect_sync can't run in parallel
+	 */
 	if (fwrt->ops && fwrt->ops->dump_start &&
 	    fwrt->ops->dump_start(fwrt->ops_ctx))
 		return;
 
-	iwl_fw_dbg_collect_sync(fwrt);
+	iwl_fw_dbg_collect_sync(fwrt, wks->idx);
 
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
@@ -2723,8 +2740,11 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
 
 void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
 {
+	int i;
+
 	del_timer(&fwrt->dump.periodic_trig);
-	iwl_fw_dbg_collect_sync(fwrt);
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
+		iwl_fw_dbg_collect_sync(fwrt, i);
 
 	iwl_trans_stop_device(fwrt->trans);
 }
