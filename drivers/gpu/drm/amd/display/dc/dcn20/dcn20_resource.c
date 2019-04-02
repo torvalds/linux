@@ -1230,37 +1230,101 @@ enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state 
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 
-static struct display_stream_compressor *acquire_dsc(struct resource_context *res_ctx,
-						const struct resource_pool *pool)
+static void acquire_dsc(struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			struct display_stream_compressor **dsc)
 {
 	int i;
-	struct display_stream_compressor *dsc = NULL;
+
+	ASSERT(*dsc == NULL);
+	*dsc = NULL;
 
 	/* Find first free DSC */
 	for (i = 0; i < pool->res_cap->num_dsc; i++)
 		if (!res_ctx->is_dsc_acquired[i]) {
-			dsc = pool->dscs[i];
+			*dsc = pool->dscs[i];
 			res_ctx->is_dsc_acquired[i] = true;
 			break;
 		}
-
-	return dsc;
 }
 
 static void release_dsc(struct resource_context *res_ctx,
 			const struct resource_pool *pool,
-			const struct display_stream_compressor *dsc)
+			struct display_stream_compressor **dsc)
 {
 	int i;
 
 	for (i = 0; i < pool->res_cap->num_dsc; i++)
-		if (pool->dscs[i] == dsc) {
+		if (pool->dscs[i] == *dsc) {
 			res_ctx->is_dsc_acquired[i] = false;
+			*dsc = NULL;
 			break;
 		}
 }
 
 #endif
+
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
+		struct dc_state *dc_ctx,
+		struct dc_stream_state *dc_stream)
+{
+	enum dc_status result = DC_OK;
+	int i;
+	const struct resource_pool *pool = dc->res_pool;
+
+	/* Get a DSC if required and available */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &dc_ctx->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream != dc_stream)
+			continue;
+
+		acquire_dsc(&dc_ctx->res_ctx, pool, &pipe_ctx->stream_res.dsc);
+
+		/* The number of DSCs can be less than the number of pipes */
+		if (!pipe_ctx->stream_res.dsc) {
+			dm_output_to_console("No DSCs available\n");
+			result = DC_NO_DSC_RESOURCE;
+		}
+
+		break;
+	}
+
+	return result;
+}
+
+
+enum dc_status dcn20_remove_dsc_from_stream_resource(struct dc *dc,
+		struct dc_state *new_ctx,
+		struct dc_stream_state *dc_stream)
+{
+	struct pipe_ctx *pipe_ctx = NULL;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (new_ctx->res_ctx.pipe_ctx[i].stream == dc_stream && !new_ctx->res_ctx.pipe_ctx[i].top_pipe) {
+			pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
+			break;
+		}
+	}
+
+	if (!pipe_ctx)
+		return DC_ERROR_UNEXPECTED;
+
+	if (pipe_ctx->stream_res.dsc) {
+		struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+		release_dsc(&new_ctx->res_ctx, dc->res_pool, &pipe_ctx->stream_res.dsc);
+		if (odm_pipe)
+			release_dsc(&new_ctx->res_ctx, dc->res_pool, &odm_pipe->stream_res.dsc);
+	}
+
+	return DC_OK;
+}
+#endif
+
 
 enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream)
 {
@@ -1273,36 +1337,8 @@ enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, 
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	/* Get a DSC if required and available */
-	if (result == DC_OK) {
-		int i;
-		const struct resource_pool *pool = dc->res_pool;
-		bool is_add_dsc = true;
-
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->stream != dc_stream)
-				continue;
-
-			if (IS_DIAG_DC(dc->ctx->dce_environment) ||
-				dc->res_pool->res_cap->num_dsc == 1) {
-				// Diags build can also run on platforms that have fewer DSCs than pipes.
-				// In that case, add DSC only if needed by timing.
-				is_add_dsc = (dc_stream->timing.flags.DSC == 1);
-			}
-			if (is_add_dsc) {
-				pipe_ctx->stream_res.dsc = acquire_dsc(&new_ctx->res_ctx, pool);
-
-				/* The number of DSCs can be less than the number of pipes */
-				if (!pipe_ctx->stream_res.dsc) {
-					dm_output_to_console("No DSCs available\n");
-					result = DC_NO_DSC_RESOURCE;
-				}
-			}
-
-			break;
-		}
-	}
+	if (result == DC_OK && dc_stream->timing.flags.DSC)
+		result = dcn20_add_dsc_to_stream_resource(dc, new_ctx, dc_stream);
 #endif
 
 	if (result == DC_OK)
@@ -1314,34 +1350,13 @@ enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, 
 
 enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream)
 {
-	struct pipe_ctx *pipe_ctx = NULL;
-	int i;
-
-	/* Remove DSC */
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (new_ctx->res_ctx.pipe_ctx[i].stream == dc_stream && !new_ctx->res_ctx.pipe_ctx[i].top_pipe) {
-			pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
-			break;
-		}
-	}
-
-	if (!pipe_ctx)
-		return DC_ERROR_UNEXPECTED;
+	enum dc_status result = DC_OK;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	if (pipe_ctx->stream_res.dsc) {
-		struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
-
-		release_dsc(&new_ctx->res_ctx, dc->res_pool, pipe_ctx->stream_res.dsc);
-		pipe_ctx->stream_res.dsc = NULL;
-		if (odm_pipe) {
-			release_dsc(&new_ctx->res_ctx, dc->res_pool, odm_pipe->stream_res.dsc);
-			odm_pipe->stream_res.dsc = NULL;
-		}
-	}
+	result = dcn20_remove_dsc_from_stream_resource(dc, new_ctx, dc_stream);
 #endif
 
-	return DC_OK;
+	return result;
 }
 
 
@@ -1439,8 +1454,6 @@ static bool dcn20_split_stream_for_combine(
 	secondary_pipe->top_pipe = primary_pipe;
 
 	if (is_odm_combine) {
-		bool is_add_dsc = true;
-
 		if (primary_pipe->plane_state) {
 			/* HACTIVE halved for odm combine */
 			sd->h_active /= 2;
@@ -1477,8 +1490,8 @@ static bool dcn20_split_stream_for_combine(
 		}
 		secondary_pipe->stream_res.opp = pool->opps[secondary_pipe->pipe_idx];
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-		if (is_add_dsc) {
-			secondary_pipe->stream_res.dsc = acquire_dsc(res_ctx, pool);
+		if (secondary_pipe->stream->timing.flags.DSC == 1) {
+			acquire_dsc(res_ctx, pool, &secondary_pipe->stream_res.dsc);
 			ASSERT(secondary_pipe->stream_res.dsc);
 			if (secondary_pipe->stream_res.dsc == NULL)
 				return false;
@@ -1952,7 +1965,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		hsplit_pipe->bottom_pipe = NULL;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 		if (hsplit_pipe->stream_res.dsc && hsplit_pipe->stream_res.dsc != pipe->stream_res.dsc)
-			release_dsc(&context->res_ctx, dc->res_pool, hsplit_pipe->stream_res.dsc);
+			release_dsc(&context->res_ctx, dc->res_pool, &hsplit_pipe->stream_res.dsc);
 #endif
 		/* Clear plane_res and stream_res */
 		memset(&hsplit_pipe->plane_res, 0, sizeof(hsplit_pipe->plane_res));
@@ -2364,7 +2377,11 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
 	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
-	.set_mcif_arb_params = dcn20_set_mcif_arb_params
+	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
+	.remove_dsc_from_stream_resource = dcn20_remove_dsc_from_stream_resource
+#endif
 };
 
 struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx)

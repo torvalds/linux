@@ -142,6 +142,16 @@ struct resource_funcs {
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
 #endif
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+enum dc_status (*add_dsc_to_stream_resource)(struct dc *dc,
+			struct dc_state *dc_ctx,
+			struct dc_stream_state *dc_stream);
+
+enum dc_status (*remove_dsc_from_stream_resource)(struct dc *dc,
+			struct dc_state *new_ctx,
+			struct dc_stream_state *dc_stream);
+#endif
 };
 
 struct audio_support{
