@@ -71,6 +71,7 @@ struct autofs_info {
 
 	kuid_t uid;
 	kgid_t gid;
+	struct rcu_head rcu;
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry in the process of expiring */
