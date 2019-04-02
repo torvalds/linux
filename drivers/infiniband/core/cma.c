@@ -3251,7 +3251,7 @@ static int cma_alloc_port(enum rdma_ucm_port_space ps,
 		goto err;
 
 	bind_list->ps = ps;
-	bind_list->port = (unsigned short)ret;
+	bind_list->port = snum;
 	cma_bind_port(bind_list, id_priv);
 	return 0;
 err:
