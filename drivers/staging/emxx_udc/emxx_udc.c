@@ -1495,10 +1495,10 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 	case USB_RECIP_DEVICE:
 		if (udc->ctrl.wIndex == 0x0000) {
 			if (udc->gadget.is_selfpowered)
-				status_data |= (1 << USB_DEVICE_SELF_POWERED);
+				status_data |= BIT(USB_DEVICE_SELF_POWERED);
 
 			if (udc->remote_wakeup)
-				status_data |= (1 << USB_DEVICE_REMOTE_WAKEUP);
+				status_data |= BIT(USB_DEVICE_REMOTE_WAKEUP);
 
 			result = 0;
 		}
@@ -1510,7 +1510,7 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 			result = _nbu2ss_get_ep_stall(udc, ep_adrs);
 
 			if (result > 0)
-				status_data |= (1 << USB_ENDPOINT_HALT);
+				status_data |= BIT(USB_ENDPOINT_HALT);
 		}
 		break;
 
