@@ -229,11 +229,9 @@ struct mt76_txq {
 };
 
 struct mt76_txwi_cache {
-	u32 txwi[8];
-	dma_addr_t dma_addr;
 	struct list_head list;
+	dma_addr_t dma_addr;
 };
-
 
 struct mt76_rx_tid {
 	struct rcu_head rcu_head;
@@ -616,6 +614,12 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
 
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_dev *dev);
+
+static inline u8 *
+mt76_get_txwi_ptr(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	return (u8 *)t - dev->drv->txwi_size;
+}
 
 /* increment with wrap-around */
 static inline int mt76_incr(int val, int size)

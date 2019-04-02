@@ -770,6 +770,7 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76x02_txwi *txwi;
+	u8 *txwi_ptr;
 
 	if (!e->txwi) {
 		dev_kfree_skb_any(e->skb);
@@ -778,7 +779,8 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 
 	mt76x02_mac_poll_tx_status(dev, false);
 
-	txwi = (struct mt76x02_txwi *) &e->txwi->txwi;
+	txwi_ptr = mt76_get_txwi_ptr(mdev, e->txwi);
+	txwi = (struct mt76x02_txwi *)txwi_ptr;
 	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
 
 	mt76_tx_complete_skb(mdev, e->skb);

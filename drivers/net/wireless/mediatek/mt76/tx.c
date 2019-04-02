@@ -21,15 +21,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
 {
 	struct mt76_txwi_cache *t;
 	dma_addr_t addr;
+	u8 *txwi;
 	int size;
 
-	size = (sizeof(*t) + L1_CACHE_BYTES - 1) & ~(L1_CACHE_BYTES - 1);
-	t = devm_kzalloc(dev->dev, size, GFP_ATOMIC);
-	if (!t)
+	size = L1_CACHE_ALIGN(dev->drv->txwi_size + sizeof(*t));
+	txwi = devm_kzalloc(dev->dev, size, GFP_ATOMIC);
+	if (!txwi)
 		return NULL;
 
-	addr = dma_map_single(dev->dev, &t->txwi, sizeof(t->txwi),
+	addr = dma_map_single(dev->dev, txwi, dev->drv->txwi_size,
 			      DMA_TO_DEVICE);
+	t = (struct mt76_txwi_cache *)(txwi + dev->drv->txwi_size);
 	t->dma_addr = addr;
 
 	return t;
@@ -78,7 +80,7 @@ void mt76_tx_free(struct mt76_dev *dev)
 	struct mt76_txwi_cache *t;
 
 	while ((t = __mt76_get_txwi(dev)) != NULL)
-		dma_unmap_single(dev->dev, t->dma_addr, sizeof(t->txwi),
+		dma_unmap_single(dev->dev, t->dma_addr, dev->drv->txwi_size,
 				 DMA_TO_DEVICE);
 }
 
