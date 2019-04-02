@@ -448,13 +448,13 @@
 
 	pmic {
 		pmic_int: pmic-int {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usb_host {
 		phy_pwr_en: phy-pwr-en {
-			rockchip,pins = <RK_GPIO2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 
 		usb2_pwr_en: usb2-pwr-en {
@@ -464,7 +464,7 @@
 
 	usb_otg {
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <RK_GPIO0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 
 		};
 	};
