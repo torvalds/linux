@@ -3887,8 +3887,7 @@ static int wm_adsp_buffer_free(struct wm_adsp *dsp)
 	struct wm_adsp_compr_buf *buf, *tmp;
 
 	list_for_each_entry_safe(buf, tmp, &dsp->buffer_list, list) {
-		if (buf->compr)
-			wm_adsp_compr_detach(buf->compr);
+		wm_adsp_compr_detach(buf->compr);
 
 		kfree(buf->name);
 		kfree(buf->regions);
