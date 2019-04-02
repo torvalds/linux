@@ -304,6 +304,18 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 
 	mutex_lock(&priv->lock);
 
+	/* Wait for DCPU to become ready */
+	for (i = 0; i < DELAY_LOOP_MAX; i++) {
+		resp = readl_relaxed(regs + REG_TO_HOST_MBOX);
+		if (resp == 0)
+			break;
+		msleep(1);
+	}
+	if (resp != 0) {
+		mutex_unlock(&priv->lock);
+		return -ETIMEDOUT;
+	}
+
 	/* Write command and arguments to message area */
 	for (i = 0; i < MSG_FIELD_MAX; i++)
 		writel_relaxed(msg[i], regs + DCPU_MSG_RAM(i));
