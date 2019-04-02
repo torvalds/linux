@@ -45,6 +45,7 @@
 #include <net/nexthop.h>
 #include <net/lwtunnel.h>
 #include <net/fib_notifier.h>
+#include <net/addrconf.h>
 
 #include "fib_lookup.h"
 
@@ -1317,8 +1318,8 @@ failure:
 	return ERR_PTR(err);
 }
 
-static int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
-			    unsigned int *flags, bool skip_oif)
+int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
+		     unsigned int *flags, bool skip_oif)
 {
 	if (nhc->nhc_flags & RTNH_F_DEAD)
 		*flags |= RTNH_F_DEAD;
@@ -1332,6 +1333,10 @@ static int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc
 			if (ip_ignore_linkdown(nhc->nhc_dev))
 				*flags |= RTNH_F_DEAD;
 			break;
+		case AF_INET6:
+			if (ip6_ignore_linkdown(nhc->nhc_dev))
+				*flags |= RTNH_F_DEAD;
+			break;
 		}
 		rcu_read_unlock();
 	}
@@ -1340,6 +1345,11 @@ static int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc
 		switch (nhc->nhc_family) {
 		case AF_INET:
 			if (nla_put_in_addr(skb, RTA_GATEWAY, nhc->nhc_gw.ipv4))
+				goto nla_put_failure;
+			break;
+		case AF_INET6:
+			if (nla_put_in6_addr(skb, RTA_GATEWAY,
+					     &nhc->nhc_gw.ipv6) < 0)
 				goto nla_put_failure;
 			break;
 		}
@@ -1362,10 +1372,11 @@ static int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc
 nla_put_failure:
 	return -EMSGSIZE;
 }
+EXPORT_SYMBOL_GPL(fib_nexthop_info);
 
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-static int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
-			   int nh_weight)
+#if IS_ENABLED(CONFIG_IP_ROUTE_MULTIPATH) || IS_ENABLED(CONFIG_IPV6)
+int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
+		    int nh_weight)
 {
 	const struct net_device *dev = nhc->nhc_dev;
 	struct rtnexthop *rtnh;
@@ -1391,6 +1402,7 @@ static int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
 nla_put_failure:
 	return -EMSGSIZE;
 }
+EXPORT_SYMBOL_GPL(fib_add_nexthop);
 #endif
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
