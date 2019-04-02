@@ -765,8 +765,6 @@ qla2x00_sp_compl(void *ptr, int res)
 	srb_t *sp = ptr;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 
-	cmd->result = res;
-
 	if (atomic_read(&sp->ref_count) == 0) {
 		ql_dbg(ql_dbg_io, sp->vha, 0x3015,
 		    "SP reference-count to ZERO -- sp=%p cmd=%p.\n",
@@ -779,6 +777,7 @@ qla2x00_sp_compl(void *ptr, int res)
 		return;
 
 	sp->free(sp);
+	cmd->result = res;
 	cmd->scsi_done(cmd);
 }
 
