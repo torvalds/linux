@@ -539,7 +539,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	}
 
 	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
-		return -EFAULT;
+		ret = -EFAULT;
 
 out:
 	pm_runtime_mark_last_busy(sdev->dev);
