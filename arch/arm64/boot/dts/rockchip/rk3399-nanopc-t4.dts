@@ -125,7 +125,7 @@
 	ir {
 		ir_rx: ir-rx {
 			/* external pullup to VCC3V3_SYS, despite being 1.8V :/ */
-			rockchip,pins = <0 RK_PA6 RK_FUNC_1 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 1 &pcfg_pull_none>;
 		};
 	};
 };

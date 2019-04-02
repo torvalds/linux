@@ -290,24 +290,24 @@ ap_i2c_dig: &i2c2 {
 	digitizer {
 		/* Has external pullup */
 		cpu1_dig_irq_l: cpu1-dig-irq-l {
-			rockchip,pins = <2 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		/* Has external pullup */
 		cpu1_dig_pdct_l: cpu1-dig-pdct-l {
-			rockchip,pins = <2 5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	discrete-regulators {
 		cpu3_pen_pwr_en: cpu3-pen-pwr-en {
-			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pen {
 		cpu1_pen_eject: cpu1-pen-eject {
-			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
