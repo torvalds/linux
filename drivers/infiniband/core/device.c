@@ -1089,6 +1089,9 @@ static void setup_dma_device(struct ib_device *device)
 		WARN_ON_ONCE(!parent);
 		device->dma_device = parent;
 	}
+	/* Setup default max segment size for all IB devices */
+	dma_set_max_seg_size(device->dma_device, SZ_2G);
+
 }
 
 /*

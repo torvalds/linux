@@ -526,7 +526,7 @@ static int ib_umem_odp_map_dma_single_page(
 		}
 		umem_odp->dma_list[page_index] = dma_addr | access_mask;
 		umem_odp->page_list[page_index] = page;
-		umem->npages++;
+		umem_odp->npages++;
 	} else if (umem_odp->page_list[page_index] == page) {
 		umem_odp->dma_list[page_index] |= access_mask;
 	} else {
@@ -752,7 +752,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 			}
 			umem_odp->page_list[idx] = NULL;
 			umem_odp->dma_list[idx] = 0;
-			umem->npages--;
+			umem_odp->npages--;
 		}
 	}
 	mutex_unlock(&umem_odp->umem_mutex);

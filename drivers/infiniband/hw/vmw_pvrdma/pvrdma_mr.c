@@ -119,7 +119,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_mr *cmd = &req.create_mr;
 	struct pvrdma_cmd_create_mr_resp *resp = &rsp.create_mr_resp;
-	int ret;
+	int ret, npages;
 
 	if (length == 0 || length > dev->dsr->caps.max_mr_size) {
 		dev_warn(&dev->pdev->dev, "invalid mem region length\n");
@@ -133,9 +133,10 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return ERR_CAST(umem);
 	}
 
-	if (umem->npages < 0 || umem->npages > PVRDMA_PAGE_DIR_MAX_PAGES) {
+	npages = ib_umem_num_pages(umem);
+	if (npages < 0 || npages > PVRDMA_PAGE_DIR_MAX_PAGES) {
 		dev_warn(&dev->pdev->dev, "overflow %d pages in mem region\n",
-			 umem->npages);
+			 npages);
 		ret = -EINVAL;
 		goto err_umem;
 	}
@@ -150,7 +151,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mmr.size = length;
 	mr->umem = umem;
 
-	ret = pvrdma_page_dir_init(dev, &mr->pdir, umem->npages, false);
+	ret = pvrdma_page_dir_init(dev, &mr->pdir, npages, false);
 	if (ret) {
 		dev_warn(&dev->pdev->dev,
 			 "could not allocate page directory\n");
@@ -167,7 +168,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	cmd->length = length;
 	cmd->pd_handle = to_vpd(pd)->pd_handle;
 	cmd->access_flags = access_flags;
-	cmd->nchunks = umem->npages;
+	cmd->nchunks = npages;
 	cmd->pdir_dma = mr->pdir.dir_dma;
 
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);

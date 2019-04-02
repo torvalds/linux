@@ -53,7 +53,7 @@ struct ib_umem {
 	struct work_struct	work;
 	struct sg_table sg_head;
 	int             nmap;
-	int             npages;
+	unsigned int    sg_nents;
 };
 
 /* Returns the offset of the umem start relative to the first page. */
