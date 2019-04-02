@@ -93,6 +93,14 @@ CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_pmc_setup,
 	       of_sama5d2_clk_audio_pll_pmc_setup);
 #endif /* CONFIG_HAVE_AT91_AUDIO_PLL */
 
+static const struct clk_pcr_layout dt_pcr_layout = {
+	.offset = 0x10c,
+	.cmd = BIT(12),
+	.pid_mask = GENMASK(5, 0),
+	.div_mask = GENMASK(17, 16),
+	.gckcss_mask = GENMASK(10, 8),
+};
+
 #ifdef CONFIG_HAVE_AT91_GENERATED_CLK
 #define GENERATED_SOURCE_MAX	6
 
@@ -448,6 +456,7 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 
 			hw = at91_clk_register_sam9x5_peripheral(regmap,
 								 &pmc_pcr_lock,
+								 &dt_pcr_layout,
 								 name,
 								 parent_name,
 								 id, &range);
