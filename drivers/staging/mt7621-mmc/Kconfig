@@ -1,9 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-config MTK_MMC
-	tristate "MTK SD/MMC"
-	depends on RALINK && MMC
-
-config MTK_AEE_KDUMP
-	bool "MTK AEE KDUMP"
-	depends on MTK_MMC
-
