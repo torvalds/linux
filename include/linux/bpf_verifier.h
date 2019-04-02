@@ -248,6 +248,12 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 	return log->len_used >= log->len_total - 1;
 }
 
+#define BPF_LOG_LEVEL1	1
+#define BPF_LOG_LEVEL2	2
+#define BPF_LOG_STATS	4
+#define BPF_LOG_LEVEL	(BPF_LOG_LEVEL1 | BPF_LOG_LEVEL2)
+#define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS)
+
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
 	return log->level && log->ubuf && !bpf_verifier_log_full(log);
@@ -284,6 +290,21 @@ struct bpf_verifier_env {
 	struct bpf_verifier_log log;
 	struct bpf_subprog_info subprog_info[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;
+	/* number of instructions analyzed by the verifier */
+	u32 insn_processed;
+	/* total verification time */
+	u64 verification_time;
+	/* maximum number of verifier states kept in 'branching' instructions */
+	u32 max_states_per_insn;
+	/* total number of allocated verifier states */
+	u32 total_states;
+	/* some states are freed during program analysis.
+	 * this is peak number of states. this number dominates kernel
+	 * memory consumption during verification
+	 */
+	u32 peak_states;
+	/* longest register parentage chain walked for liveness marking */
+	u32 longest_mark_read_walk;
 };
 
 __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
