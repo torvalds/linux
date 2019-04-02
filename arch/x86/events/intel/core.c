@@ -2145,6 +2145,11 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 	bits <<= (idx * 4);
 	mask = 0xfULL << (idx * 4);
 
+	if (x86_pmu.intel_cap.pebs_baseline && event->attr.precise_ip) {
+		bits |= ICL_FIXED_0_ADAPTIVE << (idx * 4);
+		mask |= ICL_FIXED_0_ADAPTIVE << (idx * 4);
+	}
+
 	rdmsrl(hwc->config_base, ctrl_val);
 	ctrl_val &= ~mask;
 	ctrl_val |= bits;
@@ -3510,6 +3515,8 @@ static struct intel_excl_cntrs *allocate_excl_cntrs(int cpu)
 
 int intel_cpuc_prepare(struct cpu_hw_events *cpuc, int cpu)
 {
+	cpuc->pebs_record_size = x86_pmu.pebs_record_size;
+
 	if (x86_pmu.extra_regs || x86_pmu.lbr_sel_map) {
 		cpuc->shared_regs = allocate_shared_regs(cpu);
 		if (!cpuc->shared_regs)

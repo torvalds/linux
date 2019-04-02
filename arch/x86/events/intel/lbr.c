@@ -1080,6 +1080,28 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 	}
 }
 
+void intel_pmu_store_pebs_lbrs(struct pebs_lbr *lbr)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	int i;
+
+	cpuc->lbr_stack.nr = x86_pmu.lbr_nr;
+	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+		u64 info = lbr->lbr[i].info;
+		struct perf_branch_entry *e = &cpuc->lbr_entries[i];
+
+		e->from		= lbr->lbr[i].from;
+		e->to		= lbr->lbr[i].to;
+		e->mispred	= !!(info & LBR_INFO_MISPRED);
+		e->predicted	= !(info & LBR_INFO_MISPRED);
+		e->in_tx	= !!(info & LBR_INFO_IN_TX);
+		e->abort	= !!(info & LBR_INFO_ABORT);
+		e->cycles	= info & LBR_INFO_CYCLES;
+		e->reserved	= 0;
+	}
+	intel_pmu_lbr_filter(cpuc);
+}
+
 /*
  * Map interface branch filters onto LBR filters
  */
