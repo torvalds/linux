@@ -95,6 +95,8 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,video-4k-freq = <1008000>;
+
 		rockchip,leakage-voltage-sel = <
 			1   10    0
 			11  254   1
