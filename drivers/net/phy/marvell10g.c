@@ -48,6 +48,8 @@ enum {
 	MV_AN_STAT1000		= 0x8001, /* 1000base-T status register */
 
 	/* Vendor2 MMD registers */
+	MV_V2_PORT_CTRL		= 0xf001,
+	MV_V2_PORT_CTRL_PWRDOWN = 0x0800,
 	MV_V2_TEMP_CTRL		= 0xf08a,
 	MV_V2_TEMP_CTRL_MASK	= 0xc000,
 	MV_V2_TEMP_CTRL_SAMPLE	= 0x0000,
@@ -226,11 +228,19 @@ static int mv3310_probe(struct phy_device *phydev)
 
 static int mv3310_suspend(struct phy_device *phydev)
 {
-	return 0;
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				MV_V2_PORT_CTRL_PWRDOWN);
 }
 
 static int mv3310_resume(struct phy_device *phydev)
 {
+	int ret;
+
+	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				 MV_V2_PORT_CTRL_PWRDOWN);
+	if (ret)
+		return ret;
+
 	return mv3310_hwmon_config(phydev, true);
 }
 
