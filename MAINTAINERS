@@ -12616,13 +12616,6 @@ W:	http://wireless.kernel.org/en/users/Drivers/ath9k
 S:	Supported
 F:	drivers/net/wireless/ath/ath9k/
 
-QUALCOMM CAMERA CONTROL INTERFACE DRIVER
-M:	Todor Tomov <todor.tomov@linaro.org>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-qcom-cci.txt
-F:	drivers/i2c/busses/i2c-qcom-cci.c
-
 QUALCOMM CAMERA SUBSYSTEM DRIVER
 M:	Todor Tomov <todor.too@gmail.com>
 L:	linux-media@vger.kernel.org
