@@ -3817,8 +3817,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	qla2x00_delete_all_vps(ha, base_vha);
 
-	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
-
 	qla2x00_dfs_remove(base_vha);
 
 	qla84xx_put_chip(base_vha);
