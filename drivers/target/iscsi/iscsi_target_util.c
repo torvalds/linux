@@ -737,6 +737,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
+	kfree(cmd->overflow_buf);
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
