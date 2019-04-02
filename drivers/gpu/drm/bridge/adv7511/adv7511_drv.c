@@ -508,13 +508,7 @@ static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
 {
 	int ret;
 
-	/*
-	 * HACK: EDID-Ready interrupt doesn't seem to happen if we try to do
-	 * "power-on - read EDID - power-off" consecutively really fast.
-	 * Inserting a delay after powering on ADV7511 improves things a
-	 * bit but doesn't solve it entirely.
-	 */
-	 if (0 /*adv7511->i2c_main->irq*/) {
+	if (adv7511->i2c_main->irq) {
 		ret = wait_event_interruptible_timeout(adv7511->wq,
 				adv7511->edid_read, msecs_to_jiffies(timeout));
 	} else {
