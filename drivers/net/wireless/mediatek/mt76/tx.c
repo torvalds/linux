@@ -74,6 +74,7 @@ mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 	list_add(&t->list, &dev->txwi_cache);
 	spin_unlock_bh(&dev->lock);
 }
+EXPORT_SYMBOL_GPL(mt76_put_txwi);
 
 void mt76_tx_free(struct mt76_dev *dev)
 {

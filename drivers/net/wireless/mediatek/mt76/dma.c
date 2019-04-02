@@ -174,7 +174,8 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 			dev->drv->tx_complete_skb(dev, qid, &entry);
 
 		if (entry.txwi) {
-			mt76_put_txwi(dev, entry.txwi);
+			if (!(dev->drv->txwi_flags & MT_TXWI_NO_FREE))
+				mt76_put_txwi(dev, entry.txwi);
 			wake = !flush;
 		}
 
