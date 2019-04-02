@@ -1044,7 +1044,7 @@ void hl_device_fini(struct hl_device *hdev)
 			WARN(1, "Failed to remove device because reset function did not finish\n");
 			return;
 		}
-	};
+	}
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
