@@ -1624,11 +1624,12 @@ static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
 		char *page)
 {
+	struct se_session *sess = dev->reservation_holder;
 	struct se_node_acl *se_nacl;
 	ssize_t len;
 
-	se_nacl = dev->dev_reserved_node_acl;
-	if (se_nacl) {
+	if (sess) {
+		se_nacl = sess->se_node_acl;
 		len = sprintf(page,
 			      "SPC-2 Reservation: %s Initiator: %s\n",
 			      se_nacl->se_tpg->se_tpg_tfo->fabric_name,

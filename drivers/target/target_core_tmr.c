@@ -390,7 +390,7 @@ int core_tmr_lun_reset(
 	if (!preempt_and_abort_list &&
 	     (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)) {
 		spin_lock(&dev->dev_reservation_lock);
-		dev->dev_reserved_node_acl = NULL;
+		dev->reservation_holder = NULL;
 		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");
