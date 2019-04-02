@@ -144,7 +144,7 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 	struct sof_intel_hda_dev *hda =
 		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct snd_sof_pcm *spcm;
-	snd_pcm_uframes_t pos = 0;
+	snd_pcm_uframes_t pos;
 
 	spcm = snd_sof_find_spcm_dai(sdev, rtd);
 	if (!spcm) {

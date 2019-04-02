@@ -1024,7 +1024,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	struct soc_bytes_ext *sbe;
 	struct soc_enum *se;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_dobj *dobj = NULL;
+	struct snd_soc_dobj *dobj;
 	struct snd_sof_control *scontrol;
 	int ret = -EINVAL;
 
@@ -1342,7 +1342,7 @@ int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
 			  struct sof_ipc_comp_reply *r)
 {
 	struct sof_ipc_pm_core_config pm_core_config;
-	int ret = 0;
+	int ret;
 
 	ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
 				 sizeof(*pipeline), r, sizeof(*r));
@@ -1727,14 +1727,14 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct snd_soc_dapm_widget *widget = swidget->widget;
-	const struct snd_kcontrol_new *kc = NULL;
+	const struct snd_kcontrol_new *kc;
 	struct soc_bytes_ext *sbe;
 	struct soc_mixer_control *sm;
 	struct soc_enum *se;
 	struct snd_sof_control *scontrol = NULL;
 	struct sof_abi_hdr *pdata = NULL;
 	struct sof_ipc_comp_process *process;
-	size_t ipc_size = 0, ipc_data_size = 0;
+	size_t ipc_size, ipc_data_size = 0;
 	int ret, i, offset = 0;
 
 	if (type == SOF_COMP_NONE) {
@@ -1954,7 +1954,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	struct snd_sof_widget *swidget;
 	struct snd_sof_dai *dai;
 	struct sof_ipc_comp_reply reply;
-	struct snd_sof_control *scontrol = NULL;
+	struct snd_sof_control *scontrol;
 	int ret = 0;
 
 	swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
@@ -2095,7 +2095,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 			     struct snd_soc_dobj *dobj)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	const struct snd_kcontrol_new *kc = NULL;
+	const struct snd_kcontrol_new *kc;
 	struct snd_soc_dapm_widget *widget;
 	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_control *scontrol;
@@ -2704,7 +2704,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	struct sof_ipc_dai_config config;
 	struct snd_soc_tplg_hw_config *hw_config;
 	int num_hw_configs;
-	int ret = 0;
+	int ret;
 	int i = 0;
 
 	link->platform_name = dev_name(sdev->dev);
@@ -2834,7 +2834,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 	struct snd_soc_dai_link *link =
 		container_of(dobj, struct snd_soc_dai_link, dobj);
 
-	struct snd_sof_dai *sof_dai = NULL;
+	struct snd_sof_dai *sof_dai;
 	int ret = 0;
 
 	/* only BE link is loaded by sof */

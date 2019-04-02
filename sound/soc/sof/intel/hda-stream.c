@@ -131,14 +131,14 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       int enable, u32 size)
 {
 	struct hdac_stream *hstream = &stream->hstream;
-	u32 mask = 0;
+	u32 mask;
 
 	if (!sdev->bar[HDA_DSP_SPIB_BAR]) {
 		dev_err(sdev->dev, "error: address of spib capability is NULL\n");
 		return -EINVAL;
 	}
 
-	mask |= (1 << hstream->index);
+	mask = (1 << hstream->index);
 
 	/* enable/disable SPIB for the stream */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_SPIB_BAR,

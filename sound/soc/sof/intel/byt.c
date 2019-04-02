@@ -516,7 +516,7 @@ static int byt_pci_probe(struct snd_sof_dev *sdev)
 	const struct sof_dev_desc *desc = pdata->desc;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	u32 base, size;
-	int ret = 0;
+	int ret;
 
 	/* DSP DMA can only access low 31 bits of host memory */
 	ret = dma_coerce_mask_and_coherent(&pci->dev, DMA_BIT_MASK(31));
@@ -648,7 +648,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 		container_of(sdev->dev, struct platform_device, dev);
 	struct resource *mmio;
 	u32 base, size;
-	int ret = 0;
+	int ret;
 
 	/* DSP DMA can only access low 31 bits of host memory */
 	ret = dma_coerce_mask_and_coherent(sdev->dev, DMA_BIT_MASK(31));

@@ -56,7 +56,7 @@ int sof_nocodec_setup(struct device *dev,
 		      const struct snd_sof_dsp_ops *ops)
 {
 	struct snd_soc_dai_link *links;
-	int ret = 0;
+	int ret;
 
 	if (!mach)
 		return -EINVAL;

@@ -13,7 +13,7 @@
 
 static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_control *scontrol = NULL;
+	struct snd_sof_control *scontrol;
 	int ipc_cmd, ctrl_type;
 	int ret = 0;
 
@@ -63,13 +63,13 @@ static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 
 static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_widget *swidget = NULL;
-	struct snd_sof_route *sroute = NULL;
+	struct snd_sof_widget *swidget;
+	struct snd_sof_route *sroute;
 	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_dai *dai;
 	struct sof_ipc_comp_dai *comp_dai;
 	struct sof_ipc_cmd_hdr *hdr;
-	int ret = 0;
+	int ret;
 
 	/* restore pipeline components */
 	list_for_each_entry_reverse(swidget, &sdev->widget_list, list) {
@@ -242,7 +242,7 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret;
 
 	/* do nothing if dsp resume callbacks are not set */
 	if (!sof_ops(sdev)->resume || !sof_ops(sdev)->runtime_resume)
@@ -311,7 +311,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 static int sof_suspend(struct device *dev, bool runtime_suspend)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret;
 
 	/* do nothing if dsp suspend callback is not set */
 	if (!sof_ops(sdev)->suspend)

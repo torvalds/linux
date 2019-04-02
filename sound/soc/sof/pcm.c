@@ -354,7 +354,7 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_pcm_substream *substream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
-	snd_pcm_uframes_t host = 0, dai = 0;
+	snd_pcm_uframes_t host, dai;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -531,7 +531,7 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_sof_pcm *spcm;
 	struct snd_pcm *pcm = rtd->pcm;
 	struct snd_soc_tplg_stream_caps *caps;
-	int ret = 0, stream = SNDRV_PCM_STREAM_PLAYBACK;
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
 	/* find SOF PCM for this RTD */
 	spcm = snd_sof_find_spcm_dai(sdev, rtd);
@@ -562,7 +562,7 @@ capture:
 
 	/* do we need to pre-allocate capture audio buffer pages */
 	if (!spcm->pcm.capture)
-		return ret;
+		return 0;
 
 	caps = &spcm->pcm.caps[stream];
 
@@ -575,7 +575,7 @@ capture:
 				      le32_to_cpu(caps->buffer_size_min),
 				      le32_to_cpu(caps->buffer_size_max));
 
-	return ret;
+	return 0;
 }
 
 /* fixup the BE DAI link to match any values from topology */

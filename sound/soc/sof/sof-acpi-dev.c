@@ -104,7 +104,7 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 static bool is_byt_cr(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	int status = 0;
+	int status;
 
 	if (iosf_mbi_available()) {
 		u32 bios_status;
@@ -187,7 +187,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
 	const struct snd_sof_dsp_ops *ops;
-	int ret = 0;
+	int ret;
 
 	dev_dbg(&pdev->dev, "ACPI DSP detected");
 

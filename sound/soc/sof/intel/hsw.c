@@ -549,7 +549,7 @@ static int hsw_probe(struct snd_sof_dev *sdev)
 		container_of(sdev->dev, struct platform_device, dev);
 	struct resource *mmio;
 	u32 base, size;
-	int ret = 0;
+	int ret;
 
 	/* LPE base */
 	mmio = platform_get_resource(pdev, IORESOURCE_MEM,

@@ -27,17 +27,17 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 			     unsigned int size, struct snd_dma_buffer *dmab,
 			     int direction)
 {
-	struct hdac_ext_stream *dsp_stream = NULL;
+	struct hdac_ext_stream *dsp_stream;
 	struct hdac_stream *hstream;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
-	if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		dsp_stream = hda_dsp_stream_get(sdev, direction);
-	} else {
+	if (direction != SNDRV_PCM_STREAM_PLAYBACK) {
 		dev_err(sdev->dev, "error: code loading DMA is playback only\n");
 		return -EINVAL;
 	}
+
+	dsp_stream = hda_dsp_stream_get(sdev, direction);
 
 	if (!dsp_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");

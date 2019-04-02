@@ -27,7 +27,7 @@
 struct snd_sof_pcm *snd_sof_find_spcm_name(struct snd_sof_dev *sdev,
 					   const char *name)
 {
-	struct snd_sof_pcm *spcm = NULL;
+	struct snd_sof_pcm *spcm;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
 		/* match with PCM dai name */
@@ -52,7 +52,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
 					   unsigned int comp_id,
 					   int *direction)
 {
-	struct snd_sof_pcm *spcm = NULL;
+	struct snd_sof_pcm *spcm;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
 		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id == comp_id) {
@@ -71,7 +71,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
 struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
 					     unsigned int pcm_id)
 {
-	struct snd_sof_pcm *spcm = NULL;
+	struct snd_sof_pcm *spcm;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
 		if (le32_to_cpu(spcm->pcm.pcm_id) == pcm_id)
@@ -84,7 +84,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
 struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
 					    char *name)
 {
-	struct snd_sof_widget *swidget = NULL;
+	struct snd_sof_widget *swidget;
 
 	list_for_each_entry(swidget, &sdev->widget_list, list) {
 		if (strcmp(name, swidget->widget->name) == 0)
@@ -98,7 +98,7 @@ struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
 struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
 						  char *pcm_name, int dir)
 {
-	struct snd_sof_widget *swidget = NULL;
+	struct snd_sof_widget *swidget;
 	enum snd_soc_dapm_type type;
 
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
@@ -117,7 +117,7 @@ struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
 struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
 				     char *name)
 {
-	struct snd_sof_dai *dai = NULL;
+	struct snd_sof_dai *dai;
 
 	list_for_each_entry(dai, &sdev->dai_list, list) {
 		if (dai->name && (strcmp(name, dai->name) == 0))

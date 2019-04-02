@@ -249,9 +249,9 @@ static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 static int hda_init_caps(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_link *hlink = NULL;
+	struct hdac_ext_link *hlink;
 	struct snd_soc_acpi_mach_params *mach_params;
-	struct snd_soc_acpi_mach *hda_mach = NULL;
+	struct snd_soc_acpi_mach *hda_mach;
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	struct snd_soc_acpi_mach *mach;
 	const char *tplg_filename;

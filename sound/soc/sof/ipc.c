@@ -669,7 +669,7 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 	struct sof_ipc_fw_version *v = &ready->version;
 	struct sof_ipc_ctrl_data_params sparams;
 	size_t send_bytes;
-	int err = 0;
+	int err;
 
 	/* read or write firmware volume */
 	if (scontrol->readback_offset != 0) {

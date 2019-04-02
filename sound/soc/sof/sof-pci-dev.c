@@ -216,7 +216,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
 	const struct snd_sof_dsp_ops *ops;
-	int ret = 0;
+	int ret;
 
 	dev_dbg(&pci->dev, "PCI DSP detected");
 

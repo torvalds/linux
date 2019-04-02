@@ -97,7 +97,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 int hda_codec_probe_bus(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	int i, ret = 0;
+	int i, ret;
 
 	/* probe codecs in avail slots */
 	for (i = 0; i < HDA_MAX_CODECS; i++) {

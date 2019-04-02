@@ -289,7 +289,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #endif
-	int ret = 0;
+	int ret;
 
 	/* disable IPC interrupts */
 	hda_dsp_ipc_int_disable(sdev);
