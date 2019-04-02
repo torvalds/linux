@@ -2525,9 +2525,14 @@ static void __take_cap_refs(struct ceph_inode_info *ci, int got,
  * to (when applicable), and check against max_size here as well.
  * Note that caller is responsible for ensuring max_size increases are
  * requested from the MDS.
+ *
+ * Returns 0 if caps were not able to be acquired (yet), a 1 if they were,
+ * or a negative error code.
+ *
+ * FIXME: how does a 0 return differ from -EAGAIN?
  */
 static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
-			    loff_t endoff, bool nonblock, int *got, int *err)
+			    loff_t endoff, bool nonblock, int *got)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
@@ -2547,8 +2552,7 @@ again:
 	if ((file_wanted & need) != need) {
 		dout("try_get_cap_refs need %s file_wanted %s, EBADF\n",
 		     ceph_cap_string(need), ceph_cap_string(file_wanted));
-		*err = -EBADF;
-		ret = 1;
+		ret = -EBADF;
 		goto out_unlock;
 	}
 
@@ -2569,10 +2573,8 @@ again:
 		if (endoff >= 0 && endoff > (loff_t)ci->i_max_size) {
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
 			     inode, endoff, ci->i_max_size);
-			if (endoff > ci->i_requested_max_size) {
-				*err = -EAGAIN;
-				ret = 1;
-			}
+			if (endoff > ci->i_requested_max_size)
+				ret = -EAGAIN;
 			goto out_unlock;
 		}
 		/*
@@ -2607,8 +2609,7 @@ again:
 					 * task isn't in TASK_RUNNING state
 					 */
 					if (nonblock) {
-						*err = -EAGAIN;
-						ret = 1;
+						ret = -EAGAIN;
 						goto out_unlock;
 					}
 
@@ -2637,8 +2638,7 @@ again:
 		if (session_readonly) {
 			dout("get_cap_refs %p needed %s but mds%d readonly\n",
 			     inode, ceph_cap_string(need), ci->i_auth_cap->mds);
-			*err = -EROFS;
-			ret = 1;
+			ret = -EROFS;
 			goto out_unlock;
 		}
 
@@ -2647,16 +2647,14 @@ again:
 			if (READ_ONCE(mdsc->fsc->mount_state) ==
 			    CEPH_MOUNT_SHUTDOWN) {
 				dout("get_cap_refs %p forced umount\n", inode);
-				*err = -EIO;
-				ret = 1;
+				ret = -EIO;
 				goto out_unlock;
 			}
 			mds_wanted = __ceph_caps_mds_wanted(ci, false);
 			if (need & ~(mds_wanted & need)) {
 				dout("get_cap_refs %p caps were dropped"
 				     " (session killed?)\n", inode);
-				*err = -ESTALE;
-				ret = 1;
+				ret = -ESTALE;
 				goto out_unlock;
 			}
 			if (!(file_wanted & ~mds_wanted))
@@ -2707,7 +2705,7 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 int ceph_try_get_caps(struct ceph_inode_info *ci, int need, int want,
 		      bool nonblock, int *got)
 {
-	int ret, err = 0;
+	int ret;
 
 	BUG_ON(need & ~CEPH_CAP_FILE_RD);
 	BUG_ON(want & ~(CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO|CEPH_CAP_FILE_SHARED));
@@ -2715,15 +2713,8 @@ int ceph_try_get_caps(struct ceph_inode_info *ci, int need, int want,
 	if (ret < 0)
 		return ret;
 
-	ret = try_get_cap_refs(ci, need, want, 0, nonblock, got, &err);
-	if (ret) {
-		if (err == -EAGAIN) {
-			ret = 0;
-		} else if (err < 0) {
-			ret = err;
-		}
-	}
-	return ret;
+	ret = try_get_cap_refs(ci, need, want, 0, nonblock, got);
+	return ret == -EAGAIN ? 0 : ret;
 }
 
 /*
@@ -2734,7 +2725,7 @@ int ceph_try_get_caps(struct ceph_inode_info *ci, int need, int want,
 int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 		  loff_t endoff, int *got, struct page **pinned_page)
 {
-	int _got, ret, err = 0;
+	int _got, ret;
 
 	ret = ceph_pool_perm_check(ci, need);
 	if (ret < 0)
@@ -2744,21 +2735,19 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 		if (endoff > 0)
 			check_max_size(&ci->vfs_inode, endoff);
 
-		err = 0;
 		_got = 0;
 		ret = try_get_cap_refs(ci, need, want, endoff,
-				       false, &_got, &err);
-		if (ret) {
-			if (err == -EAGAIN)
-				continue;
-			if (err < 0)
-				ret = err;
-		} else {
+				       false, &_got);
+		if (ret == -EAGAIN) {
+			continue;
+		} else if (!ret) {
+			int err;
+
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
-			while (!try_get_cap_refs(ci, need, want, endoff,
-						 true, &_got, &err)) {
+			while (!(err = try_get_cap_refs(ci, need, want, endoff,
+							true, &_got))) {
 				if (signal_pending(current)) {
 					ret = -ERESTARTSYS;
 					break;
@@ -2767,19 +2756,14 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
-
 			if (err == -EAGAIN)
 				continue;
-			if (err < 0)
-				ret = err;
 		}
-		if (ret < 0) {
-			if (err == -ESTALE) {
-				/* session was killed, try renew caps */
-				ret = ceph_renew_caps(&ci->vfs_inode);
-				if (ret == 0)
-					continue;
-			}
+		if (ret == -ESTALE) {
+			/* session was killed, try renew caps */
+			ret = ceph_renew_caps(&ci->vfs_inode);
+			if (ret == 0)
+				continue;
 			return ret;
 		}
 
