@@ -1009,13 +1009,11 @@ retry:
 	if (inode) {
 		unsigned long cur_ino = inode->i_ino;
 
-		if (is_dir)
-			F2FS_I(inode)->cp_task = current;
+		F2FS_I(inode)->cp_task = current;
 
 		filemap_fdatawrite(inode->i_mapping);
 
-		if (is_dir)
-			F2FS_I(inode)->cp_task = NULL;
+		F2FS_I(inode)->cp_task = NULL;
 
 		iput(inode);
 		/* We need to give cpu to another writers. */
