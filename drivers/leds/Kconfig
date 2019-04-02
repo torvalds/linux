@@ -711,13 +711,6 @@ config LEDS_POWERNV
 	  To compile this driver as a module, choose 'm' here: the module
 	  will be called leds-powernv.
 
-config LEDS_QCOM_LPG
-	tristate "LED support for Qualcomm LPG"
-	depends on LEDS_CLASS
-	help
-	  This option enables support for the Light Pulse Generator found in a
-	  wide variety of Qualcomm PMICs.
-
 config LEDS_SYSCON
 	bool "LED support for LEDs on system controllers"
 	depends on LEDS_CLASS=y
