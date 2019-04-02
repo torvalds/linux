@@ -365,6 +365,7 @@ static struct attribute *integrity_attrs[] = {
 	&integrity_device_entry.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(integrity);
 
 static const struct sysfs_ops integrity_ops = {
 	.show	= &integrity_attr_show,
@@ -372,7 +373,7 @@ static const struct sysfs_ops integrity_ops = {
 };
 
 static struct kobj_type integrity_ktype = {
-	.default_attrs	= integrity_attrs,
+	.default_groups = integrity_groups,
 	.sysfs_ops	= &integrity_ops,
 };
 
