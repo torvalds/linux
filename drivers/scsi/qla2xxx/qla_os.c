@@ -3907,11 +3907,8 @@ void qla2x00_free_fcports(struct scsi_qla_host *vha)
 {
 	fc_port_t *fcport, *tfcport;
 
-	list_for_each_entry_safe(fcport, tfcport, &vha->vp_fcports, list) {
-		list_del(&fcport->list);
-		qla2x00_clear_loop_id(fcport);
-		kfree(fcport);
-	}
+	list_for_each_entry_safe(fcport, tfcport, &vha->vp_fcports, list)
+		qla2x00_free_fcport(fcport);
 }
 
 static inline void
