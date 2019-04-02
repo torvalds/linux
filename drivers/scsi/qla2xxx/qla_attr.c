@@ -430,6 +430,10 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		 * 	0x000000 -> 0x07ffff -- Boot code.
 		 * 	0x080000 -> 0x0fffff -- Firmware.
 		 * 	0x120000 -> 0x12ffff -- VPD and HBA parameters.
+		 *
+		 * > ISP25xx type boards:
+		 *
+		 *      None -- should go through BSG.
 		 */
 		valid = 0;
 		if (ha->optrom_size == OPTROM_SIZE_2300 && start == 0)
@@ -437,9 +441,7 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)
-			|| IS_CNA_CAPABLE(ha) || IS_QLA2031(ha)
-			|| IS_QLA27XX(ha) || IS_QLA28XX(ha))
+		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))
 			valid = 1;
 		if (!valid) {
 			ql_log(ql_log_warn, vha, 0x7065,
