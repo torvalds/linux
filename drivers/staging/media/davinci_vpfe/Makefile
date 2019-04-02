@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_VIDEO_DM365_VPFE) += davinci-vfpe.o
 
 davinci-vfpe-objs := \

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_R8822BE) 		+= r8822be.o
 
 r8822be-objs	:=		\
