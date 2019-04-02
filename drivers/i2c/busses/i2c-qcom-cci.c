@@ -423,7 +423,7 @@ static int cci_run_queue(struct cci *cci, u8 master, u8 queue)
 	writel(val, cci->base + CCI_QUEUE_START);
 
 	time = wait_for_completion_timeout(&cci->master[master].irq_complete,
-					   msecs_to_jiffies(CCI_TIMEOUT_MS));
+					   CCI_TIMEOUT_MS);
 	if (!time) {
 		dev_err(cci->dev, "master %d queue %d timeout\n",
 			master, queue);
