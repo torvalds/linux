@@ -967,4 +967,10 @@ int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 
 void tb_check_quirks(struct tb_switch *sw);
 
+#ifdef CONFIG_ACPI
+void tb_acpi_add_links(struct tb_nhi *nhi);
+#else
+static inline void tb_acpi_add_links(struct tb_nhi *nhi) { }
+#endif
+
 #endif
