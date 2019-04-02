@@ -204,15 +204,13 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	int ret;
 
 	lpc18xx_wdt = devm_kzalloc(dev, sizeof(*lpc18xx_wdt), GFP_KERNEL);
 	if (!lpc18xx_wdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lpc18xx_wdt->base = devm_ioremap_resource(dev, res);
+	lpc18xx_wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lpc18xx_wdt->base))
 		return PTR_ERR(lpc18xx_wdt->base);
 

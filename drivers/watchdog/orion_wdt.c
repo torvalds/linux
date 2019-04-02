@@ -494,8 +494,7 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		   of_device_is_compatible(node, "marvell,armada-xp-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 
@@ -503,8 +502,7 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		   of_device_is_compatible(node, "marvell,armada-380-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 

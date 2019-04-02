@@ -141,11 +141,9 @@ static struct watchdog_device rt288x_wdt_dev = {
 
 static int rt288x_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rt288x_wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	rt288x_wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rt288x_wdt_base))
 		return PTR_ERR(rt288x_wdt_base);
 

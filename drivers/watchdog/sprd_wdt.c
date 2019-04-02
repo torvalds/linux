@@ -269,7 +269,6 @@ static const struct watchdog_info sprd_wdt_info = {
 
 static int sprd_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *wdt_res;
 	struct sprd_wdt *wdt;
 	int ret;
 
@@ -277,8 +276,7 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 	if (!wdt)
 		return -ENOMEM;
 
-	wdt_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->base = devm_ioremap_resource(&pdev->dev, wdt_res);
+	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 

@@ -187,9 +187,7 @@ static void max63xx_mmap_set(struct max63xx_wdt *wdt, u8 set)
 
 static int max63xx_mmap_init(struct platform_device *p, struct max63xx_wdt *wdt)
 {
-	struct resource *mem = platform_get_resource(p, IORESOURCE_MEM, 0);
-
-	wdt->base = devm_ioremap_resource(&p->dev, mem);
+	wdt->base = devm_platform_ioremap_resource(p, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 

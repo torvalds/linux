@@ -231,7 +231,6 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct sbsa_gwdt *gwdt;
-	struct resource *res;
 	int ret, irq;
 	u32 status;
 
@@ -240,13 +239,11 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, gwdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cf_base = devm_ioremap_resource(dev, res);
+	cf_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cf_base))
 		return PTR_ERR(cf_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	rf_base = devm_ioremap_resource(dev, res);
+	rf_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(rf_base))
 		return PTR_ERR(rf_base);
 

@@ -171,14 +171,12 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 	int ret;
 	struct watchdog_device *wdd = &pic32_wdd;
 	struct pic32_wdt *wdt;
-	struct resource *mem;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->regs = devm_ioremap_resource(&pdev->dev, mem);
+	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs))
 		return PTR_ERR(wdt->regs);
 

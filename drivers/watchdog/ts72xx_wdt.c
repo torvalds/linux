@@ -124,20 +124,17 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 {
 	struct ts72xx_wdt_priv *priv;
 	struct watchdog_device *wdd;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->control_reg = devm_ioremap_resource(&pdev->dev, res);
+	priv->control_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->control_reg))
 		return PTR_ERR(priv->control_reg);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->feed_reg = devm_ioremap_resource(&pdev->dev, res);
+	priv->feed_reg = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->feed_reg))
 		return PTR_ERR(priv->feed_reg);
 

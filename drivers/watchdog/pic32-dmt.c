@@ -172,15 +172,13 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct pic32_dmt *dmt;
-	struct resource *mem;
 	struct watchdog_device *wdd = &pic32_dmt_wdd;
 
 	dmt = devm_kzalloc(&pdev->dev, sizeof(*dmt), GFP_KERNEL);
 	if (!dmt)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmt->regs = devm_ioremap_resource(&pdev->dev, mem);
+	dmt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dmt->regs))
 		return PTR_ERR(dmt->regs);
 

@@ -285,7 +285,6 @@ static const struct watchdog_ops cdns_wdt_ops = {
  */
 static int cdns_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	int ret, irq;
 	unsigned long clock_f;
 	struct cdns_wdt *wdt;
@@ -302,8 +301,7 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	cdns_wdt_device->min_timeout = CDNS_WDT_MIN_TIMEOUT;
 	cdns_wdt_device->max_timeout = CDNS_WDT_MAX_TIMEOUT;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->regs = devm_ioremap_resource(&pdev->dev, res);
+	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs))
 		return PTR_ERR(wdt->regs);
 

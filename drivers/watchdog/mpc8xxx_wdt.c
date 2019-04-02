@@ -149,8 +149,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	ddata->base = devm_ioremap_resource(dev, res);
+	ddata->base = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 

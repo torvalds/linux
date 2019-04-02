@@ -92,7 +92,6 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	struct moxart_wdt_dev *moxart_wdt;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource *res;
 	struct clk *clk;
 	int err;
 	unsigned int max_timeout;
@@ -104,8 +103,7 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, moxart_wdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	moxart_wdt->base = devm_ioremap_resource(dev, res);
+	moxart_wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(moxart_wdt->base))
 		return PTR_ERR(moxart_wdt->base);
 

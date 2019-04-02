@@ -133,10 +133,7 @@ static struct watchdog_device mt7621_wdt_dev = {
 
 static int mt7621_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mt7621_wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	mt7621_wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mt7621_wdt_base))
 		return PTR_ERR(mt7621_wdt_base);
 

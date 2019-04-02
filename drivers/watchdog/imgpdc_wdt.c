@@ -183,15 +183,13 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	u64 div;
 	int ret, val;
 	unsigned long clk_rate;
-	struct resource *res;
 	struct pdc_wdt_dev *pdc_wdt;
 
 	pdc_wdt = devm_kzalloc(&pdev->dev, sizeof(*pdc_wdt), GFP_KERNEL);
 	if (!pdc_wdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdc_wdt->base = devm_ioremap_resource(&pdev->dev, res);
+	pdc_wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdc_wdt->base))
 		return PTR_ERR(pdc_wdt->base);
 

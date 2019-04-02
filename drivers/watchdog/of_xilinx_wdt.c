@@ -155,7 +155,6 @@ static int xwdt_probe(struct platform_device *pdev)
 {
 	int rc;
 	u32 pfreq = 0, enable_once = 0;
-	struct resource *res;
 	struct xwdt_device *xdev;
 	struct watchdog_device *xilinx_wdt_wdd;
 
@@ -168,8 +167,7 @@ static int xwdt_probe(struct platform_device *pdev)
 	xilinx_wdt_wdd->ops = &xilinx_wdt_ops;
 	xilinx_wdt_wdd->parent = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xdev->base = devm_ioremap_resource(&pdev->dev, res);
+	xdev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xdev->base))
 		return PTR_ERR(xdev->base);
 

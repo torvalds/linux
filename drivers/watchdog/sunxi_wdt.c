@@ -234,7 +234,6 @@ MODULE_DEVICE_TABLE(of, sunxi_wdt_dt_ids);
 static int sunxi_wdt_probe(struct platform_device *pdev)
 {
 	struct sunxi_wdt_dev *sunxi_wdt;
-	struct resource *res;
 	int err;
 
 	sunxi_wdt = devm_kzalloc(&pdev->dev, sizeof(*sunxi_wdt), GFP_KERNEL);
@@ -245,8 +244,7 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	if (!sunxi_wdt->wdt_regs)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sunxi_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	sunxi_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sunxi_wdt->wdt_base))
 		return PTR_ERR(sunxi_wdt->wdt_base);
 

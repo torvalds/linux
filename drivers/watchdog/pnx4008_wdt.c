@@ -185,13 +185,11 @@ static struct watchdog_device pnx4008_wdd = {
 
 static int pnx4008_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *r;
 	int ret = 0;
 
 	watchdog_init_timeout(&pnx4008_wdd, heartbeat, &pdev->dev);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_ioremap_resource(&pdev->dev, r);
+	wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);
 

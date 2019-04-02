@@ -250,15 +250,13 @@ static struct miscdevice ath79_wdt_miscdev = {
 
 static int ath79_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	u32 ctrl;
 	int err;
 
 	if (wdt_base)
 		return -EBUSY;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);
 

@@ -192,7 +192,6 @@ static int zx2967_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct zx2967_wdt *wdt;
-	struct resource *base;
 	int ret;
 	struct reset_control *rstc;
 
@@ -209,8 +208,7 @@ static int zx2967_wdt_probe(struct platform_device *pdev)
 	wdt->wdt_device.min_timeout = ZX2967_WDT_MIN_TIMEOUT;
 	wdt->wdt_device.parent = &pdev->dev;
 
-	base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->reg_base = devm_ioremap_resource(dev, base);
+	wdt->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->reg_base))
 		return PTR_ERR(wdt->reg_base);
 

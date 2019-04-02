@@ -98,15 +98,13 @@ static const struct of_device_id rtd119x_wdt_dt_ids[] = {
 static int rtd119x_wdt_probe(struct platform_device *pdev)
 {
 	struct rtd119x_watchdog_device *data;
-	struct resource *res;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 

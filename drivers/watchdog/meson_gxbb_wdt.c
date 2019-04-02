@@ -139,15 +139,13 @@ MODULE_DEVICE_TABLE(of, meson_gxbb_wdt_dt_ids);
 static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 {
 	struct meson_gxbb_wdt *data;
-	struct resource *res;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	data->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->reg_base))
 		return PTR_ERR(data->reg_base);
 

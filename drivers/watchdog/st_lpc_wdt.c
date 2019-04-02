@@ -148,7 +148,6 @@ static int st_wdog_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct st_wdog *st_wdog;
 	struct regmap *regmap;
-	struct resource *res;
 	struct clk *clk;
 	void __iomem *base;
 	uint32_t mode;
@@ -175,8 +174,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 	}
 	st_wdog->syscfg	= (struct st_wdog_syscfg *)match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

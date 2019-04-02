@@ -276,7 +276,6 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 {
 	struct asm9260_wdt_priv *priv;
 	struct watchdog_device *wdd;
-	struct resource *res;
 	int ret;
 	static const char * const mode_name[] = { "hw", "sw", "debug", };
 
@@ -287,8 +286,7 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->iobase = devm_ioremap_resource(&pdev->dev, res);
+	priv->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->iobase))
 		return PTR_ERR(priv->iobase);
 

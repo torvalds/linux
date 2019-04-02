@@ -154,7 +154,6 @@ static const struct watchdog_ops mtk_wdt_ops = {
 static int mtk_wdt_probe(struct platform_device *pdev)
 {
 	struct mtk_wdt_dev *mtk_wdt;
-	struct resource *res;
 	int err;
 
 	mtk_wdt = devm_kzalloc(&pdev->dev, sizeof(*mtk_wdt), GFP_KERNEL);
@@ -163,8 +162,7 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mtk_wdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mtk_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	mtk_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mtk_wdt->wdt_base))
 		return PTR_ERR(mtk_wdt->wdt_base);
 

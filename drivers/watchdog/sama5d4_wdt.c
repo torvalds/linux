@@ -201,7 +201,6 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 {
 	struct watchdog_device *wdd;
 	struct sama5d4_wdt *wdt;
-	struct resource *res;
 	void __iomem *regs;
 	u32 irq = 0;
 	u32 timeout;
@@ -221,8 +220,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, wdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 

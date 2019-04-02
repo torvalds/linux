@@ -164,7 +164,6 @@ MODULE_DEVICE_TABLE(of, meson_wdt_dt_ids);
 
 static int meson_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct meson_wdt_dev *meson_wdt;
 	const struct of_device_id *of_id;
 	int err;
@@ -173,8 +172,7 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	if (!meson_wdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	meson_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	meson_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(meson_wdt->wdt_base))
 		return PTR_ERR(meson_wdt->wdt_base);
 

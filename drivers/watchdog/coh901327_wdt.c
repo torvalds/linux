@@ -258,12 +258,10 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 	u16 val;
-	struct resource *res;
 
 	parent = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	virtbase = devm_ioremap_resource(dev, res);
+	virtbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(virtbase))
 		return PTR_ERR(virtbase);
 

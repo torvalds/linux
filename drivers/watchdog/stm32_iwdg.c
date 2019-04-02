@@ -202,7 +202,6 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	struct watchdog_device *wdd;
 	const struct of_device_id *match;
 	struct stm32_iwdg *wdt;
-	struct resource *res;
 	int ret;
 
 	match = of_match_device(stm32_iwdg_of_match, &pdev->dev);
@@ -216,8 +215,7 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	wdt->has_pclk = match->data;
 
 	/* This is the timer base. */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->regs = devm_ioremap_resource(&pdev->dev, res);
+	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs)) {
 		dev_err(&pdev->dev, "Could not get resource\n");
 		return PTR_ERR(wdt->regs);
