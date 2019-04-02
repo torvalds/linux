@@ -51,5 +51,4 @@ void rtl8822be_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 void rtl8822be_bt_reg_init(struct ieee80211_hw *hw);
 void rtl8822be_suspend(struct ieee80211_hw *hw);
 void rtl8822be_resume(struct ieee80211_hw *hw);
-void rtl8822be_fw_clk_off_timer_callback(unsigned long data);
 #endif

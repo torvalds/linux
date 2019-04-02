@@ -219,21 +219,6 @@ static void _rtl8822be_set_fw_ps_rf_on(struct ieee80211_hw *hw)
 	_rtl8822be_set_fw_clock_on(hw, rpwm_val, true);
 }
 
-static void _rtl8822be_set_fw_ps_rf_off_low_power(struct ieee80211_hw *hw)
-{
-	u8 rpwm_val = 0;
-
-	rpwm_val |= FW_PS_STATE_RF_OFF_LOW_PWR;
-	_rtl8822be_set_fw_clock_off(hw, rpwm_val);
-}
-
-void rtl8822be_fw_clk_off_timer_callback(unsigned long data)
-{
-	struct ieee80211_hw *hw = (struct ieee80211_hw *)data;
-
-	_rtl8822be_set_fw_ps_rf_off_low_power(hw);
-}
-
 static void _rtl8822be_fwlps_leave(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
