@@ -214,6 +214,8 @@ void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
 {
 	struct nvmet_ctrl *ctrl;
 
+	lockdep_assert_held(&subsys->lock);
+
 	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry) {
 		nvmet_add_to_changed_ns_log(ctrl, cpu_to_le32(nsid));
 		if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_NS_ATTR))
