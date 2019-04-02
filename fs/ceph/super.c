@@ -155,6 +155,7 @@ enum {
 	Opt_acl,
 	Opt_quotadf,
 	Opt_copyfrom,
+	Opt_wsync,
 };
 
 enum ceph_recover_session_mode {
@@ -194,6 +195,7 @@ static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_string	("snapdirname",			Opt_snapdirname),
 	fsparam_string	("source",			Opt_source),
 	fsparam_u32	("wsize",			Opt_wsize),
+	fsparam_flag_no	("wsync",			Opt_wsync),
 	{}
 };
 
@@ -444,6 +446,12 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 			fc->sb_flags &= ~SB_POSIXACL;
 		}
 		break;
+	case Opt_wsync:
+		if (!result.negated)
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ASYNC_DIROPS;
+		else
+			fsopt->flags |= CEPH_MOUNT_OPT_ASYNC_DIROPS;
+		break;
 	default:
 		BUG();
 	}
@@ -566,6 +574,9 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 
 	if (fsopt->flags & CEPH_MOUNT_OPT_CLEANRECOVER)
 		seq_show_option(m, "recover_session", "clean");
+
+	if (fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS)
+		seq_puts(m, ",nowsync");
 
 	if (fsopt->wsize != CEPH_MAX_WRITE_SIZE)
 		seq_printf(m, ",wsize=%u", fsopt->wsize);
@@ -1115,6 +1126,15 @@ static void ceph_free_fc(struct fs_context *fc)
 
 static int ceph_reconfigure_fc(struct fs_context *fc)
 {
+	struct ceph_parse_opts_ctx *pctx = fc->fs_private;
+	struct ceph_mount_options *fsopt = pctx->opts;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(fc->root->d_sb);
+
+	if (fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS)
+		ceph_set_mount_opt(fsc, ASYNC_DIROPS);
+	else
+		ceph_clear_mount_opt(fsc, ASYNC_DIROPS);
+
 	sync_filesystem(fc->root->d_sb);
 	return 0;
 }

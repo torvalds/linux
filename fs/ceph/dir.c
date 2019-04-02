@@ -1036,6 +1036,78 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	return err;
 }
 
+static void ceph_async_unlink_cb(struct ceph_mds_client *mdsc,
+				 struct ceph_mds_request *req)
+{
+	int result = req->r_err ? req->r_err :
+			le32_to_cpu(req->r_reply_info.head->result);
+
+	if (result == -EJUKEBOX)
+		goto out;
+
+	/* If op failed, mark everyone involved for errors */
+	if (result) {
+		int pathlen;
+		u64 base;
+		char *path = ceph_mdsc_build_path(req->r_dentry, &pathlen,
+						  &base, 0);
+
+		/* mark error on parent + clear complete */
+		mapping_set_error(req->r_parent->i_mapping, result);
+		ceph_dir_clear_complete(req->r_parent);
+
+		/* drop the dentry -- we don't know its status */
+		if (!d_unhashed(req->r_dentry))
+			d_drop(req->r_dentry);
+
+		/* mark inode itself for an error (since metadata is bogus) */
+		mapping_set_error(req->r_old_inode->i_mapping, result);
+
+		pr_warn("ceph: async unlink failure path=(%llx)%s result=%d!\n",
+			base, IS_ERR(path) ? "<<bad>>" : path, result);
+		ceph_mdsc_free_path(path, pathlen);
+	}
+out:
+	iput(req->r_old_inode);
+	ceph_mdsc_release_dir_caps(req);
+}
+
+static int get_caps_for_async_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct ceph_inode_info *ci = ceph_inode(dir);
+	struct ceph_dentry_info *di;
+	int got = 0, want = CEPH_CAP_FILE_EXCL | CEPH_CAP_DIR_UNLINK;
+
+	spin_lock(&ci->i_ceph_lock);
+	if ((__ceph_caps_issued(ci, NULL) & want) == want) {
+		ceph_take_cap_refs(ci, want, false);
+		got = want;
+	}
+	spin_unlock(&ci->i_ceph_lock);
+
+	/* If we didn't get anything, return 0 */
+	if (!got)
+		return 0;
+
+        spin_lock(&dentry->d_lock);
+        di = ceph_dentry(dentry);
+	/*
+	 * - We are holding Fx, which implies Fs caps.
+	 * - Only support async unlink for primary linkage
+	 */
+	if (atomic_read(&ci->i_shared_gen) != di->lease_shared_gen ||
+	    !(di->flags & CEPH_DENTRY_PRIMARY_LINK))
+		want = 0;
+        spin_unlock(&dentry->d_lock);
+
+	/* Do we still want what we've got? */
+	if (want == got)
+		return got;
+
+	ceph_put_cap_refs(ci, got);
+	return 0;
+}
+
 /*
  * rmdir and unlink are differ only by the metadata op code
  */
@@ -1045,6 +1117,7 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct inode *inode = d_inode(dentry);
 	struct ceph_mds_request *req;
+	bool try_async = ceph_test_mount_opt(fsc, ASYNC_DIROPS);
 	int err = -EROFS;
 	int op;
 
@@ -1059,6 +1132,7 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 			CEPH_MDS_OP_RMDIR : CEPH_MDS_OP_UNLINK;
 	} else
 		goto out;
+retry:
 	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
@@ -1067,13 +1141,39 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	req->r_parent = dir;
-	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	req->r_inode_drop = ceph_drop_caps_for_unlink(inode);
-	err = ceph_mdsc_do_request(mdsc, dir, req);
-	if (!err && !req->r_reply_info.head->is_dentry)
-		d_delete(dentry);
+
+	if (try_async && op == CEPH_MDS_OP_UNLINK &&
+	    (req->r_dir_caps = get_caps_for_async_unlink(dir, dentry))) {
+		dout("async unlink on %lu/%.*s caps=%s", dir->i_ino,
+		     dentry->d_name.len, dentry->d_name.name,
+		     ceph_cap_string(req->r_dir_caps));
+		set_bit(CEPH_MDS_R_ASYNC, &req->r_req_flags);
+		req->r_callback = ceph_async_unlink_cb;
+		req->r_old_inode = d_inode(dentry);
+		ihold(req->r_old_inode);
+		err = ceph_mdsc_submit_request(mdsc, dir, req);
+		if (!err) {
+			/*
+			 * We have enough caps, so we assume that the unlink
+			 * will succeed. Fix up the target inode and dcache.
+			 */
+			drop_nlink(inode);
+			d_delete(dentry);
+		} else if (err == -EJUKEBOX) {
+			try_async = false;
+			ceph_mdsc_put_request(req);
+			goto retry;
+		}
+	} else {
+		set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
+		err = ceph_mdsc_do_request(mdsc, dir, req);
+		if (!err && !req->r_reply_info.head->is_dentry)
+			d_delete(dentry);
+	}
+
 	ceph_mdsc_put_request(req);
 out:
 	return err;
