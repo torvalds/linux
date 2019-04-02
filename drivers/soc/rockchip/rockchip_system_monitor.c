@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip-system-status.h>
 
@@ -63,6 +64,7 @@ static DEFINE_MUTEX(cpu_on_off_mutex);
 
 static LIST_HEAD(video_info_list);
 static struct system_monitor *system_monitor;
+static atomic_t monitor_in_suspend;
 
 static BLOCKING_NOTIFIER_HEAD(system_status_notifier_list);
 
@@ -476,6 +478,9 @@ out:
 
 static void rockchip_system_monitor_thermal_check(struct work_struct *work)
 {
+	if (atomic_read(&monitor_in_suspend))
+		return;
+
 	rockchip_system_monitor_thermal_update();
 }
 
@@ -504,6 +509,32 @@ static int rockchip_system_status_notifier(struct notifier_block *nb,
 
 	return NOTIFY_OK;
 }
+
+static int monitor_pm_notify(struct notifier_block *nb,
+			     unsigned long mode, void *_unused)
+{
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_RESTORE_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		atomic_set(&monitor_in_suspend, 1);
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+	case PM_POST_SUSPEND:
+		if (system_monitor->tz)
+			rockchip_system_monitor_thermal_update();
+		atomic_set(&monitor_in_suspend, 0);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block monitor_pm_nb = {
+	.notifier_call = monitor_pm_notify,
+};
 
 static int rockchip_system_monitor_probe(struct platform_device *pdev)
 {
@@ -536,6 +567,9 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 	system_monitor->status_nb.notifier_call =
 		rockchip_system_status_notifier;
 	rockchip_register_system_status_notifier(&system_monitor->status_nb);
+
+	if (register_pm_notifier(&monitor_pm_nb))
+		dev_err(dev, "failed to register suspend notifier\n");
 
 	return 0;
 }
