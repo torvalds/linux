@@ -344,20 +344,38 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		if (!value)
 			continue;
 
+		/*
+		 * This is not strictly necessary as the property should be
+		 * valid, but in case it isn't, don't propagate it futher.
+		 */
+		ret = h->validate(value, strlen(value));
+		if (ret)
+			continue;
+
 		num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 		ret = btrfs_block_rsv_add(root, trans->block_rsv,
 					  num_bytes, BTRFS_RESERVE_NO_FLUSH);
 		if (ret)
-			goto out;
-		ret = btrfs_set_prop(trans, inode, h->xattr_name, value,
+			return ret;
+
+		ret = btrfs_setxattr(trans, inode, h->xattr_name, value,
 				     strlen(value), 0);
+		if (!ret) {
+			ret = h->apply(inode, value, strlen(value));
+			if (ret)
+				btrfs_setxattr(trans, inode, h->xattr_name,
+					       NULL, 0, 0);
+			else
+				set_bit(BTRFS_INODE_HAS_PROPS,
+					&BTRFS_I(inode)->runtime_flags);
+		}
+
 		btrfs_block_rsv_release(fs_info, trans->block_rsv, num_bytes);
 		if (ret)
-			goto out;
+			return ret;
 	}
-	ret = 0;
-out:
-	return ret;
+
+	return 0;
 }
 
 int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
