@@ -12,28 +12,93 @@
 
 #include "bme680.h"
 
+struct bme680_spi_bus_context {
+	struct spi_device *spi;
+	u8 current_page;
+};
+
+/*
+ * In SPI mode there are only 7 address bits, a "page" register determines
+ * which part of the 8-bit range is active. This function looks at the address
+ * and writes the page selection bit if needed
+ */
+static int bme680_regmap_spi_select_page(
+	struct bme680_spi_bus_context *ctx, u8 reg)
+{
+	struct spi_device *spi = ctx->spi;
+	int ret;
+	u8 buf[2];
+	u8 page = (reg & 0x80) ? 0 : 1; /* Page "1" is low range */
+
+	if (page == ctx->current_page)
+		return 0;
+
+	/*
+	 * Data sheet claims we're only allowed to change bit 4, so we must do
+	 * a read-modify-write on each and every page select
+	 */
+	buf[0] = BME680_REG_STATUS;
+	ret = spi_write_then_read(spi, buf, 1, buf + 1, 1);
+	if (ret < 0) {
+		dev_err(&spi->dev, "failed to set page %u\n", page);
+		return ret;
+	}
+
+	buf[0] = BME680_REG_STATUS;
+	if (page)
+		buf[1] |= BME680_SPI_MEM_PAGE_BIT;
+	else
+		buf[1] &= ~BME680_SPI_MEM_PAGE_BIT;
+
+	ret = spi_write(spi, buf, 2);
+	if (ret < 0) {
+		dev_err(&spi->dev, "failed to set page %u\n", page);
+		return ret;
+	}
+
+	ctx->current_page = page;
+
+	return 0;
+}
+
 static int bme680_regmap_spi_write(void *context, const void *data,
 				   size_t count)
 {
-	struct spi_device *spi = context;
+	struct bme680_spi_bus_context *ctx = context;
+	struct spi_device *spi = ctx->spi;
+	int ret;
 	u8 buf[2];
 
 	memcpy(buf, data, 2);
+
+	ret = bme680_regmap_spi_select_page(ctx, buf[0]);
+	if (ret)
+		return ret;
+
 	/*
 	 * The SPI register address (= full register address without bit 7)
 	 * and the write command (bit7 = RW = '0')
 	 */
 	buf[0] &= ~0x80;
 
-	return spi_write_then_read(spi, buf, 2, NULL, 0);
+	return spi_write(spi, buf, 2);
 }
 
 static int bme680_regmap_spi_read(void *context, const void *reg,
 				  size_t reg_size, void *val, size_t val_size)
 {
-	struct spi_device *spi = context;
+	struct bme680_spi_bus_context *ctx = context;
+	struct spi_device *spi = ctx->spi;
+	int ret;
+	u8 addr = *(const u8 *)reg;
 
-	return spi_write_then_read(spi, reg, reg_size, val, val_size);
+	ret = bme680_regmap_spi_select_page(ctx, addr);
+	if (ret)
+		return ret;
+
+	addr |= 0x80; /* bit7 = RW = '1' */
+
+	return spi_write_then_read(spi, &addr, 1, val, val_size);
 }
 
 static struct regmap_bus bme680_regmap_bus = {
@@ -46,8 +111,8 @@ static struct regmap_bus bme680_regmap_bus = {
 static int bme680_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
+	struct bme680_spi_bus_context *bus_context;
 	struct regmap *regmap;
-	unsigned int val;
 	int ret;
 
 	spi->bits_per_word = 8;
@@ -57,43 +122,19 @@ static int bme680_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	bus_context = devm_kzalloc(&spi->dev, sizeof(*bus_context), GFP_KERNEL);
+	if (!bus_context)
+		return -ENOMEM;
+
+	bus_context->spi = spi;
+	bus_context->current_page = 0xff; /* Undefined on warm boot */
+
 	regmap = devm_regmap_init(&spi->dev, &bme680_regmap_bus,
-				  &spi->dev, &bme680_regmap_config);
+				  bus_context, &bme680_regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(&spi->dev, "Failed to register spi regmap %d\n",
 				(int)PTR_ERR(regmap));
 		return PTR_ERR(regmap);
-	}
-
-	ret = regmap_write(regmap, BME680_REG_SOFT_RESET_SPI,
-			   BME680_CMD_SOFTRESET);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to reset chip\n");
-		return ret;
-	}
-
-	/* after power-on reset, Page 0(0x80-0xFF) of spi_mem_page is active */
-	ret = regmap_read(regmap, BME680_REG_CHIP_SPI_ID, &val);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Error reading SPI chip ID\n");
-		return ret;
-	}
-
-	if (val != BME680_CHIP_ID_VAL) {
-		dev_err(&spi->dev, "Wrong chip ID, got %x expected %x\n",
-				val, BME680_CHIP_ID_VAL);
-		return -ENODEV;
-	}
-	/*
-	 * select Page 1 of spi_mem_page to enable access to
-	 * to registers from address 0x00 to 0x7F.
-	 */
-	ret = regmap_write_bits(regmap, BME680_REG_STATUS,
-				BME680_SPI_MEM_PAGE_BIT,
-				BME680_SPI_MEM_PAGE_1_VAL);
-	if (ret < 0) {
-		dev_err(&spi->dev, "failed to set page 1 of spi_mem_page\n");
-		return ret;
 	}
 
 	return bme680_core_probe(&spi->dev, regmap, id->name);
