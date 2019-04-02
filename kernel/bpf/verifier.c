@@ -5313,13 +5313,13 @@ static int check_cfg(struct bpf_verifier_env *env)
 	int ret = 0;
 	int i, t;
 
-	insn_state = kcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
+	insn_state = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
 	if (!insn_state)
 		return -ENOMEM;
 
-	insn_stack = kcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
+	insn_stack = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
 	if (!insn_stack) {
-		kfree(insn_state);
+		kvfree(insn_state);
 		return -ENOMEM;
 	}
 
@@ -5417,8 +5417,8 @@ check_state:
 	ret = 0; /* cfg looks good */
 
 err_free:
-	kfree(insn_state);
-	kfree(insn_stack);
+	kvfree(insn_state);
+	kvfree(insn_stack);
 	return ret;
 }
 
@@ -7898,7 +7898,7 @@ static void free_states(struct bpf_verifier_env *env)
 			}
 	}
 
-	kfree(env->explored_states);
+	kvfree(env->explored_states);
 }
 
 static void print_verification_stats(struct bpf_verifier_env *env)
@@ -7994,7 +7994,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 			goto skip_full_check;
 	}
 
-	env->explored_states = kcalloc(env->prog->len,
+	env->explored_states = kvcalloc(env->prog->len,
 				       sizeof(struct bpf_verifier_state_list *),
 				       GFP_USER);
 	ret = -ENOMEM;
