@@ -734,7 +734,9 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		   struct ieee80211_sta *sta)
 {
 	struct mt76_queue *q = dev->q_tx[qid].q;
-	struct urb *urb;
+	struct mt76_tx_info tx_info = {
+		.skb = skb,
+	};
 	u16 idx = q->tail;
 	int err;
 
@@ -742,20 +744,20 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		return -ENOSPC;
 
 	skb->prev = skb->next = NULL;
-	err = dev->drv->tx_prepare_skb(dev, NULL, skb, qid, wcid, sta, NULL);
+	err = dev->drv->tx_prepare_skb(dev, NULL, qid, wcid, sta, &tx_info);
 	if (err < 0)
 		return err;
 
-	urb = q->entry[idx].urb;
-	err = mt76u_tx_setup_buffers(dev, skb, urb);
+	err = mt76u_tx_setup_buffers(dev, tx_info.skb, q->entry[idx].urb);
 	if (err < 0)
 		return err;
 
 	mt76u_fill_bulk_urb(dev, USB_DIR_OUT, q2ep(q->hw_idx),
-			    urb, mt76u_complete_tx, &q->entry[idx]);
+			    q->entry[idx].urb, mt76u_complete_tx,
+			    &q->entry[idx]);
 
 	q->tail = (q->tail + 1) % q->ndesc;
-	q->entry[idx].skb = skb;
+	q->entry[idx].skb = tx_info.skb;
 	q->queued++;
 
 	return idx;

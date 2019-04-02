@@ -72,23 +72,23 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 }
 
 int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
-			    struct sk_buff *skb, enum mt76_txq_id qid,
-			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			    enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			    struct ieee80211_sta *sta,
 			    struct mt76_tx_info *tx_info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	int pid, len = skb->len, ep = q2ep(mdev->q_tx[qid].q->hw_idx);
+	int pid, len = tx_info->skb->len, ep = q2ep(mdev->q_tx[qid].q->hw_idx);
 	struct mt76x02_txwi *txwi;
 	enum mt76_qsel qsel;
 	u32 flags;
 
-	mt76_insert_hdr_pad(skb);
+	mt76_insert_hdr_pad(tx_info->skb);
 
-	txwi = (struct mt76x02_txwi *)(skb->data - sizeof(struct mt76x02_txwi));
-	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
-	skb_push(skb, sizeof(struct mt76x02_txwi));
+	txwi = (struct mt76x02_txwi *)(tx_info->skb->data - sizeof(*txwi));
+	mt76x02_mac_write_txwi(dev, txwi, tx_info->skb, wcid, sta, len);
+	skb_push(tx_info->skb, sizeof(*txwi));
 
-	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
+	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 	txwi->pktid = pid;
 
 	if (pid >= MT_PACKET_ID_FIRST || ep == MT_EP_OUT_HCCA)
@@ -101,7 +101,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	if (!wcid || wcid->hw_key_idx == 0xff || wcid->sw_iv)
 		flags |= MT_TXD_INFO_WIV;
 
-	return mt76x02u_skb_dma_info(skb, WLAN_PORT, flags);
+	return mt76x02u_skb_dma_info(tx_info->skb, WLAN_PORT, flags);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_prepare_skb);
 

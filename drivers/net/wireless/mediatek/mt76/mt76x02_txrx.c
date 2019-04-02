@@ -147,12 +147,12 @@ bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update)
 EXPORT_SYMBOL_GPL(mt76x02_tx_status_data);
 
 int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			   struct sk_buff *skb, enum mt76_txq_id qid,
-			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			   enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			   struct ieee80211_sta *sta,
 			   struct mt76_tx_info *tx_info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
 	struct mt76x02_txwi *txwi = txwi_ptr;
 	int hdrlen, len, pid, qsel = MT_QSEL_EDCA;
 
@@ -160,10 +160,10 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		mt76x02_mac_wcid_set_drop(dev, wcid->idx, false);
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	len = skb->len - (hdrlen & 2);
-	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
+	len = tx_info->skb->len - (hdrlen & 2);
+	mt76x02_mac_write_txwi(dev, txwi, tx_info->skb, wcid, sta, len);
 
-	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
+	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 	txwi->pktid = pid;
 
 	if (pid >= MT_PACKET_ID_FIRST)

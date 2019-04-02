@@ -912,13 +912,13 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 }
 
 int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			  struct sk_buff *skb, enum mt76_txq_id qid,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	struct mt7603_sta *msta = container_of(wcid, struct mt7603_sta, wcid);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	int pid;
 
@@ -934,7 +934,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			mt7603_wtbl_set_ps(dev, msta, false);
 	}
 
-	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
+	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 
 	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
 		spin_lock_bh(&dev->mt76.lock);
@@ -944,7 +944,8 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		spin_unlock_bh(&dev->mt76.lock);
 	}
 
-	mt7603_mac_write_txwi(dev, txwi_ptr, skb, qid, wcid, sta, pid, key);
+	mt7603_mac_write_txwi(dev, txwi_ptr, tx_info->skb, qid, wcid,
+			      sta, pid, key);
 
 	return 0;
 }
