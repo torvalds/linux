@@ -76,6 +76,12 @@ static const int b53_cpubiuctrl_regs[] = {
 	[CPU_WRITEBACK_CTRL_REG] = 0x22c,
 };
 
+static const int a72_cpubiuctrl_regs[] = {
+	[CPU_CREDIT_REG] = 0x18,
+	[CPU_MCP_FLOW_REG] = 0x1c,
+	[CPU_WRITEBACK_CTRL_REG] = 0x20,
+};
+
 #define NUM_CPU_BIUCTRL_REGS	3
 
 static int __init mcp_write_pairing_set(void)
@@ -183,6 +189,8 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 		cpubiuctrl_regs = b15_cpubiuctrl_regs;
 	else if (of_device_is_compatible(cpu_dn, "brcm,brahma-b53"))
 		cpubiuctrl_regs = b53_cpubiuctrl_regs;
+	else if (of_device_is_compatible(cpu_dn, "arm,cortex-a72"))
+		cpubiuctrl_regs = a72_cpubiuctrl_regs;
 	else {
 		pr_err("unsupported CPU\n");
 		ret = -EINVAL;
