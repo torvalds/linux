@@ -858,8 +858,6 @@ static int camss_probe(struct platform_device *pdev)
 	num_subdevs = camss_of_parse_ports(camss);
 	if (num_subdevs < 0)
 		return num_subdevs;
-	else if (num_subdevs == 0)
-		return -ENODEV;
 
 	ret = camss_init_subdevices(camss);
 	if (ret < 0)
