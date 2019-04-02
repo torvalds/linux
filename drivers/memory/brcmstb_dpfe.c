@@ -168,6 +168,7 @@ struct init_data {
 struct dpfe_api {
 	int version;
 	const char *fw_name;
+	const struct attribute_group **sysfs_attrs;
 	u32 command[DPFE_CMD_MAX][MSG_FIELD_MAX];
 };
 
@@ -186,10 +187,39 @@ static const char *error_text[] = {
 	"Incorrect checksum", "Malformed command", "Timed out",
 };
 
+/*
+ * Forward declaration of our sysfs attribute functions, so we can declare the
+ * attribute data structures early.
+ */
+static ssize_t show_info(struct device *, struct device_attribute *, char *);
+static ssize_t show_refresh(struct device *, struct device_attribute *, char *);
+static ssize_t store_refresh(struct device *, struct device_attribute *,
+			  const char *, size_t);
+static ssize_t show_vendor(struct device *, struct device_attribute *, char *);
+
+/*
+ * Declare our attributes early, so they can be referenced in the API data
+ * structure. We need to do this, because the attributes depend on the API
+ * version.
+ */
+static DEVICE_ATTR(dpfe_info, 0444, show_info, NULL);
+static DEVICE_ATTR(dpfe_refresh, 0644, show_refresh, store_refresh);
+static DEVICE_ATTR(dpfe_vendor, 0444, show_vendor, NULL);
+
+/* API v2 sysfs attributes */
+static struct attribute *dpfe_v2_attrs[] = {
+	&dev_attr_dpfe_info.attr,
+	&dev_attr_dpfe_refresh.attr,
+	&dev_attr_dpfe_vendor.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(dpfe_v2);
+
 /* API v2 firmware commands */
 static const struct dpfe_api dpfe_api_v2 = {
 	.version = 2,
 	.fw_name = "dpfe.bin",
+	.sysfs_attrs = dpfe_v2_groups,
 	.command = {
 		[DPFE_CMD_GET_INFO] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
@@ -687,17 +717,6 @@ static int brcmstb_dpfe_resume(struct platform_device *pdev)
 	return brcmstb_dpfe_download_firmware(pdev, &init);
 }
 
-static DEVICE_ATTR(dpfe_info, 0444, show_info, NULL);
-static DEVICE_ATTR(dpfe_refresh, 0644, show_refresh, store_refresh);
-static DEVICE_ATTR(dpfe_vendor, 0444, show_vendor, NULL);
-static struct attribute *dpfe_attrs[] = {
-	&dev_attr_dpfe_info.attr,
-	&dev_attr_dpfe_refresh.attr,
-	&dev_attr_dpfe_vendor.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(dpfe);
-
 static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -750,7 +769,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = sysfs_create_groups(&pdev->dev.kobj, dpfe_groups);
+	ret = sysfs_create_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
 	if (!ret)
 		dev_info(dev, "registered with API v%d.\n",
 			 priv->dpfe_api->version);
@@ -760,7 +779,9 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 static int brcmstb_dpfe_remove(struct platform_device *pdev)
 {
-	sysfs_remove_groups(&pdev->dev.kobj, dpfe_groups);
+	struct private_data *priv = dev_get_drvdata(&pdev->dev);
+
+	sysfs_remove_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
 
 	return 0;
 }
