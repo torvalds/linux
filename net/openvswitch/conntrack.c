@@ -1804,9 +1804,9 @@ static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 	if (ct_info->helper)
 		nf_conntrack_helper_put(ct_info->helper);
 	if (ct_info->ct) {
-		nf_ct_tmpl_free(ct_info->ct);
 		if (ct_info->timeout[0])
 			nf_ct_destroy_timeout(ct_info->ct);
+		nf_ct_tmpl_free(ct_info->ct);
 	}
 }
 
