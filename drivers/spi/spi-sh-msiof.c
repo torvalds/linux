@@ -18,6 +18,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -219,21 +220,14 @@ static int sh_msiof_modify_ctr_wait(struct sh_msiof_spi_priv *p,
 {
 	u32 mask = clr | set;
 	u32 data;
-	int k;
 
 	data = sh_msiof_read(p, CTR);
 	data &= ~clr;
 	data |= set;
 	sh_msiof_write(p, CTR, data);
 
-	for (k = 100; k > 0; k--) {
-		if ((sh_msiof_read(p, CTR) & mask) == set)
-			break;
-
-		udelay(10);
-	}
-
-	return k > 0 ? 0 : -ETIMEDOUT;
+	return readl_poll_timeout_atomic(p->mapbase + CTR, data,
+					 (data & mask) == set, 10, 1000);
 }
 
 static irqreturn_t sh_msiof_spi_irq(int irq, void *data)
