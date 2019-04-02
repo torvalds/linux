@@ -2626,14 +2626,27 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 	}
 }
 
-void ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
+int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc, struct inode *dir,
 			      struct ceph_mds_request *req)
 {
-	dout("submit_request on %p\n", req);
+	int err;
+
+	/* take CAP_PIN refs for r_inode, r_parent, r_old_dentry */
+	if (req->r_inode)
+		ceph_get_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
+	if (req->r_parent)
+		ceph_get_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
+	if (req->r_old_dentry_dir)
+		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
+				  CEPH_CAP_PIN);
+
+	dout("submit_request on %p for inode %p\n", req, dir);
 	mutex_lock(&mdsc->mutex);
-	__register_request(mdsc, req, NULL);
+	__register_request(mdsc, req, dir);
 	__do_request(mdsc, req);
+	err = req->r_err;
 	mutex_unlock(&mdsc->mutex);
+	return err;
 }
 
 /*
@@ -2648,27 +2661,12 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 
 	dout("do_request on %p\n", req);
 
-	/* take CAP_PIN refs for r_inode, r_parent, r_old_dentry */
-	if (req->r_inode)
-		ceph_get_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
-	if (req->r_parent)
-		ceph_get_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
-	if (req->r_old_dentry_dir)
-		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
-				  CEPH_CAP_PIN);
-
 	/* issue */
-	mutex_lock(&mdsc->mutex);
-	__register_request(mdsc, req, dir);
-	__do_request(mdsc, req);
-
-	if (req->r_err) {
-		err = req->r_err;
+	err = ceph_mdsc_submit_request(mdsc, dir, req);
+	if (err)
 		goto out;
-	}
 
 	/* wait */
-	mutex_unlock(&mdsc->mutex);
 	dout("do_request waiting\n");
 	if (!req->r_timeout && req->r_wait_for_completion) {
 		err = req->r_wait_for_completion(mdsc, req);
@@ -2709,8 +2707,8 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		err = req->r_err;
 	}
 
-out:
 	mutex_unlock(&mdsc->mutex);
+out:
 	dout("do_request %p done, result %d\n", req, err);
 	return err;
 }

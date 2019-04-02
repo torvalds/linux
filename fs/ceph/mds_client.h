@@ -465,8 +465,9 @@ extern int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 					   struct inode *dir);
 extern struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
-extern void ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
-				     struct ceph_mds_request *req);
+extern int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
+				    struct inode *dir,
+				    struct ceph_mds_request *req);
 extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 				struct inode *dir,
 				struct ceph_mds_request *req);
