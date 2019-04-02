@@ -156,6 +156,7 @@ enum pl2303_type {
 struct pl2303_type_data {
 	speed_t max_baud_rate;
 	unsigned long quirks;
+	unsigned int no_autoxonxoff:1;
 };
 
 struct pl2303_serial_private {
@@ -173,11 +174,12 @@ struct pl2303_private {
 
 static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_01] = {
-		.max_baud_rate =	1228800,
-		.quirks =		PL2303_QUIRK_LEGACY,
+		.max_baud_rate		= 1228800,
+		.quirks			= PL2303_QUIRK_LEGACY,
+		.no_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
-		.max_baud_rate =	12000000,
+		.max_baud_rate		= 12000000,
 	},
 };
 
@@ -552,6 +554,20 @@ static bool pl2303_termios_change(const struct ktermios *a, const struct ktermio
 	return tty_termios_hw_change(a, b) || ixon_change;
 }
 
+static bool pl2303_enable_xonxoff(struct tty_struct *tty, const struct pl2303_type_data *type)
+{
+	if (!I_IXON(tty) || I_IXANY(tty))
+		return false;
+
+	if (START_CHAR(tty) != 0x11 || STOP_CHAR(tty) != 0x13)
+		return false;
+
+	if (type->no_autoxonxoff)
+		return false;
+
+	return true;
+}
+
 static void pl2303_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -681,8 +697,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 			pl2303_vendor_write(serial, 0x0, 0x41);
 		else
 			pl2303_vendor_write(serial, 0x0, 0x61);
-	} else if (I_IXON(tty) && !I_IXANY(tty) && START_CHAR(tty) == 0x11 &&
-			STOP_CHAR(tty) == 0x13) {
+	} else if (pl2303_enable_xonxoff(tty, spriv->type)) {
 		pl2303_vendor_write(serial, 0x0, 0xc0);
 	} else {
 		pl2303_vendor_write(serial, 0x0, 0x0);
