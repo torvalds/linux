@@ -286,7 +286,7 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	}
 
 	/* Update to correct count(s) if racing with vblank irq */
-	amdgpu_crtc->last_flip_vblank = drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
+	drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
 
 	/* wake up userspace */
 	if (amdgpu_crtc->event) {
@@ -297,6 +297,14 @@ static void dm_pflip_high_irq(void *interrupt_params)
 
 	} else
 		WARN_ON(1);
+
+	/* Keep track of vblank of this flip for flip throttling. We use the
+	 * cooked hw counter, as that one incremented at start of this vblank
+	 * of pageflip completion, so last_flip_vblank is the forbidden count
+	 * for queueing new pageflips if vsync + VRR is enabled.
+	 */
+	amdgpu_crtc->last_flip_vblank = amdgpu_get_vblank_counter_kms(adev->ddev,
+							amdgpu_crtc->crtc_id);
 
 	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
@@ -4790,11 +4798,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	unsigned long flags;
 	struct amdgpu_bo *abo;
 	uint64_t tiling_flags;
-	uint32_t target, target_vblank;
-	uint64_t last_flip_vblank;
-	bool vrr_active = acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE;
+	uint32_t target_vblank, last_flip_vblank;
+	bool vrr_active = amdgpu_dm_vrr_active(acrtc_state);
 	bool pflip_present = false;
-
 	struct {
 		struct dc_surface_update surface_updates[MAX_SURFACES];
 		struct dc_plane_info plane_infos[MAX_SURFACES];
@@ -4936,7 +4942,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			 * clients using the GLX_OML_sync_control extension or
 			 * DRI3/Present extension with defined target_msc.
 			 */
-			last_flip_vblank = drm_crtc_vblank_count(pcrtc);
+			last_flip_vblank = amdgpu_get_vblank_counter_kms(dm->ddev, acrtc_attach->crtc_id);
 		}
 		else {
 			/* For variable refresh rate mode only:
@@ -4952,11 +4958,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
 
-		target = (uint32_t)last_flip_vblank + wait_for_vblank;
-
-		/* Prepare wait for target vblank early - before the fence-waits */
-		target_vblank = target - (uint32_t)drm_crtc_vblank_count(pcrtc) +
-				amdgpu_get_vblank_counter_kms(pcrtc->dev, acrtc_attach->crtc_id);
+		target_vblank = last_flip_vblank + wait_for_vblank;
 
 		/*
 		 * Wait until we're out of the vertical blank period before the one
