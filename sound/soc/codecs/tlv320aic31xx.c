@@ -1264,8 +1264,8 @@ static int aic31xx_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-int aic31xx_set_jack(struct snd_soc_component *component,
-		     struct snd_soc_jack *jack, void *data)
+static int aic31xx_set_jack(struct snd_soc_component *component,
+			    struct snd_soc_jack *jack, void *data)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
 
