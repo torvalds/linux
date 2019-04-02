@@ -1430,6 +1430,43 @@ exit:
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_name);
 
+/**
+ * thermal_zone_get_cdev_by_name() - search for a cooling device and returns
+ * its ref.
+ * @name: thermal cdev name to fetch the temperature
+ *
+ * When only one cdev is found with the passed name, returns a reference to it.
+ *
+ * Return: On success returns a reference to an unique thermal cooling device
+ * with matching name equals to @name, an ERR_PTR otherwise (-EINVAL for
+ * invalid paramenters, -ENODEV for not found and -EEXIST for multiple matches).
+ */
+struct thermal_cooling_device *thermal_zone_get_cdev_by_name(const char *name)
+{
+	struct thermal_cooling_device *pos = NULL, *ref = ERR_PTR(-EINVAL);
+	unsigned int found = 0;
+
+	if (!name)
+		return ref;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(pos, &thermal_cdev_list, node)
+		if (!strncasecmp(name, pos->type, THERMAL_NAME_LENGTH)) {
+			found++;
+			ref = pos;
+		}
+	mutex_unlock(&thermal_list_lock);
+
+	/* nothing has been found, thus an error code for it */
+	if (found == 0)
+		return ERR_PTR(-ENODEV);
+	if (found > 1)
+		return ERR_PTR(-EEXIST);
+	return ref;
+
+}
+EXPORT_SYMBOL_GPL(thermal_zone_get_cdev_by_name);
+
 #ifdef CONFIG_NET
 static const struct genl_multicast_group thermal_event_mcgrps[] = {
 	{ .name = THERMAL_GENL_MCAST_GROUP_NAME, },
