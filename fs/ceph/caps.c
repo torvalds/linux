@@ -4096,7 +4096,7 @@ void ceph_put_fmode(struct ceph_inode_info *ci, int fmode)
 }
 
 /*
- * For a soon-to-be unlinked file, drop the AUTH_RDCACHE caps. If it
+ * For a soon-to-be unlinked file, drop the LINK caps. If it
  * looks like the link count will hit 0, drop any other caps (other
  * than PIN) we don't specifically want (due to the file still being
  * open).
