@@ -2331,12 +2331,16 @@ static int em_lseg(struct x86_emulate_ctxt *ctxt)
 
 static int emulator_has_longmode(struct x86_emulate_ctxt *ctxt)
 {
+#ifdef CONFIG_X86_64
 	u32 eax, ebx, ecx, edx;
 
 	eax = 0x80000001;
 	ecx = 0;
 	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, false);
 	return edx & bit(X86_FEATURE_LM);
+#else
+	return false;
+#endif
 }
 
 static void rsm_set_desc_flags(struct desc_struct *desc, u32 flags)
@@ -2372,6 +2376,7 @@ static int rsm_load_seg_32(struct x86_emulate_ctxt *ctxt, const char *smstate,
 	return X86EMUL_CONTINUE;
 }
 
+#ifdef CONFIG_X86_64
 static int rsm_load_seg_64(struct x86_emulate_ctxt *ctxt, const char *smstate,
 			   int n)
 {
@@ -2391,6 +2396,7 @@ static int rsm_load_seg_64(struct x86_emulate_ctxt *ctxt, const char *smstate,
 	ctxt->ops->set_segment(ctxt, selector, &desc, base3, n);
 	return X86EMUL_CONTINUE;
 }
+#endif
 
 static int rsm_enter_protected_mode(struct x86_emulate_ctxt *ctxt,
 				    u64 cr0, u64 cr3, u64 cr4)
@@ -2492,6 +2498,7 @@ static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
 	return rsm_enter_protected_mode(ctxt, cr0, cr3, cr4);
 }
 
+#ifdef CONFIG_X86_64
 static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt,
 			     const char *smstate)
 {
@@ -2554,6 +2561,7 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt,
 
 	return X86EMUL_CONTINUE;
 }
+#endif
 
 static int em_rsm(struct x86_emulate_ctxt *ctxt)
 {
@@ -2621,9 +2629,11 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->ops->pre_leave_smm(ctxt, buf))
 		return X86EMUL_UNHANDLEABLE;
 
+#ifdef CONFIG_X86_64
 	if (emulator_has_longmode(ctxt))
 		ret = rsm_load_state_64(ctxt, buf);
 	else
+#endif
 		ret = rsm_load_state_32(ctxt, buf);
 
 	if (ret != X86EMUL_CONTINUE) {
