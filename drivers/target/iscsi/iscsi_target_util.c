@@ -67,6 +67,8 @@ int iscsit_add_r2t_to_list(
 
 	lockdep_assert_held(&cmd->r2t_lock);
 
+	WARN_ON_ONCE((s32)xfer_len < 0);
+
 	r2t = kmem_cache_zalloc(lio_r2t_cache, GFP_ATOMIC);
 	if (!r2t) {
 		pr_err("Unable to allocate memory for struct iscsi_r2t.\n");
