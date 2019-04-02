@@ -2126,8 +2126,8 @@ static void __init rcu_spawn_nocb_kthreads(void)
 }
 
 /* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */
-static int rcu_nocb_leader_stride = -1;
-module_param(rcu_nocb_leader_stride, int, 0444);
+static int rcu_nocb_gp_stride = -1;
+module_param(rcu_nocb_gp_stride, int, 0444);
 
 /*
  * Initialize GP-CB relationships for all no-CBs CPU.
@@ -2135,7 +2135,7 @@ module_param(rcu_nocb_leader_stride, int, 0444);
 static void __init rcu_organize_nocb_kthreads(void)
 {
 	int cpu;
-	int ls = rcu_nocb_leader_stride;
+	int ls = rcu_nocb_gp_stride;
 	int nl = 0;  /* Next GP kthread. */
 	struct rcu_data *rdp;
 	struct rcu_data *rdp_gp = NULL;  /* Suppress misguided gcc warn. */
@@ -2145,7 +2145,7 @@ static void __init rcu_organize_nocb_kthreads(void)
 		return;
 	if (ls == -1) {
 		ls = int_sqrt(nr_cpu_ids);
-		rcu_nocb_leader_stride = ls;
+		rcu_nocb_gp_stride = ls;
 	}
 
 	/*
