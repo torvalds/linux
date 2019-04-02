@@ -1285,27 +1285,27 @@ iscsit_get_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 			  bool dump_payload)
 {
 	int cmdsn_ret = 0, immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
+	int rc;
+
 	/*
 	 * Special case for Unsupported SAM WRITE Opcodes and ImmediateData=Yes.
 	 */
-	if (dump_payload)
-		goto after_immediate_data;
-	/*
-	 * Check for underflow case where both EDTL and immediate data payload
-	 * exceeds what is presented by CDB's TRANSFER LENGTH, and what has
-	 * already been set in target_cmd_size_check() as se_cmd->data_length.
-	 *
-	 * For this special case, fail the command and dump the immediate data
-	 * payload.
-	 */
-	if (cmd->first_burst_len > cmd->se_cmd.data_length) {
-		cmd->sense_reason = TCM_INVALID_CDB_FIELD;
-		goto after_immediate_data;
+	if (dump_payload) {
+		u32 length = min(cmd->se_cmd.data_length - cmd->write_data_done,
+				 cmd->first_burst_len);
+
+		pr_debug("Dumping min(%d - %d, %d) = %d bytes of immediate data\n",
+			 cmd->se_cmd.data_length, cmd->write_data_done,
+			 cmd->first_burst_len, length);
+		rc = iscsit_dump_data_payload(cmd->conn, length, 1);
+		pr_debug("Finished dumping immediate data\n");
+		if (rc < 0)
+			immed_ret = IMMEDIATE_DATA_CANNOT_RECOVER;
+	} else {
+		immed_ret = iscsit_handle_immediate_data(cmd, hdr,
+							 cmd->first_burst_len);
 	}
 
-	immed_ret = iscsit_handle_immediate_data(cmd, hdr,
-					cmd->first_burst_len);
-after_immediate_data:
 	if (immed_ret == IMMEDIATE_DATA_NORMAL_OPERATION) {
 		/*
 		 * A PDU/CmdSN carrying Immediate Data passed
@@ -1318,12 +1318,9 @@ after_immediate_data:
 			return -1;
 
 		if (cmd->sense_reason || cmdsn_ret == CMDSN_LOWER_THAN_EXP) {
-			int rc;
-
-			rc = iscsit_dump_data_payload(cmd->conn,
-						      cmd->first_burst_len, 1);
 			target_put_sess_cmd(&cmd->se_cmd);
-			return rc;
+
+			return 0;
 		} else if (cmd->unsolicited_data)
 			iscsit_set_unsolicited_dataout(cmd);
 
