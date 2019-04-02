@@ -4046,6 +4046,7 @@ struct qla_hw_data {
 	} fwdt[2];
 	struct qla2xxx_fw_dump *fw_dump;
 	uint32_t	fw_dump_len;
+	u32		fw_dump_alloc_len;
 	bool		fw_dumped;
 	bool		fw_dump_mpi;
 	unsigned long	fw_dump_cap_flags;

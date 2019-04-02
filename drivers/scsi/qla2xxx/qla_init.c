@@ -3141,12 +3141,12 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			    !IS_QLA28XX(ha))
 				mq_size = sizeof(struct qla2xxx_mq_chain);
 			/*
-			 * Allocate maximum buffer size for all queues.
+			 * Allocate maximum buffer size for all queues - Q0.
 			 * Resizing must be done at end-of-dump processing.
 			 */
-			mq_size += ha->max_req_queues *
+			mq_size += (ha->max_req_queues - 1) *
 			    (req->length * sizeof(request_t));
-			mq_size += ha->max_rsp_queues *
+			mq_size += (ha->max_rsp_queues - 1) *
 			    (rsp->length * sizeof(response_t));
 		}
 		if (ha->tgt.atio_ring)
@@ -3221,42 +3221,62 @@ try_eft:
 			ha->exlogin_size;
 
 allocate:
-	if (!ha->fw_dump_len || dump_size != ha->fw_dump_len) {
+	if (!ha->fw_dump_len || dump_size > ha->fw_dump_alloc_len) {
+
+		ql_dbg(ql_dbg_init, vha, 0x00c5,
+		    "%s dump_size %d fw_dump_len %d fw_dump_alloc_len %d\n",
+		    __func__, dump_size, ha->fw_dump_len,
+		    ha->fw_dump_alloc_len);
+
 		fw_dump = vmalloc(dump_size);
 		if (!fw_dump) {
 			ql_log(ql_log_warn, vha, 0x00c4,
 			    "Unable to allocate (%d KB) for firmware dump.\n",
 			    dump_size / 1024);
 		} else {
-			if (ha->fw_dump)
+			if (ha->fw_dumped) {
+				memcpy(fw_dump, ha->fw_dump, ha->fw_dump_len);
 				vfree(ha->fw_dump);
-			ha->fw_dump = fw_dump;
+				ha->fw_dump = fw_dump;
+				ha->fw_dump_alloc_len =  dump_size;
+				ql_dbg(ql_dbg_init, vha, 0x00c5,
+				    "Re-Allocated (%d KB) and save firmware dump.\n",
+				    dump_size / 1024);
+			} else {
+				if (ha->fw_dump)
+					vfree(ha->fw_dump);
+				ha->fw_dump = fw_dump;
 
-			ha->fw_dump_len = dump_size;
-			ql_dbg(ql_dbg_init, vha, 0x00c5,
-			    "Allocated (%d KB) for firmware dump.\n",
-			    dump_size / 1024);
+				ha->fw_dump_len = ha->fw_dump_alloc_len =
+				    dump_size;
+				ql_dbg(ql_dbg_init, vha, 0x00c5,
+				    "Allocated (%d KB) for firmware dump.\n",
+				    dump_size / 1024);
 
-			if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
-				return;
+				if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
+					return;
 
-			ha->fw_dump->signature[0] = 'Q';
-			ha->fw_dump->signature[1] = 'L';
-			ha->fw_dump->signature[2] = 'G';
-			ha->fw_dump->signature[3] = 'C';
-			ha->fw_dump->version = htonl(1);
+				ha->fw_dump->signature[0] = 'Q';
+				ha->fw_dump->signature[1] = 'L';
+				ha->fw_dump->signature[2] = 'G';
+				ha->fw_dump->signature[3] = 'C';
+				ha->fw_dump->version = htonl(1);
 
-			ha->fw_dump->fixed_size = htonl(fixed_size);
-			ha->fw_dump->mem_size = htonl(mem_size);
-			ha->fw_dump->req_q_size = htonl(req_q_size);
-			ha->fw_dump->rsp_q_size = htonl(rsp_q_size);
+				ha->fw_dump->fixed_size = htonl(fixed_size);
+				ha->fw_dump->mem_size = htonl(mem_size);
+				ha->fw_dump->req_q_size = htonl(req_q_size);
+				ha->fw_dump->rsp_q_size = htonl(rsp_q_size);
 
-			ha->fw_dump->eft_size = htonl(eft_size);
-			ha->fw_dump->eft_addr_l = htonl(LSD(ha->eft_dma));
-			ha->fw_dump->eft_addr_h = htonl(MSD(ha->eft_dma));
+				ha->fw_dump->eft_size = htonl(eft_size);
+				ha->fw_dump->eft_addr_l =
+				    htonl(LSD(ha->eft_dma));
+				ha->fw_dump->eft_addr_h =
+				    htonl(MSD(ha->eft_dma));
 
-			ha->fw_dump->header_size =
-				htonl(offsetof(struct qla2xxx_fw_dump, isp));
+				ha->fw_dump->header_size =
+					htonl(offsetof
+					    (struct qla2xxx_fw_dump, isp));
+			}
 		}
 	}
 }
