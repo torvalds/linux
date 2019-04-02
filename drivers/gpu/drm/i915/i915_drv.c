@@ -957,7 +957,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	if (i915_get_bridge_dev(dev_priv))
 		return -EIO;
 
-	ret = intel_uncore_init(&dev_priv->uncore);
+	ret = intel_uncore_init_mmio(&dev_priv->uncore);
 	if (ret < 0)
 		goto err_bridge;
 
@@ -966,7 +966,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 
 	intel_device_info_init_mmio(dev_priv);
 
-	intel_uncore_prune(&dev_priv->uncore);
+	intel_uncore_prune_mmio_domains(&dev_priv->uncore);
 
 	intel_uc_init_mmio(dev_priv);
 
@@ -980,7 +980,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 
 err_uncore:
 	intel_teardown_mchbar(dev_priv);
-	intel_uncore_fini(&dev_priv->uncore);
+	intel_uncore_fini_mmio(&dev_priv->uncore);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
@@ -994,7 +994,7 @@ err_bridge:
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
 	intel_teardown_mchbar(dev_priv);
-	intel_uncore_fini(&dev_priv->uncore);
+	intel_uncore_fini_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
 }
 

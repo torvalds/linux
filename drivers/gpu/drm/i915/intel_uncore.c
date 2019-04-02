@@ -1529,7 +1529,7 @@ void intel_uncore_init_early(struct intel_uncore *uncore)
 	spin_lock_init(&uncore->lock);
 }
 
-int intel_uncore_init(struct intel_uncore *uncore)
+int intel_uncore_init_mmio(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore_to_i915(uncore);
 	int ret;
@@ -1608,7 +1608,7 @@ int intel_uncore_init(struct intel_uncore *uncore)
  * the forcewake domains. Prune them, to make sure they only reference existing
  * engines.
  */
-void intel_uncore_prune(struct intel_uncore *uncore)
+void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore_to_i915(uncore);
 
@@ -1639,7 +1639,7 @@ void intel_uncore_prune(struct intel_uncore *uncore)
 	}
 }
 
-void intel_uncore_fini(struct intel_uncore *uncore)
+void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 {
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(uncore_to_i915(uncore));
