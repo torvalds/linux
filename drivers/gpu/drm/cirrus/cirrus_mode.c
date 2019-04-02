@@ -575,7 +575,6 @@ int cirrus_modeset_init(struct cirrus_device *cdev)
 	int ret;
 
 	drm_mode_config_init(cdev->dev);
-	cdev->mode_info.mode_config_initialized = true;
 
 	cdev->dev->mode_config.max_width = CIRRUS_MAX_FB_WIDTH;
 	cdev->dev->mode_config.max_height = CIRRUS_MAX_FB_HEIGHT;
@@ -613,10 +612,6 @@ int cirrus_modeset_init(struct cirrus_device *cdev)
 void cirrus_modeset_fini(struct cirrus_device *cdev)
 {
 	cirrus_fbdev_fini(cdev);
-
-	if (cdev->mode_info.mode_config_initialized) {
-		drm_helper_force_disable_all(cdev->dev);
-		drm_mode_config_cleanup(cdev->dev);
-		cdev->mode_info.mode_config_initialized = false;
-	}
+	drm_helper_force_disable_all(cdev->dev);
+	drm_mode_config_cleanup(cdev->dev);
 }
