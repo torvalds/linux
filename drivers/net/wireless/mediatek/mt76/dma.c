@@ -18,8 +18,6 @@
 #include "mt76.h"
 #include "dma.h"
 
-#define DMA_DUMMY_TXWI	((void *) ~0)
-
 static int
 mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 		     int idx, int n_desc, int bufsize,
@@ -67,7 +65,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 	int i, idx = -1;
 
 	if (txwi)
-		q->entry[q->head].txwi = DMA_DUMMY_TXWI;
+		q->entry[q->head].txwi = DMA_DUMMY_DATA;
 
 	for (i = 0; i < nbufs; i += 2, buf += 2) {
 		u32 buf0 = buf[0].addr, buf1 = 0;
@@ -126,8 +124,11 @@ mt76_dma_tx_cleanup_idx(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 				 DMA_TO_DEVICE);
 	}
 
-	if (e->txwi == DMA_DUMMY_TXWI)
+	if (e->txwi == DMA_DUMMY_DATA)
 		e->txwi = NULL;
+
+	if (e->skb == DMA_DUMMY_DATA)
+		e->skb = NULL;
 
 	*prev_e = *e;
 	memset(e, 0, sizeof(*e));
