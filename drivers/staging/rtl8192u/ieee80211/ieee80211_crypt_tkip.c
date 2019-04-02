@@ -331,7 +331,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		*pos++ = rc4key[2];
 	}
 
-	*pos++ = (tkey->key_idx << 6) | (1 << 5) /* Ext IV included */;
+	*pos++ = (tkey->key_idx << 6) | BIT(5) /* Ext IV included */;
 	*pos++ = tkey->tx_iv32 & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 8) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 16) & 0xff;
@@ -390,7 +390,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
-	if (!(keyidx & (1 << 5))) {
+	if (!(keyidx & BIT(5))) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: received packet without ExtIV"
 			       " flag from %pM\n", hdr->addr2);
