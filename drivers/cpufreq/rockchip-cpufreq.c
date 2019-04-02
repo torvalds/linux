@@ -261,56 +261,6 @@ int rockchip_cpufreq_check_rate_volt(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(rockchip_cpufreq_check_rate_volt);
 
-int rockchip_cpufreq_set_temp_limit_rate(struct device *dev, unsigned long rate)
-{
-	struct cluster_info *cluster;
-
-	cluster = rockchip_cluster_lookup_by_dev(dev);
-	if (!cluster)
-		return -EINVAL;
-	cluster->temp_limit_rate = rate / 1000;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rockchip_cpufreq_set_temp_limit_rate);
-
-int rockchip_cpufreq_update_policy(struct device *dev)
-{
-	struct cluster_info *cluster;
-	unsigned int cpu;
-
-	cluster = rockchip_cluster_lookup_by_dev(dev);
-	if (!cluster)
-		return -EINVAL;
-	cpu = cpumask_any(&cluster->cpus);
-	cpufreq_update_policy(cpu);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rockchip_cpufreq_update_policy);
-
-int rockchip_cpufreq_update_cur_volt(struct device *dev)
-{
-	struct cluster_info *cluster;
-	struct cpufreq_policy *policy;
-	unsigned int cpu;
-
-	cluster = rockchip_cluster_lookup_by_dev(dev);
-	if (!cluster)
-		return -EINVAL;
-	cpu = cpumask_any(&cluster->cpus);
-
-	policy = cpufreq_cpu_get(cpu);
-	if (!policy)
-		return -ENODEV;
-	down_write(&policy->rwsem);
-	dev_pm_opp_check_rate_volt(dev, false);
-	up_write(&policy->rwsem);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rockchip_cpufreq_update_cur_volt);
-
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
 	struct device_node *np;
@@ -452,11 +402,6 @@ static int rockchip_cpufreq_policy_notifier(struct notifier_block *nb,
 	if (cluster->scale_rate) {
 		if (cluster->scale_rate < policy->max)
 			policy->max = cluster->scale_rate;
-	}
-
-	if (cluster->temp_limit_rate) {
-		if (cluster->temp_limit_rate < policy->max)
-			policy->max = cluster->temp_limit_rate;
 	}
 
 	if (cluster->rebooting) {
