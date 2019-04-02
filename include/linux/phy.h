@@ -390,6 +390,7 @@ struct phy_device {
 	unsigned autoneg:1;
 	/* The most recently read link state */
 	unsigned link:1;
+	unsigned autoneg_complete:1;
 
 	/* Interrupts are enabled */
 	unsigned interrupts:1;

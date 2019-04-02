@@ -1723,10 +1723,8 @@ int genphy_update_link(struct phy_device *phydev)
 	if (status < 0)
 		return status;
 
-	if ((status & BMSR_LSTATUS) == 0)
-		phydev->link = 0;
-	else
-		phydev->link = 1;
+	phydev->link = status & BMSR_LSTATUS ? 1 : 0;
+	phydev->autoneg_complete = status & BMSR_ANEGCOMPLETE ? 1 : 0;
 
 	return 0;
 }
@@ -1757,7 +1755,7 @@ int genphy_read_status(struct phy_device *phydev)
 
 	linkmode_zero(phydev->lp_advertising);
 
-	if (phydev->autoneg == AUTONEG_ENABLE && phydev->link) {
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 				      phydev->supported) ||
 		    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
