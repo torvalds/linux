@@ -302,7 +302,7 @@ static int mt7621_spi_setup(struct spi_device *spi)
 
 	if ((spi->max_speed_hz == 0) ||
 		(spi->max_speed_hz > (rs->sys_freq / 2)))
-		spi->max_speed_hz = (rs->sys_freq / 2);
+		spi->max_speed_hz = rs->sys_freq / 2;
 
 	if (spi->max_speed_hz < (rs->sys_freq / 4097)) {
 		dev_err(&spi->dev, "setup: requested speed is too low %d Hz\n",
