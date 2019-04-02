@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * AD7190 AD7192 AD7195 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 #ifndef IIO_ADC_AD7192_H_
 #define IIO_ADC_AD7192_H_
